@@ -14,6 +14,10 @@ F.I.N.I.S. : Flatnux Is Now Infinitely Scalable
 
 
 ## Creating applications in framework mode
+./sections/home/section.en.html
+```html
+<h1>FINIS !!!</h1>
+```
 
 ```php
 <?php
@@ -22,7 +26,22 @@ $FINIS = new FINIS();
 $FINIS->runSection("home");
 ```
 
-## Creating python application in framework mode
+## Creating PHP applications in framework mode
+./sections/home/section.php
+```php
+global $_FN;
+echo "<h1>FINIS !!!</h1>";
+echo $_FN['siteurl'];
+```
+example.php
+```php
+<?php
+require_once "../finis/finis_framework.php";
+$FINIS = new FINIS();
+$FINIS->runSection("home");
+```
+
+## Creating Python application in framework mode
 
 
 ./sections/home/section.py
