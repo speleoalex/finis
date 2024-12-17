@@ -9,7 +9,7 @@ F.I.N.I.S.: Flatnux Is Now Infinitely Scalable
 3. Go to `http://[your website]/`
 4. Run the wizard
 
-## Creating applications in framework mode
+## Creating PHP applications in framework mode
 `./sections/home/section.en.html`
 ```html
 <h1>FINIS !!!</h1>
@@ -26,7 +26,7 @@ echo $_FN['siteurl'];
 `example.php`
 ```php
 <?php
-require_once "../finis/finis_framework.php";
+require_once "../finis/FINIS.php";
 $FINIS = new FINIS();
 $FINIS->runSection("home");
 ```
@@ -49,7 +49,42 @@ Site url: {FN['siteurl']}
 `./example.php`
 ```php
 <?php
-require_once "../finis/finis_framework.php";
+require_once "../finis/FINIS.php";
 $FINIS = new FINIS();
 $FINIS->runSection("home");
+```
+
+## Creating NodeJS application in framework mode
+
+`./sections/home/section.js`
+```js
+// Funzione per ottenere la data e l'ora correnti
+function getCurrentDateTime() {
+    const now = new Date();
+    const date = now.toLocaleDateString();
+    const time = now.toLocaleTimeString();
+    return {date, time};
+}
+
+// Funzione per creare il contenuto HTML
+function createHtmlContent() {
+    const {date, time} = getCurrentDateTime();
+    const message = "Benvenuto nel nostro sito!";
+    return `
+        <h1>${message}</h1>
+        <p>Data: ${date}</p>
+        <p>Ora: ${time}</p>
+    `;
+}
+console.log(createHtmlContent());
+
+try {
+    const FN = JSON.parse(process.argv[2]);
+    console.log("<pre>");
+    console.log("Site url:" + FN['siteurl']);
+    console.log("User:" + FN['user']);
+    console.log("</pre>");
+} catch (error) {
+    const FN = {};
+}
 ```
