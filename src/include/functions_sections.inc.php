@@ -218,6 +218,7 @@ function FN_GetAllSectionTypes()
     {
         return $_FN['sectionstypes'];
     }
+    
     $table = FN_XMDBForm("fn_sectionstypes");
     $all = $table->xmltable->GetRecords();
     if (!is_array($all))

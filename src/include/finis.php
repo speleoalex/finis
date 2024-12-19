@@ -50,7 +50,6 @@ error_reporting(E_ALL);
 ini_set("upload_max_filesize", "{$_FN['upload_max_filesize']}");
 
 $_FN['default_database_driver'] = $_FN['default_database_driver'];
-$xmetadb_default_driver = $_FN['default_database_driver'];
 $_FN['timestart'] = $mtime; // start time
 $_FN['consolemode'] = false;
 $_FN['src_finis'] = realpath(__DIR__ . "/..");
@@ -279,7 +278,6 @@ if ($_FN['theme'] == "" ||
 }
 
 
-
 $_FN['charset_page'] = $_FN['charset_lang'];
 //--------------------------  set theme ---- ----------------------------------<
 if (!$_FN['consolemode'])
@@ -300,6 +298,7 @@ if (!$_FN['consolemode'])
 
 
     FN_ManageLogin();
+
 //---------------vars in cookie------------------------------------------------>
     $_FN['fneditmode'] = FN_SaveGetPostParam("fneditmode");
     $_FN['lang'] = FN_SaveGetPostParam("lang");
@@ -336,12 +335,20 @@ if (!$_FN['consolemode'])
 
 
 //-------------------init var sections,blocks,sectiontypes -------------------->
-if (empty($_FN['blocks']))
-    $_FN['blocks'] = FN_GetAllBlocks();
-if (empty($_FN['sections']))
-    $_FN['sections'] = FN_GetAllSections();
+
+
+
+
+
 if (empty($_FN['sectionstypes']))
     $_FN['sectionstypes'] = FN_GetAllSectionTypes();
+
+if (empty($_FN['blocks']))
+    $_FN['blocks'] = FN_GetAllBlocks();
+
+if (empty($_FN['sections']))
+    $_FN['sections'] = FN_GetAllSections();
+
 $_FN['sectionvalues'] = FN_GetSectionValues($_FN['mod']);
 if (!empty($_FN['sectionvalues']['keywords']))
     $_FN['keywords'] = "{$_FN['sectionvalues']['keywords']}";
@@ -518,3 +525,7 @@ function FN_IncludeScript($file_to_Include)
     }
     $_FN['include'][] = $file_to_Include;
 }
+
+
+
+

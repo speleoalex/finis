@@ -41,22 +41,6 @@
         <showinprofile>1</showinprofile>
     </field>    
     <field>
-        <name>link</name>
-        <frm_i18n>link</frm_i18n>
-        <frm_default>http://</frm_default>
-        <showinprofile>1</showinprofile>
-    </field>
-    <field>
-        <name>avatarimage</name>
-        <type>varchar</type>
-        <frm_type>select</frm_type>
-        <frm_i18n>avatar</frm_i18n>
-        <foreignkey>fn_avatars</foreignkey>
-        <fk_link_field>filename</fk_link_field>
-        <fk_show_field>filename</fk_show_field>
-        <frm_show_image>filename</frm_show_image>
-    </field>
-    <field>
         <name>avatar</name>
         <type>image</type>
         <frm_i18n>upload custom avatar</frm_i18n>

@@ -24,6 +24,7 @@ function xmetadb_frm($databasename, $tablename, $path = "misc", $lang = "en", $l
         $id = "$databasename,$tablename,$path,$lang,$languages";
         if (!isset($tables[$id]))
         {
+
             $tables[$id] = new FieldFrm($databasename, $tablename, $path, $lang, $languages, $params);
         }
         return $tables[$id];
@@ -102,6 +103,7 @@ class FieldFrm extends stdClass
 
     function __construct($databasename, $tablename, $path = "misc", $lang = "en", $languages = "en,it", $params = false)
     {
+        $this->tableparams = $params;
         $this->fieldspath = array(__DIR__ . "/xmetadbfrm_fields/");
         $this->databasename = $databasename;
         if (is_array($tablename))
@@ -123,7 +125,7 @@ class FieldFrm extends stdClass
         $this->charset_storage = empty($params['charset_storage']) ? "UTF-8" : $params['charset_storage'];
         $t = explode(",", $this->languages);
         $this->langdefault = $t[0];
-        $this->tableparams = $params;
+
         $this->formvals = $this->LoadFieldsForm();
         $this->LoadFieldsClasses();
         $this->initmessages();
@@ -162,7 +164,7 @@ class FieldFrm extends stdClass
                     if (!empty($field['foreignkey']))
                     {
                         $field['frm_type'] = "select";
-                    }                    
+                    }
                 }
                 if (!empty($field['frm_type']))
                     $classname = 'xmetadbfrm_field_' . $field['frm_type'];
@@ -646,7 +648,7 @@ $frm_endgroupfooter
             {
                 $databasename_fk = $record['fk_databasename'];
             }
-            $listoptionstabella = XMETATable::xmetadbTable($databasename_fk, $record['foreignkey'], $path_fk);
+            $listoptionstabella = XMETATable::xmetadbTable($databasename_fk, $record['foreignkey'], $path_fk, $this->tableparams);
             if (!isset($listoptionstabella->driver))
             {
                 $listoptions = array();
@@ -894,6 +896,7 @@ $frm_endgroupfooter
             if (isset($fv['primarykey']) && $fv['primarykey'] == "1")
                 $primarykey = $k;
         }
+
         //if primarykey is missing I force viewing
         $strhiddenfield = "";
         if ($update == true)
@@ -1639,7 +1642,6 @@ $frm_endgroupfooter
         $_VAR = $_POST;
         $allerrors = "";
         $allerrors_sep = "";
-
         foreach ($this->formvals as $key => $value)
         {
             if (empty($value['name']))
@@ -1684,16 +1686,18 @@ $frm_endgroupfooter
                     $skip_required_check = true;
                 }
             }
-            if (!$skip_required_check && isset($value['frm_required']) && $value['frm_required'] == 1 && (!isset($newvalues[$key]) || trim($newvalues[$key]) == ""))
+            if (!$skip_required_check &&
+                    (!empty($value['frm_required']) || !empty($value['required'])) &&
+                    (empty($newvalues[$key]) || trim($newvalues[$key]) == "")
+            )
             {
-
-
                 if (!empty($value['frm_error']))
                     $err .= $errsep . XMETADB_i18n($value['frm_error']);
                 else
                     $err .= $errsep . $this->messages["_XMLDBREQUIRED"];
                 $errsep = " - ";
             }
+
             if (isset($value['frm_required_condition']) && $value['frm_required_condition'] != "")
             {
                 $cond_ = preg_replace("/(\\w+)( = )/", 'isset($newvalues[\'${1}\']) && \$newvalues[\'${1}\'] == ', trim(ltrim($value['frm_required_condition'])));
@@ -2040,10 +2044,6 @@ function xmetadbform_frm_field_text($name, $value, $rows, $cols, $tooltip)
     return $html;
 }
 
-
-
-
-
 /**
  *
  * @param string $charsetFrom
@@ -2206,5 +2206,3 @@ function XMETADB_i18n($string, $uppercasemode = "Aa")
     }
     return $string;
 }
-
-?>

@@ -310,7 +310,7 @@ function FN_FromTheme($file, $absolute = true)
             ltrim(str_replace("{$_FN['src_finis']}/", "", $applicationPath), '/');
 
     // Check if the file exists in the theme directory
-    if (file_exists($themePath))
+    if (file_exists(FN_PathSite($themePath)))
     {
         return $absolute ? $_FN['siteurl'] . $themePath : $themePath;
     }
@@ -799,7 +799,30 @@ function FN_InitTables($force = false)
 }
 
 /**
- *
+ * Set common parameters from global $_FN
+ * @param array $params
+ * @return array
+ */
+function FN_setCommonParams($params = array())
+{
+    global $_FN;
+    foreach ($_FN as $k => $v)
+    {
+        if (is_string($v) && !isset($params[$k]) && false !== strstr($k, "xmetadb"))
+        {
+            $params[$k] = $v;
+        }
+    }
+    // Set common parameters
+    $params['siteurl'] = $_FN['siteurl'];
+    $params['charset_page'] = $_FN['charset_page'];
+    $params['default_database_driver'] = $_FN['default_database_driver'];
+    $params['requiredtext'] = isset($_FN['requiredfieldsymbol']) ? $_FN['requiredfieldsymbol'] : "*";
+
+    return $params;
+}
+
+/**
  * @param string $tablename
  * @param array $params
  * @return object
@@ -807,20 +830,17 @@ function FN_InitTables($force = false)
 function FN_XMDBTable($tablename, $params = array())
 {
     global $_FN;
-    if (!isset($params['defaultdriver']))
-        $params['defaultdriver'] = $_FN['default_database_driver'];
+    $params = FN_setCommonParams($params);
+
     if (isset($_FN['tables'][$tablename]) && is_array($_FN['tables'][$tablename]))
     {
-        foreach ($_FN['tables'][$tablename] as $k => $v)
-        {
-            $params[$k] = $v;
-        }
+        $params = array_merge($params, $_FN['tables'][$tablename]);
     }
+
     return XMETATable::xmetadbTable("{$_FN['database']}", $tablename, $_FN['datadir'], $params);
 }
 
 /**
- *
  * @param string $tablename
  * @param array $params
  * @return object
@@ -828,29 +848,35 @@ function FN_XMDBTable($tablename, $params = array())
 function FN_XMDBForm($tablename, $params = array())
 {
     global $_FN;
-    $params['siteurl'] = $_FN['siteurl'];
-    $params['charset_page'] = $_FN['charset_page'];
-    $params['requiredtext'] = isset($_FN['requiredfieldsymbol']) ? $_FN['requiredfieldsymbol'] : "*";
-    $t = xmetadb_frm($_FN['database'], $tablename, $_FN['datadir'], $_FN['lang'], $_FN['languages'], $params);
-    if (file_exists("themes/{$_FN['theme']}/form.tp.html"))
+    $params = FN_setCommonParams($params);
+
+    if (isset($_FN['tables'][$tablename]) && is_array($_FN['tables'][$tablename]))
     {
-        //$t->SetlayoutTemplate(file_get_contents("themes/{$_FN['theme']}/form.tp.html"));
+        $params = array_merge($params, $_FN['tables'][$tablename]);
     }
-    return $t;
+
+    return xmetadb_frm($_FN['database'], $tablename, $_FN['datadir'], $_FN['lang'], $_FN['languages'], $params);
 }
 
 /**
- *
  * @global array $_FN
  * @param string $query
  * @return array 
  */
-function FN_XMETADBQuery($query)
+function FN_XMETADBQuery($query, $params = array())
 {
     global $_FN;
-    $DB = new XMETADatabase($_FN['database']);
+    $params = FN_setCommonParams($params);
+
+    if (isset($_FN['tables']) && is_array($_FN['tables']))
+    {
+        $params['tables'] = $_FN['tables'];
+    }
+
+    $DB = new XMETADatabase($_FN['database'], $_FN['datadir'], $params);
     return $DB->Query($query);
 }
+
 
 /**
  *
@@ -909,7 +935,6 @@ function FN_FormatDate($time, $showtime = true)
     {
         $time = strtotime($time);
     }
-    $_FN['jet_lag'] = intval($_FN['jet_lag']);
     $ret = $_FN['days'][date("w", $time)];
     $ret .= date(" d ", $time);
     $tmp = date(" m", $time);
@@ -1237,6 +1262,7 @@ function FN_GetFolderTitle($path, $lang = "")
  */
 function FN_LoadVarsFromTable(&$var, $tablename, $configvars = array(), $ignore = array())
 {
+    global $_FN;
     $Table = FN_XMDBTable($tablename);
     if (!is_array($ignore))
         $ignore = array();
@@ -1297,7 +1323,6 @@ function FN_LoadVarsFromTable(&$var, $tablename, $configvars = array(), $ignore 
  */
 function FN_LoadConfig($fileconfig = "", $sectionid = "", $usecache = true)
 {
-    //dprint_r($fileconfig);
     global $_FN;
     static $cache = array();
     if (!$usecache)
@@ -1786,7 +1811,7 @@ function FN_GetOpenAuthProviders()
             $recs[$k]['url'] = $_FN['siteurl'] . "?fnloginprovider=" . $rec['id'];
         }
     }
-    return $recs;
+    return $recs?$recs:array();
 }
 
 /**

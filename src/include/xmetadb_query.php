@@ -10,10 +10,14 @@ class XMETADatabase
 {
     private $path;
     private $databasename;    
-    function __construct($databasename, $path = "misc")
+    private $params;
+    
+    function __construct($databasename, $path = "misc",$params=array())
     {
         $this->databasename = $databasename;
         $this->path = $path;
+        $this->params = $params;
+        
     }
     function encode_preg($str)
     {
@@ -68,7 +72,7 @@ class XMETADatabase
                 {
                     $cid = $this->path . $databasename . $tablename;
                     if (!isset($tblcache[$cid]))
-                        $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $tablename, $this->path);
+                        $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $tablename, $this->path,$this->params);
                     //	$tblcache[$cid] = new XMETATable($databasename,$tablename,$this->path);
                     $tbl[$tablename] = &$tblcache[$cid];
                     if (!file_exists($this->path . "/$databasename/{$tablename}.php"))
@@ -144,7 +148,7 @@ class XMETADatabase
                 $qitems['tablename'] = trim(ltrim($t1[1]));
                 $cid = $this->path . $databasename . $qitems['tablename'];
                 if (!isset($tblcache[$cid]))
-                    $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $qitems['tablename'], $this->path);
+                    $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $qitems['tablename'], $this->path,$this->params);
                 $t = &$tblcache[$cid];
                 $ret = array();
                 foreach ($t->fields as $field)
@@ -177,7 +181,7 @@ class XMETADatabase
                 $qitems['values'] = trim(ltrim($t1[3]));
                 $cid = $this->path . $databasename . $qitems['tablename'];
                 if (!isset($tblcache[$cid]))
-                    $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $qitems['tablename'], $this->path);
+                    $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $qitems['tablename'], $this->path,$this->params);
                 $tbl = &$tblcache[$cid];
                 $fields = explode(",", $qitems['fields']);
                 $values = explode(",", $qitems['values']);
@@ -205,7 +209,7 @@ class XMETADatabase
                 $tablename = $qitems['tablename'];
                 if (!file_exists($this->path . "/$databasename/{$tablename}.php"))
                     return "xmetadb: unknow table {$tablename}";
-                $tbl[$tablename] = XMETATable::xmetadbTable($databasename, $tablename, $this->path);
+                $tbl[$tablename] = XMETATable::xmetadbTable($databasename, $tablename, $this->path,$this->params);
                 $qitems['fields'] = $tbl[$tablename]->primarykey;
 
                 if (preg_match("/WHERE (.+)/i", $rightselect, $t1))
@@ -274,7 +278,7 @@ class XMETADatabase
                 $rightselect = $t1[2];
                 if (!file_exists($this->path . "/$databasename/{$tablename}.php"))
                     return "xmetadb: unknow table {$tablename}";
-                $tbl[$tablename] = XMETATable::xmetadbTable($databasename, $tablename, $this->path);
+                $tbl[$tablename] = XMETATable::xmetadbTable($databasename, $tablename, $this->path,$this->params);
                 $qitems['fields'] = $tbl[$tablename]->primarykey;
                 if ($qitems['tablename'] == "")
                     return "xmetadb: syntax error";

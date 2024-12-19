@@ -7,9 +7,8 @@
  *
  */
 defined('_FNEXEC') or die('Restricted access');
-global $_FN, $xmetadb_default_driver;
+global $_FN;
 $old_default_database_driver = $_FN['default_database_driver'];
-$xmetadb_default_driver_old = $xmetadb_default_driver;
 $_FN['default_database_driver'] = "";
 $xmetadb_default_driver = "";
 //----- XML TABLE ------------------------------------------------------------->
@@ -422,4 +421,4 @@ function MoveUpdown($id, $params)
 }
 
 $_FN['default_database_driver'] = $old_default_database_driver;
-$xmetadb_default_driver = $xmetadb_default_driver_old;
+

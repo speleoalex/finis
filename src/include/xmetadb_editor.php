@@ -610,6 +610,7 @@ set_changed();
     $link_FiltersEncoded = json_encode($array_filters);
     $tplvars['textviewlist'] = $textviewlist;
     $is_error = false;
+    $newvalues_insert = array();
     while ($endloop == false)
     {
         switch ($opmod)
@@ -758,22 +759,24 @@ set_changed();
                             //insert record
                             if ($function_insert)
                             {
-                                $newvalues = $function_insert($newvalues);
+                                
+                                $newvalues_insert = $function_insert($newvalues);
                             }
                             else
                             {
-                                $newvalues = $table->InsertRecord($newvalues);
+                                
+                                $newvalues_insert = $table->InsertRecord($newvalues);
                             }
 
-                            if (is_array($newvalues) && count($newvalues) > 0)
+                            if (is_array($newvalues_insert) && count($newvalues_insert) > 0)
                             {
-                                $oldvalues = $newvalues;
-                                $pk = $newvalues[$table->xmltable->primarykey];
+                                $oldvalues = $newvalues_insert;
+                                $pk = $newvalues_insert[$table->xmltable->primarykey];
                                 if ($function_on_insert && function_exists($function_on_insert))
                                 {
 
                                     ob_start();
-                                    $function_on_insert($newvalues);
+                                    $function_on_insert($newvalues_insert);
                                     $tmp_html = ob_get_clean();
                                     $html .= $tmp_html;
                                     $tplvars['html_on_insert'] = $tmp_html;
@@ -796,6 +799,7 @@ set_changed();
                             {
                                 $html = XMLDBEDITOR_HtmlAlert($textinsertfail) . $html;
                                 $tplvars['text_on_insert_fail'] = $textinsertfail;
+                                
                                 $toupdate = false;
                                 // break;
                             }
@@ -816,6 +820,7 @@ set_changed();
                 $html .= "
 
 ";
+                
                 //---------- $httpqueryparams ins new-->
                 $httpqueryparams = array();
                 if (is_array($table->xmltable->primarykey))
@@ -836,13 +841,6 @@ set_changed();
                 $httpqueryparams["op_$postgetkey"] = $page;
                 $httpqueryparams["desc_"] = $reverse;
                 $httpqueryparams["order_$postgetkey"] = $order;
-                /*
-                  dprint_r($toupdate);
-                  dprint_r($newvalues);
-                  dprint_r($oldvalues);
-                  dprint_r($pk);
-                  dprint_r($httpqueryparams);
-                 */
                 $urlquery = (http_build_query($httpqueryparams));
 
                 //---------- $httpqueryparams ins new--<             
@@ -870,6 +868,7 @@ set_changed();
                 }
                 else
                 {
+                   
                     if (is_array($forcenewvalues))
                         foreach ($forcenewvalues as $fok => $fov)
                         {
@@ -878,6 +877,8 @@ set_changed();
                                 $newvalues[$fok] = $fov;
                             }
                         }
+                    
+                    
                     $htmlform = $table->HtmlShowInsertForm($params['isadmin'], $newvalues, $errors);
                     $html .= $htmlform;
                     $tplvars['htmlform'] = $htmlform;

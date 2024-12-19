@@ -218,9 +218,9 @@ function show_fntables($databasename, $path)
         if ($driver == "")
             $driver = $_FN['default_database_driver'];
         
-        if (!empty($_FN['tables'][$tabella]['defaultdriver']))
+        if (!empty($_FN['tables'][$tabella]['default_database_driver']))
         {
-             $driver = $_FN['tables'][$tabella]['defaultdriver'];
+             $driver = $_FN['tables'][$tabella]['default_database_driver'];
         }
         if (!empty($_FN['tables'][$tabella]['driver']))
         {

@@ -68,7 +68,7 @@ function FN_GetUserForm()
     if (!$form)
     {
         FN_LoginInitUrl();
-        $form = FN_XMDBForm("fn_users");
+        $form = FN_XMDBForm("fn_users" );
         $form->formvals['passwd']['frm_type'] = "cryptpasswd";
         $op = FN_GetParam("op", $_GET, "html");
         $pk___xdb_fn_users = FN_GetParam("pk___xdb_fn_users", $_GET, "html");
@@ -257,7 +257,7 @@ function FN_HtmlLoginForm($templateForm = false, $url = "")
         $templateForm = FN_TPL_ReplaceHtmlPart("register", "", $templateForm);
     }
     $tplvars['oauth_providers'] = FN_GetOpenAuthProviders();
-
+    
     $html = FN_TPL_ApplyTplString($templateForm, $tplvars, $tplbasepath);
 
     return $html;

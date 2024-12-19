@@ -15,7 +15,11 @@
             {text_on_insert_ok}
         </div>
         <!-- end if {text_on_insert_ok} -->
-
+        <!-- if {text_on_insert_fail} -->
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            {text_on_insert_fail}
+        </div>
+        <!-- end if {text_on_insert_fail} -->
         <form onsubmit="formChanged = false;" id="editform" method="post" action="{action}" enctype="multipart/form-data" onchange="set_changed();">
             <!-- contents -->
             <div class="form-group row">

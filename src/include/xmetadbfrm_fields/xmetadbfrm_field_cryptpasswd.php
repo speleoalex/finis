@@ -15,7 +15,7 @@ class xmetadbfrm_field_cryptpasswd
             $params['value'] = "";
         $html = "";
         $toltips = ($params['frm_help'] != "") ? "title=\"" . $params['frm_help'] . "\"" : "";
-        $html .= "<input $attributes  $toltips value=\"" . str_replace('"', '\\"', $params['value']) . "\" autocomplete=\"off\" name=\"" . $params['name'] . "\" type=\"password\" />\n";
+        $html .= "<input $attributes  $toltips value=\"" . str_replace('"', '\\"', $params['value']) . "\" autocomplete=\"new-password\" name=\"" . $params['name'] . "\" type=\"password\" />\n";
         return $html;
     }
 

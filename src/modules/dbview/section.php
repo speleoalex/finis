@@ -26,6 +26,8 @@ if (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/custom_functio
 $file = FN_GetParam("file", $_GET, "flat");
 //$config = FN_LoadConfig("modules/dbview/config.php");
 $config = FN_LoadConfig();
+
+
 $dbview = new FNDBVIEW($config);
 
 if ((false === strpos($file, "..")) && $file != "" && file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/$file"))
@@ -47,6 +49,7 @@ else
     $config['navigate_groups'] = explode(",", $config['navigate_groups']);
     $config['search_fields'] = explode(",", $config['search_fields']);
     $config['search_partfields'] = explode(",", $config['search_partfields']);
+    FN_PathSite("{$_FN['src_finis']}/modules/dbview/loading.gif");
 //-------------------------------config----------------------------------------<
     if ($id != "" && $op == "")
     {

@@ -101,6 +101,7 @@ class FNDBVIEW
         }
         //------------------- tabella commenti-------------------------
         //--------------- creazione tabelle -------------------------------<
+        
     }
 
     /**
@@ -3160,7 +3161,7 @@ set_changed();
         } elseif (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/default.png")) {
             $photo = "{$_FN['siteurl']}/sections/{$_FN['mod']}/default.png";
         } else
-            $photo = FN_PathSite("{$_FN['src_finis']}/modules/dbview/default.png",true);
+            $photo = FN_PathSite("{$_FN['src_finis']}/modules/dbview/default.png",false);
         if (empty($config['image_size']))
             $config['image_size'] = 200;
         $img = "{$_FN['siteurl']}index.php?fnapp=thumb&format=png&h={$config['image_size']}&w={$config['image_size_h']}&f=" . $photo;

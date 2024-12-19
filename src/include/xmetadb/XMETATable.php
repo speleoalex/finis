@@ -189,10 +189,8 @@ class XMETATable extends stdClass
         return (file_exists("$path/$databasename/$tablename") && file_exists("$path/$databasename/$tablename.php"));
     }
 
-    function __construct($databasename, $tablename, $path = "misc", $params = false)
+    function __construct($databasename, $tablename, $path = "misc", $params = array())
     {
-        global $xmetadb_default_driver;
-
         $this->connection = false;
         $this->driverclass = false;
         $this->driver = "";
@@ -207,9 +205,15 @@ class XMETATable extends stdClass
         $this->xmltagroot = $this->databasename;
         $this->pathdata = "";
         $this->params = array();
+        if (!empty($params['default_database_driver']))
+        {
+            $this->defaultdriver = $params['default_database_driver'];
+        }
         
-        if (!empty($params['defaultdriver']))
-            $this->defaultdriver = $params['defaultdriver'];
+        if (!empty($params['default_database_driver']))
+        {
+            $this->defaultdriver = $params['default_database_driver'];
+        }
         
         //if is xml
         if (is_array($tablename))
@@ -320,6 +324,9 @@ class XMETATable extends stdClass
         {
             $this->driver = "xmlphp";
         }
+        
+        
+        
         if (file_exists(__DIR__ . "/XMETATable_{$this->driver}.php"))
         {
             include_once(__DIR__ . "/XMETATable_{$this->driver}.php");

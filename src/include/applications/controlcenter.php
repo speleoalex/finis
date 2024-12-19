@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @package Finis_controlcenter
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -76,7 +77,7 @@ $vars['sitelanguages'] = $_FN['sitelanguages'];
 $vars['current_language'] = $vars['sitelanguages'][$_FN['lang']];
 $vars['is_multilanguage'] = count($vars['sitelanguages']) > 1 ? true : "";
 
-$vars['urlcontrolcenter'] = $_FN['siteurl'] . "/" . $_FN['controlcenter']."?fnapp=controlcenter";
+$vars['urlcontrolcenter'] = $_FN['siteurl'] . "/" . $_FN['controlcenter'] . "?fnapp=controlcenter";
 $vars['version'] = htmlspecialchars(file_get_contents("{$_FN['src_finis']}/VERSION"));
 $vars['cc_sectiongroup_title'] = FN_GetFolderTitle("{$_FN['src_finis']}/controlcenter/sections/" . dirname($opt) . "/"); //todo
 $vars['cc_section_title'] = FN_GetFolderTitle("{$_FN['src_finis']}/controlcenter/sections/$opt/"); //todo
@@ -143,7 +144,7 @@ if (file_exists("{$_FN['src_finis']}/controlcenter/sections/$opt/help/"))
 
 if (($modcont != "" && !FN_CanModifyFile($_FN['user'], $modcont)) || !FN_IsAdmin() && FNCC_GetCCSections() == false)
 {
-    
+
     //------------------------------------------------------login form----->
     $vars = array();
     $vars['formaction'] = $_FN['controlcenter'] . "?fnapp=controlcenter&fnlogin=login";
@@ -179,7 +180,7 @@ else
         {
             $str = file_get_contents(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/controlcenter.tp.html"));
             FN_TPL_CopyFilesFromSrcToApplication($str, "controlcenter/themes/{$_FN['controlcenter_theme']}/");
-            
+
             $str = str_replace("include ccsection", "include dashboard", $str);
             $html = FN_TPL_include_tpl(FN_TPL_ApplyTplString($str, $vars, "{$_FN['src_application']}/controlcenter/themes/{$_FN['controlcenter_theme']}/"), $vars);
         }
@@ -792,7 +793,7 @@ function FNCC_GetMenuItems()
             $menu[$sectiongroup]['opt'] = $sectiongroup;
             $menu[$sectiongroup]['id'] = $sectiongroup;
             $menu[$sectiongroup]['link'] = "{$_FN['controlcenter']}?fnapp=controlcenter&opt=$sectiongroup";
-            $menu[$sectiongroup]['title'] = FN_GetFolderTitle($_FN['src_finis'] ."/controlcenter/sections/$sectiongroup");
+            $menu[$sectiongroup]['title'] = FN_GetFolderTitle($_FN['src_finis'] . "/controlcenter/sections/$sectiongroup");
             $menu[$sectiongroup]['sections'] = $sectionsIngroup;
         }
     }
@@ -1207,6 +1208,7 @@ function FNCC_XmltableEditor($tablename, $params = array())
     $params['sitepath'] = isset($params['sitepath']) ? $params['sitepath'] : $_FN['sitepath'];
     XMETADB_editor($tablename, $params);
 }
+
 /**
  *
  * @param string $tablename
@@ -1216,6 +1218,13 @@ function FNCC_XmltableEditor($tablename, $params = array())
 function FNCC_XmlForm($tablename, $params = array())
 {
     global $_FN;
+    foreach ($_FN as $k => $v)
+    {
+        if (is_string($v) && !isset($params[$k]))
+        {
+            $params[$k] = $v;
+        }
+    }
     $params['siteurl'] = $_FN['siteurl'];
     $params['charset_page'] = $_FN['charset_page'];
     $params['requiredtext'] = isset($_FN['requiredfieldsymbol']) ? $_FN['requiredfieldsymbol'] : "*";
@@ -1293,8 +1302,8 @@ function FNCC_HtmlEditConfFile($file, $formaction = "", $exit = "", $allow = fal
     }
     if ($formaction == "")
     {
-        $opt = FN_GetParam("opt",$_GET);
-        $formaction = "?mod={$_FN['mod']}&amp;opt=$opt&amp;fnapp=controlcenter";        
+        $opt = FN_GetParam("opt", $_GET);
+        $formaction = "?mod={$_FN['mod']}&amp;opt=$opt&amp;fnapp=controlcenter";
     }
     return FN_HtmlEditConfFile($file, $formaction, $exit, $allow, $write_to_file, $mod, $block, $htmltemplate);
 }
@@ -1312,16 +1321,17 @@ function FNCC_FromTheme($file, $absolute = true)
     // Check if the file path is already absolute
     $isAbsolute = $file[0] === $_FN['slash'] || $file[0] === '/';
     $applicationPath = $isAbsolute ? $file : "{$_FN['src_finis']}/$file";
-    
+
     // Construct theme path
-    $themePath = "{$_FN['src_application']}/controlcenter/themes/{$_FN['theme']}/" . 
-                 ltrim(str_replace("{$_FN['src_finis']}/", "", $applicationPath), '/');
-    
+    $themePath = "{$_FN['src_application']}/controlcenter/themes/{$_FN['theme']}/" .
+            ltrim(str_replace("{$_FN['src_finis']}/", "", $applicationPath), '/');
+
     // Check if the file exists in the theme directory
-    if (file_exists($themePath)) {
+    if (file_exists($themePath))
+    {
         return $absolute ? $_FN['siteurl'] . $themePath : $themePath;
     }
-    
+
     // If not found in theme, use FN_PathSite
     return FN_PathSite($file, $absolute);
 }

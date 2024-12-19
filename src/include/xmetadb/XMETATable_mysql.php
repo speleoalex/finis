@@ -59,14 +59,6 @@ class XMETATable_mysql extends stdClass
     {
         static $dbcache;
         $this->params = $params;
-        $this->xmltable = &$xmltable;
-        $this->tablename = &$xmltable->tablename;
-        $this->databasename = &$xmltable->databasename;
-        $this->fields = &$xmltable->fields;
-        $this->path = &$xmltable->path;
-        $this->numrecords = &$xmltable->numrecords;
-        $this->primarykey = &$xmltable->primarykey;
-        $this->xmldescriptor = &$xmltable->xmldescriptor;
         $this->mysqlfields = array();
         $this->nullfields = array();
         if (is_array($params))
@@ -79,6 +71,15 @@ class XMETATable_mysql extends stdClass
                 }
             }
         }
+        $this->numrecords = &$xmltable->numrecords;
+        $this->primarykey = &$xmltable->primarykey;
+        $this->xmldescriptor = &$xmltable->xmldescriptor;
+        $this->xmltable = &$xmltable;
+        $this->tablename = &$xmltable->tablename;
+        $this->databasename = &$xmltable->databasename;
+        $this->fields = &$xmltable->fields;
+        $this->path = &$xmltable->path;
+
         $path = $this->path;
         $databasename = $this->databasename;
         $this->mysqldatabasename = $this->databasename;
@@ -99,17 +100,19 @@ class XMETATable_mysql extends stdClass
             $sqltable = $params['sqltable'];
         }
         if ($sqltable == "")
-        { $sqltable = $this->tablename;}
+        {
+            $sqltable = $this->tablename;
+        }
         $this->sqltable = $sqltable;
 
         // se sono impostate connessioni a livello globale passo le impostazioni della tabella
         global $_FN;
-        if ($_FN['xmetadb_mysqlhost'] != "" && $_FN['xmetadb_mysqldatabase'] != "" && $_FN['xmetadb_mysqlusername'] != "")
+        if (!empty($params['xmetadb_mysqlhost']) && !empty($params['xmetadb_mysqldatabase']) && !empty($params['xmetadb_mysqlusername']))
         {
-            $mysql['host'] = $_FN['xmetadb_mysqlhost'];
-            $mysql['user'] = $_FN['xmetadb_mysqlusername'];
-            $mysql['password'] = $_FN['xmetadb_mysqlpassword'];
-            $mysql['database'] = $_FN['xmetadb_mysqldatabase'];
+            $mysql['host'] = $params['xmetadb_mysqlhost'];
+            $mysql['user'] = $params['xmetadb_mysqlusername'];
+            $mysql['password'] = $params['xmetadb_mysqlpassword'];
+            $mysql['database'] = $params['xmetadb_mysqldatabase'];
         }
         if (is_array($params))
         {
@@ -202,7 +205,13 @@ class XMETATable_mysql extends stdClass
             {
                 foreach ($result as $tmp)
                 {
-                    if ($tmp['Tables_in_' . $mysql['database']] == $this->sqltable)
+                    if (empty('Tables_in_' . $this->mysqldatabasename))
+                    {
+                        dprint_r("Table:" . $this->tablename);
+                        dprint_r($this->mysqldatabasename);
+                        dprint_r($this->databasename);
+                    }
+                    if ($tmp['Tables_in_' . $this->mysqldatabasename] == $this->sqltable)
                         $exists = true;
                 }
             }
@@ -241,7 +250,7 @@ class XMETATable_mysql extends stdClass
                         case "datetime":
                             $query .= " DATETIME";
                             break;
-                        
+
                         case "int":
                             $query .= " INT";
                             $default = "NULL";
@@ -270,15 +279,16 @@ class XMETATable_mysql extends stdClass
                         if ($default == "''" && $field['type'] == "datetime" && empty($field["mysql_default"]))
                         {
                             //dprint_r($default);
-                        }                        
+                        }
                         else
                         {
                             if (!empty($field["mysql_default"]))
                             {
                                 $query .= " DEFAULT {$field["mysql_default"]} ";
                             }
-                            else{
-                                $query .= " DEFAULT $default ";                            
+                            else
+                            {
+                                $query .= " DEFAULT $default ";
                             }
                         }
                     }
@@ -288,7 +298,7 @@ class XMETATable_mysql extends stdClass
                     }
                     if ($default != "NULL")
                     {
-                        $query .= " NOT NULL ";                    
+                        $query .= " NOT NULL ";
                     }
                     if ($n-- > 1)
                         $query .= ",";
@@ -297,7 +307,7 @@ class XMETATable_mysql extends stdClass
 
                 if (!$this->dbQuery($query))
                 {
-                    dprint_r($query);
+                    error_log($query . " " . __FILE__);
                     die($this->conn->error);
                 }
 
@@ -383,7 +393,7 @@ class XMETATable_mysql extends stdClass
                     }
                     if (!$this->dbQuery($query))
                     {
-                        echo ($this->conn->error);
+                        error_log($this->conn->error);
                         return false;
                     }
                     $flag_tablechanged = true;
@@ -517,6 +527,7 @@ class XMETATable_mysql extends stdClass
     {
         try
         {
+            //dprint_r($query);
             if (!isset($this->conn) || !$this->conn)
             {
                 echo ($this->conn->error);
@@ -552,11 +563,11 @@ class XMETATable_mysql extends stdClass
             {
                 return $result;
             }
-            //dprint_r($res);
-            //die();
+
             return $res;
         } catch (Exception $e)
         {
+            error_log($e);
             return false;
         }
     }
