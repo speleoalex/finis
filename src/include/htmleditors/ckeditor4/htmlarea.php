@@ -122,6 +122,11 @@ var css = new Array();
     {
         $fullpage="true";
     }
+    $configToolbar = trim(ltrim($config['toolbar']));
+    if ($configToolbar[0]!='[')
+    {
+        $configToolbar ="'{$configToolbar}'";
+    }
     $html.="
 editor = CKEDITOR.replace( 'fckeditor$name',
     {
@@ -132,7 +137,7 @@ editor = CKEDITOR.replace( 'fckeditor$name',
         baseHref : '{$_FN['siteurl']}',
         width: '$w',
         height:'$h',
-        toolbar: '{$config['toolbar']}',
+        toolbar: {$configToolbar},
         filebrowserBrowseUrl : '{$_FN['siteurl']}index.php?fnapp=filemanager&mode=t&filemanager_editor={$htmleditor}&dir=$dirtoopen',
         filebrowserImageBrowseUrl : '{$_FN['siteurl']}index.php?fnapp=filemanager&mode=t&filemanager_editor={$htmleditor}&dir=$dirtoopen&mime=image',
         filebrowserUploadUrl : '{$_FN['siteurl']}index.php?fnapp=filemanager&mode=t&filemanager_editor={$htmleditor}&dir=$dirtoopen',

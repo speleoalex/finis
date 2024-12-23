@@ -88,3 +88,15 @@ try {
     const FN = {};
 }
 ```
+
+
+
+## Create a complete, configurable website, complete with backend, administration interface and user management
+ 
+```php
+<?php
+require_once "path_src_finis/FINIS.php";
+$FINIS = new FINIS(array("src_application"=> "."));
+
+$FINIS->finis();
+```

@@ -18,7 +18,7 @@
 },
 {
     name: 'insert',      
-    items : [ 'Image','Flash','Table','HorizontalRule','SpecialChar','html5video']
+    items : [ 'Image','Table','HorizontalRule','SpecialChar','html5video']
 },
 '/',
 {

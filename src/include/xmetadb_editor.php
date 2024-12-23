@@ -142,6 +142,7 @@ function XMETADB_editor_cleanLink($link)
  */
 function XMETADB_editor($tablename, $params = array())
 {
+    
     $dbname = isset($params['xmldatabase']) ? $params['xmldatabase'] : "xmldatabase";
     //--parametri ---->
     $bgcolorover = isset($params['bgcolorover']) ? $params['bgcolorover'] : "#ffff00";
@@ -190,7 +191,6 @@ function XMETADB_editor($tablename, $params = array())
         , "forcenewvalues" => ""       //force if not set
         , "forceupdatevalues" => ""    //force if not set
         , "edit_single_record" => ""    //edit single record
-        
         , "recordsperpage" => isset($params['recordsperpage']) ? $params['recordsperpage'] : ""
         , "requiredfieldsymbol" => "*"
         , "textrequiredfields" => XMETADB_i18n("required fields")
@@ -399,15 +399,15 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
 
     //--parametri ----<
     //-----variabili da get --------->
-    
-    
+
+
     $opmod = isset($_GET["op_$postgetkey"]) ? htmlspecialchars($_GET["op_$postgetkey"]) : "";
     $pk = isset($_GET["pk_$postgetkey"]) ? ($_GET["pk_$postgetkey"]) : "";
     if (!empty($params['edit_single_record']))
     {
         $opmod = "insnew";
         $pk = $params['edit_single_record'];
-    }    
+    }
     $page = isset($_GET["page_$postgetkey"]) ? htmlspecialchars($_GET["page_$postgetkey"]) : "";
     if ($page == "")
         $page = 1;
@@ -447,6 +447,16 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
             $paramsFRM['charset_storage'] = $params['charset_storage'];
         else
             $paramsFRM['charset_storage'] = "UTF-8";
+
+        foreach ($params as $k => $v)
+        {
+            if (is_string($v) && !isset($paramsFRM[$k]) && false !== strstr($k, "xmetadb"))
+            {
+                $paramsFRM[$k] = $v;
+            }
+        }
+
+            
         $table = new FieldFrm("$dbname", $tablename, $path, $lang, $languages, $paramsFRM);
     }
     $siteurl = "";
@@ -749,8 +759,8 @@ set_changed();
                             }
                             else
                             {
-                                
-                                $tplvars['text_on_update_fail'] =  $textupdatefail;                                
+
+                                $tplvars['text_on_update_fail'] = $textupdatefail;
                                 $html = XMLDBEDITOR_HtmlAlert($textupdatefail) . $html;
                             }
                         }
@@ -759,12 +769,12 @@ set_changed();
                             //insert record
                             if ($function_insert)
                             {
-                                
+
                                 $newvalues_insert = $function_insert($newvalues);
                             }
                             else
                             {
-                                
+
                                 $newvalues_insert = $table->InsertRecord($newvalues);
                             }
 
@@ -799,7 +809,7 @@ set_changed();
                             {
                                 $html = XMLDBEDITOR_HtmlAlert($textinsertfail) . $html;
                                 $tplvars['text_on_insert_fail'] = $textinsertfail;
-                                
+
                                 $toupdate = false;
                                 // break;
                             }
@@ -820,7 +830,7 @@ set_changed();
                 $html .= "
 
 ";
-                
+
                 //---------- $httpqueryparams ins new-->
                 $httpqueryparams = array();
                 if (is_array($table->xmltable->primarykey))
@@ -868,7 +878,7 @@ set_changed();
                 }
                 else
                 {
-                   
+
                     if (is_array($forcenewvalues))
                         foreach ($forcenewvalues as $fok => $fov)
                         {
@@ -877,8 +887,8 @@ set_changed();
                                 $newvalues[$fok] = $fov;
                             }
                         }
-                    
-                    
+
+
                     $htmlform = $table->HtmlShowInsertForm($params['isadmin'], $newvalues, $errors);
                     $html .= $htmlform;
                     $tplvars['htmlform'] = $htmlform;
@@ -1521,7 +1531,7 @@ set_changed();
                                 $httpqueryparams["order_$postgetkey"] = $order;
                                 $urlquery = (http_build_query($httpqueryparams));
                                 //---------- $httpqueryparams actions--<
-                                $idrow = is_array($httpqueryparams["pk_{$postgetkey}"]) ? implode(",",$httpqueryparams["pk_{$postgetkey}"]):$httpqueryparams["pk_{$postgetkey}"];
+                                $idrow = is_array($httpqueryparams["pk_{$postgetkey}"]) ? implode(",", $httpqueryparams["pk_{$postgetkey}"]) : $httpqueryparams["pk_{$postgetkey}"];
                                 $tmp_row['pk'] = $idrow;
                                 $tmp_row['idrow'] = $idk;
 
