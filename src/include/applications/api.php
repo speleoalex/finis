@@ -1,11 +1,15 @@
 <?php
-
 if (empty($_GET["debug"]))
     ob_start();
 global $_FN;
 $_FN['maintenance'] = 0;
 header("Cache-Control: no-cache");
 header("Pragma: no-cache");
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+
 if (defined("DEBUG_TIME") && DEBUG_TIME == true)
 {
     dprint_r("pre-section " . FN_GetPartialTimer());

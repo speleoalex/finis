@@ -3,7 +3,7 @@
 /**
  * Finis xmetadb functions
  *
- * @package Finis_functions
+ * 
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  * @copyright Copyright (c) 2012
  * @license http://opensource.org/licenses/gpl-license.php GNU General Public License
@@ -256,6 +256,11 @@ function FN_XMETATableEditor($tablename,$params=array())
     $params['textnew']=isset($params['textnew']) ? $params['textnew'] : "".FN_Translate("new")."";
     $params['textexitwithoutsaving']=isset($params['textexitwithoutsaving']) ? $params['textexitwithoutsaving'] : FN_Translate("want to exit without saving?");
     //messages---<
+    FN_PathSite("themes/{$_FN['theme']}/form.tp.html");
+    FN_PathSite("themes/{$_FN['theme']}/grid.tp.html");
+    FN_PathSite("themes/{$_FN['theme']}/view.tp.html");
+    FN_PathSite("themes/{$_FN['theme']}/img/");
+    
     if (empty($params['layout_template']) && file_exists("themes/{$_FN['theme']}/form.tp.html"))
     {
         $params['layout_template']=file_get_contents("themes/{$_FN['theme']}/form.tp.html");

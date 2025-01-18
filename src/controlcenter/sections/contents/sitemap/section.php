@@ -52,7 +52,7 @@ if ($modcont)
                 }
             }
             //---from default language ----------------------------------------<
-            FN_EditContent($modcont,"{$_FN['controlcenter']}?fnapp=controlcenter&opt=$opt&edit=$modcont","?opt=$opt",$editor_params);
+            FN_EditContent($modcont,"{$_FN['controlcenter']}?fnapp=controlcenter&opt=$opt&edit=$modcont","?fnapp=controlcenter&opt=$opt",$editor_params);
         }
         else
         {
@@ -77,7 +77,7 @@ if ($modcont)
             $editor_params['text_save']=FN_Translate("restore");
         }
         $_FN['editor_folder']=dirname($modcont);
-        FN_EditContent($modcont,"{$_FN['controlcenter']}?fnapp=controlcenter&opt=$opt&edit=$modcont","?opt=$opt",$editor_params);
+        FN_EditContent($modcont,"{$_FN['controlcenter']}?fnapp=controlcenter&opt=$opt&edit=$modcont","?fnapp=controlcenter&opt=$opt",$editor_params);
         $html="";
         //-----old versions---------------------------------------------------->
         {
@@ -134,7 +134,7 @@ else
     {
         $img="<img title=\"\" alt=\"\" src=\"".FN_FromTheme("images/add.png")."\" />";
         if (empty($_GET["pk___xdb_fn_sections"]))
-            echo "$img <a href=\"?mod={$_FN['mod']}&amp;opt=$opt&amp;newsection=1\">".FN_i18n("create a new page")."</a>";
+            echo "$img <a href=\"?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;newsection=1\">".FN_i18n("create a new page")."</a>";
         $htmlgrid="";
 //          dprint_r("qui 0a:" . FN_GetExecuteTimer());  //1 sec
         FNCC_UpdateSections();
@@ -408,7 +408,7 @@ var syncdiv = function (id)
 
 
 
-        $htmlgrid.="<form stile=\"clear:both;\" method=\"post\" op=\"?opt={$opt}\">";
+        $htmlgrid.="<form stile=\"clear:both;\" method=\"post\" op=\"?fnapp=controlcenter&opt={$opt}\">";
         $htmlgrid.="<div  id=\"sectionsdiv\" >";
         $tmp=false;
         $htmlgrid.="<table border=\"0\"><thead style=\"text-align:center;padding:5px;font-size:12px;line-height:20px;background-color:#f5f5f5;color:#000000;border:1px inset;width:auto;white-space: wrap\"><tr>";
@@ -538,13 +538,13 @@ var syncdiv = function (id)
                     echo "</div>";
                 }
 
-                echo "<br /><br /><button onclick=\"window.location='?opt=$opt'\">".FN_Translate("site map")." &gt;&gt;</button>";
+                echo "<br /><br /><button onclick=\"window.location='?fnapp=controlcenter&opt=$opt'\">".FN_Translate("site map")." &gt;&gt;</button>";
             }
             //-------config editor---------------------------------------------<
         }
         else
         {
-            echo "<div><a href=\"?opt=$opt\">".FN_Translate("site map")." &gt;&gt;</a></div>";
+            echo "<div><a href=\"?fnapp=controlcenter&opt=$opt\">".FN_Translate("site map")." &gt;&gt;</a></div>";
         }
 
         //------del section----------------------------------------------------->
@@ -930,5 +930,3 @@ function FNCC_OnUpdateSection($newvalues,$oldvalues)
         FN_OnSitemapChange();
     }
 }
-
-?>

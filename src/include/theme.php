@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @package Finis_functions
+ * 
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  * @copyright Copyright (c) 1011
  * @license http://opensource.org/licenses/gpl-license.php GNU General Public License

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * @package Finis_functions_mod_rewrite
+ * _mod_rewrite
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  * @copyright Copyright (c) 1011
  * @license http://opensource.org/licenses/gpl-license.php GNU General Public License

@@ -97,15 +97,15 @@ switch ($op)
         break;
     case "editdata":
         show_tools();
-        $params ['link'] = "op=editdata&amp;opt=$opt&amp;t=$tablename";
-        $params ['xmldatabase'] = "fndatabase";
+        $params ['link'] = "fnapp=controlcenter&op=editdata&amp;opt=$opt&amp;t=$tablename";
+        //$params ['xmldatabase'] = "fndatabase";
         FNCC_xmltableeditor($tablename, $params);
         break;
 
     case "editxml":
         show_tools();
         //echo "-&gt;<a href=\"?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;op=$op&amp;t=$tablename\">$tablename(xml)</a><hr />";
-        FN_EditContent("{$_FN['datadir']}/fndatabase/$tablename.php", "{$_FN['self']}?mod=" . $_FN['mod'] . "&opt=$opt&op=editxml&t=$tablename");
+        FN_EditContent("{$_FN['datadir']}/fndatabase/$tablename.php", "{$_FN['self']}?fnapp=controlcenter&mod=" . $_FN['mod'] . "&opt=$opt&op=editxml&t=$tablename");
         break;
     case "tomysql":
         $host = FN_GetParam("host", $_POST, "flat");
@@ -139,7 +139,7 @@ switch ($op)
             break;
         }
 
-        echo "<form method=\"post\" action=\"?fnapp=controlcenter&fnapp=controlcenter&op=$op&amp;opt=$opt&amp;mod={$_FN['mod']}&amp;t=$tablename\">";
+        echo "<form method=\"post\" action=\"?fnapp=controlcenter&op=$op&amp;opt=$opt&amp;mod={$_FN['mod']}&amp;t=$tablename\">";
         echo "<br />Mysql host:<br /><input name=\"host\" value=\"$host\"/>";
         echo "<br />Mysql port:<br /><input type=\"text\" name=\"password\" value=\"$port\"/>";
         echo "<br />Mysql database:<br /><input name=\"dbname\" value=\"$dbname\"/>";

@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @package Finis
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -155,7 +156,7 @@ function FN_HtmlAdminOptions()
                                 "</td><td><button onclick=\"window.location='" .
                                 FN_RewriteLink("index.php?mod={$_FN['mod']}&opt=sections/{$_FN['mod']}/section.{$l}.html", "&") . "'\" >" .
                                 FN_Translate("create a text content in") . " " . FN_GetFolderTitle(FN_FinisPathToApplicationPath("{$_FN['src_finis']}/languages/$l")) . "" .
-                                "</button></td></tr>";
+                                "</button>";
                     }
                     else
                     {
@@ -168,12 +169,12 @@ function FN_HtmlAdminOptions()
 <form style=\"display:inline\" method=\"post\" action=\"" . FN_RewriteLink("index.php?mod={$_FN['mod']}") . "\">
 <input type=\"hidden\" name=\"filetodel\" value=\"{$_FN['src_application']}/sections/{$_FN['mod']}/section.{$l}.html\" />    
 <button type=\"submit\" onclick=\"if(!confirm ('" . FN_Translate('are you sure you want to delete this content?') . "')){return false;}\" >" . FN_Translate("delete") . "</button></form>";
-                        $html .= "    <button onclick=\"window.location='" .
-                                FN_RewriteLink("index.php?mod={$_FN['mod']}&opt=sections/{$_FN['mod']}/section.{$l}.html&mode=versions", "&") . "'\" >" .
-                                FN_Translate("old versions") .
-                                "</button>";
-                        $html .= "</td></tr>";
                     }
+                    $html .= "    <button onclick=\"window.location='" .
+                            FN_RewriteLink("index.php?mod={$_FN['mod']}&opt=sections/{$_FN['mod']}/section.{$l}.html&mode=versions", "&") . "'\" >" .
+                            FN_Translate("old versions") .
+                            "</button>";
+                    $html .= "</td></tr>";
                 }
             }
             //----------------section.xx.html----------------------------------<
@@ -236,7 +237,7 @@ function FN_HtmlAdminOptions()
         if (FN_IsAdmin())
         {
             //new section------------------------------------------------------>
-            if (FN_IsWritable("sections"))
+            if (FN_IsWritable("{$_FN['src_application']}/sections"))
             {
                 $forminsert = FN_XMDBForm("fn_sections");
                 $newvalues = isset($_POST['newsection']) ? $forminsert->GetByPost() : array();
@@ -535,8 +536,11 @@ function FN_HtmlOnlineAdmin($modcont)
             $html .= "<td><button onclick=\"window.location='{$_FN['siteurl']}index.php?mod={$_FN['mod']}&opt=$modcont&restore=$file'\">" . FN_Translate("restore") . "</button></td>";
             $html .= "</tr>";
         }
-
-        $html .= "<tr><td>" . FN_FormatDate(filemtime($modcont)) . "</td><td>$bk_user</td><td>-</td><td>-</td><td><button onclick=\"window.location='{$_FN['siteurl']}index.php?mod={$_FN['mod']}&opt=$modcont'\">" . FN_Translate("edit") . "</button>" . "</td></tr>";
+        if (file_exists($modcont))
+        {
+            $html .= "<tr><td>" . FN_FormatDate(filemtime($modcont)) . "</td><td>$bk_user</td><td>-</td><td>-</td><td><button onclick=\"window.location='{$_FN['siteurl']}index.php?mod={$_FN['mod']}&opt=$modcont'\">" . FN_Translate("edit") . "</button>" . "</td></tr>";
+            
+        }
         $html .= "</table>";
         $linkcancel = FN_RewriteLink("index.php?mod={$_FN['mod']}");
         $html .= "<br /><button onclick=\"window.location='$linkcancel';\">" . FN_Translate("cancel") . "</button>";

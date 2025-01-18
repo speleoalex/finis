@@ -91,32 +91,15 @@ class XMETATable extends stdClass
         return date("Y-m-d H:i:s", time());
     }
 
-    static function xmetadbTable($databasename, $tablename, $path = "misc", $params = false)
+    static function xmetadbTable($databasename, $tablename, $path = "misc", $params = array())
     {
         static $tables = array();
         if (is_array($tablename))
         {
             return new XMETATable($databasename, $tablename, $path, $params);
         }
-        $assoc = $params;
-        $inglue = ",";
-        if (is_array($assoc) && count($assoc) > 0)
-        {
-            //ksort($assoc,$assoc);
-            foreach ($assoc as $tk => $tv)
-            {
-                if (is_array($tv))
-                {
-                    $tv = implode("-", $tv);
-                }
-                $return[] = $tk . $inglue . $tv;
-            }
-            $assoc = implode($inglue, $return);
-        }
-        if (is_array($assoc))
-        {
-            $assoc = implode($inglue, $assoc);
-        }
+        
+        $assoc = is_array($params) ? md5(serialize(ksort($params))):"";        
         $id = "$databasename," . $tablename . ",$path;" . $assoc;
         if (!isset($tables[$id]))
         {

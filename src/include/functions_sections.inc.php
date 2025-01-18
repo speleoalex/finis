@@ -121,7 +121,6 @@ function FN_GetSections($section = "", $recursive = false, $onlyreadable = true,
     return $sect_db;
 }
 
-
 /**
  *
  * @param string $section
@@ -218,7 +217,7 @@ function FN_GetAllSectionTypes()
     {
         return $_FN['sectionstypes'];
     }
-    
+
     $table = FN_XMDBForm("fn_sectionstypes");
     $all = $table->xmltable->GetRecords();
     if (!is_array($all))
@@ -415,11 +414,10 @@ function FN_HtmlSection($section = "")
 {
     global $_FN;
     static $sectioncontents = false;
-    if ($sectioncontents!==false)
+    if ($sectioncontents !== false)
     {
         return $sectioncontents;
-    }    
-    
+    }
 
     // Use the section parameter or default to the module from the global configuration
     $section = $section ?: $_FN['mod'];
@@ -442,13 +440,19 @@ function FN_HtmlSection($section = "")
 
     // Get the modcont parameter from the GET request
     $modcont = FN_GetParam("opt", $_GET, "flat");
-    if ($modcont && !file_exists($modcont)&& !file_exists("{$_FN['src_finis']}/$modcont"))
+    if ($modcont &&
+            !file_exists($modcont) &&
+            !file_exists("{$_FN['src_finis']}/$modcont") &&
+            !file_exists(dirname("{$_FN['src_application']}/$modcont"))
+            )
     {
         $modcont = false;
     }
+   
     // Generate HTML based on the modcont parameter
     $html = $modcont ? FN_HtmlOnlineAdmin($modcont) : FN_RunSection($section, true) . $htmlconfig;
     $sectioncontents = $html;
+
     return $html;
 }
 
@@ -507,6 +511,7 @@ function FN_RunSection($section, $return_html)
 {
     global $_FN;
     $sectionvalues = FN_GetSectionValuesAndLoadConfig($section);
+
     // Determine the folder path for the section or module
     if (!empty($sectionvalues['type']) && file_exists("{$_FN['src_finis']}/modules/{$sectionvalues['type']}"))
     {
@@ -517,15 +522,18 @@ function FN_RunSection($section, $return_html)
         $folder = "{$_FN['src_application']}/sections/{$sectionvalues['id']}";
     }
 
+
     $str = "";
     // Check if the section.php file exists in the folder
     if (file_exists("$folder/section.php"))
     {
         if ($return_html)
         {
+
             // Start output buffering
             ob_start();
             include_once "$folder/section.php";
+
             // Get the contents of the buffer
             $str = ob_get_clean();
             return $str;
@@ -548,9 +556,6 @@ function FN_RunSection($section, $return_html)
     return "";
 }
 
-
-
-
 /**
  *
  * @param string $section
@@ -563,7 +568,6 @@ function FN_SectionExists($section)
         return true;
     return false;
 }
-
 
 /**
  *
@@ -589,7 +593,6 @@ function FN_SectionIsInsideThis($section_to_check_id, $section = "")
     }
     return false;
 }
-
 
 /**
  *
@@ -627,7 +630,6 @@ function FN_GetSectionsTree($section = "")
     return $tree;
 }
 
-
 /**
  *
  * @param string $section
@@ -641,7 +643,6 @@ function FN_SectionIsHidden($section = "")
         return true;
     return false;
 }
-
 
 /**
  *
@@ -668,7 +669,6 @@ function FN_SectionIsEnabled($section = "")
     }
     return true;
 }
-
 
 /**
  *
@@ -716,7 +716,6 @@ function FN_MakeSectionId($sectiontitle)
     }
     return $sectionname;
 }
-
 
 /**
  *
@@ -772,7 +771,6 @@ function FN_BlockIsEnabled($block)
     return true;
 }
 
-
 /**
  * get html block
  * 
@@ -801,8 +799,6 @@ function FN_HtmlBlock($block)
     $_FN['block'] = "";
     return $htmls[$block];
 }
-
-
 
 /**
  * 
@@ -840,8 +836,6 @@ function FN_UpdateDefaultXML($newvalues)
     }
 }
 
-
-
 /**
  *
  * @global array $_FN 
@@ -869,7 +863,6 @@ function FN_FixSections()
         $_FN['sections'] = FN_GetAllSections();
     }
 }
-
 
 /**
  * Init Sections
@@ -930,8 +923,6 @@ function FN_InitBlocks()
     return $blocks;
 }
 
-
-
 /**
  * 
  */
@@ -954,7 +945,6 @@ function FN_OnSitemapChange()
         }
     }
 }
-
 
 /**
  * 
@@ -1023,8 +1013,8 @@ function FN_GetBlocks($where, $onlyreadable = true, $onlyenabled = true)
             $blockvalues['title'] = "";
         $ret_blocks[$blockvalues['id']] = $blockvalues;
     }
-   // dprint_r($ret_blocks);
-    
+    // dprint_r($ret_blocks);
+
     return $ret_blocks;
 }
 

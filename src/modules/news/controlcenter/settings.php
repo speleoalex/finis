@@ -7,10 +7,10 @@
  *
  */
 global $_FN;
-include_once("modules/news/functions.php");
-$config = FN_LoadConfig("modules/news/config.php");
+include_once("{$_FN['src_finis']}/modules/news/functions.php");
+$config = FN_LoadConfig("{$_FN['src_finis']}/modules/news/config.php");
 $NEWS = new FNNEWS($config);
-FN_LoadMessagesFolder("modules/news");
+FN_LoadMessagesFolder("{$_FN['src_finis']}/modules/news");
 $_FN["news_tablename"] = $config['tablename'];
 $_FN["news_enablecomments"] = $config['enablecomments'];
 $_FN["news_guestnews"] = $config['guestnews'];
@@ -35,4 +35,3 @@ else
 {
 	$NEWS->NewsAdmin();
 }
-?>

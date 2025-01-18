@@ -58,6 +58,9 @@ class XMETATable_mysql extends stdClass
     function __construct(&$xmltable, $params = false)
     {
         static $dbcache;
+        
+        
+        
         $this->params = $params;
         $this->mysqlfields = array();
         $this->nullfields = array();
@@ -107,19 +110,19 @@ class XMETATable_mysql extends stdClass
 
         // se sono impostate connessioni a livello globale passo le impostazioni della tabella
         global $_FN;
-        if (!empty($params['xmetadb_mysqlhost']) && !empty($params['xmetadb_mysqldatabase']) && !empty($params['xmetadb_mysqlusername']))
-        {
-            $mysql['host'] = $params['xmetadb_mysqlhost'];
-            $mysql['user'] = $params['xmetadb_mysqlusername'];
-            $mysql['password'] = $params['xmetadb_mysqlpassword'];
-            $mysql['database'] = $params['xmetadb_mysqldatabase'];
-        }
         if (is_array($params))
         {
             foreach ($params as $k => $v)
             {
                 $mysql[$k] = $v;
             }
+        }
+        if (!empty($params['xmetadb_mysqlhost']) && !empty($params['xmetadb_mysqldatabase']) && !empty($params['xmetadb_mysqlusername']))
+        {
+            $mysql['host'] = $params['xmetadb_mysqlhost'];
+            $mysql['user'] = $params['xmetadb_mysqlusername'];
+            $mysql['password'] = $params['xmetadb_mysqlpassword'];
+            $mysql['database'] = $params['xmetadb_mysqldatabase'];
         }
         if ($mysql['database'] == "")
             $mysql['database'] = $this->databasename;
@@ -136,6 +139,7 @@ class XMETATable_mysql extends stdClass
         {
             $xmetadb_mysqlconnection = new mysqli($mysql['host'], $mysql['user'], $mysql['password']);
         }
+        
         if ($xmetadb_mysqlconnection)
         {
             $this->conn = $xmetadb_mysqlconnection;

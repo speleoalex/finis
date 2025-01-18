@@ -1,10 +1,9 @@
 <?php
 
 /**
- * @package Finis_functions
+ * 
  * @author Alessandro Vernassa <speleoalex@gmail.com>
- * @copyright Copyright (c) 2011
- * @license http://opensource.org/licenses/gpl-license.php GNU General Public License
+ * @copyright Copyright (c) 2024
  */
 defined('_FNEXEC') || die('Restricted access');
 
@@ -1082,7 +1081,6 @@ function FN_GetMessagesFromFolder($folder)
     $tmp = array();
     $tmp_theme = false;
     $rel_folder = str_replace($_FN['src_finis'], "", $folder);
-    // die ($rel_folder);
     if (file_exists("$folder/languages/{$_FN['lang']}/lang.csv"))
     {
         $foldertheme = FN_FromTheme("$folder/languages/{$_FN['lang']}/lang.csv");
@@ -1290,9 +1288,10 @@ function FN_LoadConfig($fileconfig = "", $sectionid = "", $usecache = true)
                 $fileconfig = "{$_FN['src_application']}/sections/{$sectionid}/config.php";
             }
         }
+       
     }
     //---------------------------- empty fileconfig ---------------------------<
-
+  
     if (preg_match("/^blocks/is", $fileconfig) || preg_match("/^sections/is", $fileconfig) || preg_match("/^modules/is", $fileconfig))
     {
         if ($_FN['block'] != "")
@@ -1390,10 +1389,14 @@ function FN_LoadConfig($fileconfig = "", $sectionid = "", $usecache = true)
 
         $cache[$tablename] = $config;
     }
+    
+    
+    
     if (isset($config['id']))
     {
         unset($config['id']);
     }
+
 
     return $config;
 }

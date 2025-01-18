@@ -23,10 +23,11 @@ function FNSEARCH_module_news($tosearch_array, $method, $sectionvalues,$maxres)
 	global $_FN;
 	$results = array();
 	$section_to_search = $sectionvalues['id']; // current section 
-	$config = FN_LoadConfig("modules/news/config.php", $sectionvalues['id']); //load config in section
+	$config = FN_LoadConfig("{$_FN['src_finis']}/modules/news/config.php", $sectionvalues['id']); //load config in section
 	$tablename = $config['tablename'];
 	$Table = FN_XMDBTable($tablename);
-	$DB = new XMLDatabase($_FN['database'], $_FN['datadir']);
+        $DB = new XMETADatabase($_FN['database'], $_FN['datadir'],$_FN);
+
 	//--search query ---------------------------------------------------------->
 	$query = "SELECT unirecid,title,summary,txtid FROM $tablename WHERE  ";
 	$tmpmethod = "";
@@ -66,4 +67,3 @@ function FNSEARCH_module_news($tosearch_array, $method, $sectionvalues,$maxres)
 	}
 	return $results;
 }
-?>

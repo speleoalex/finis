@@ -1,10 +1,8 @@
 <?php
 
 /**
- * @package Finis_functions
  * @author Alessandro Vernassa <speleoalex@gmail.com>
- * @copyright Copyright (c) 2011
- * @license http://opensource.org/licenses/gpl-license.php GNU General Public License
+ * @copyright Copyright (c) 2024
  */
 //-------------------------- init timer---------------------------------------->
 $mtime = microtime();
@@ -14,21 +12,35 @@ $mtime = doubleval($mtime[1]) + doubleval($mtime[0]);
 define("_FNEXEC", 1);
 defined('_FNEXEC') or die('Restricted access');
 global $_FN;
+$FN_IsSet = array();
+if ($_FN)
+{
+    $FN_IsSet = $_FN;
+}
 $_FN['src_finis'] = !empty($_FN['src_finis']) ? $_FN['src_finis'] : realpath(__DIR__ . "/..");
+
 
 $_FN['src_application'] = !empty($_FN['src_application']) ? $_FN['src_application'] : ".";
 $_FN['oauth_providers'] = !empty($_FN['oauth_providers']) ? $_FN['oauth_providers'] : array();
 $_FN['display_errors'] = !empty($_FN['display_errors']) ? $_FN['oauth_providers'] : "off";
+$_FN['datadir'] = !empty($_FN['datadir']) ? $_FN['datadir'] :"{$_FN['src_application']}/mi"
+. "sc";
+
 
 //-------- -global variables shared between config.php and flatnux.php -------->
 $_FN['upload_max_filesize'] = "20M";
 $_FN['default_auth_method'] = "local";
-$_FN['default_database_driver'] = "xmlphp";
+$_FN['default_database_driver'] = !empty($_FN['default_database_driver']) ? $_FN['default_database_driver'] : "xmlphp"; 
+
 $_FN['default_section_type'] = "finis";
 require_once __DIR__ . "/config.vars.php";
 if (file_exists($_FN['src_application'] . "/config.vars.local.php"))
     require_once $_FN['src_application'] . "/config.vars.local.php";
-$_FN['datadir'] = "{$_FN['src_application']}/misc";
+
+
+
+$_FN = array_merge($FN_IsSet,$_FN);
+
 //-------- -global variables shared between config.php and flatnux.php --------<
 //----------------- need in framework mode ------------------------------------>
 if (empty($_FN))
@@ -49,7 +61,6 @@ ini_set("display_errors", $_FN['display_errors']);
 error_reporting(E_ALL);
 ini_set("upload_max_filesize", "{$_FN['upload_max_filesize']}");
 
-$_FN['default_database_driver'] = $_FN['default_database_driver'];
 $_FN['timestart'] = $mtime; // start time
 $_FN['consolemode'] = false;
 $_FN['src_finis'] = realpath(__DIR__ . "/..");
@@ -75,6 +86,7 @@ if (is_array($files))
         require_once $file;
     }
 }
+
 //------------------------ include files extra cms ----------------------------<
 //------------------------------files in cms ---------------------------------->
 $files = glob("{$_FN['src_finis']}/include/*.inc.php");
@@ -89,7 +101,6 @@ require_once "{$_FN['src_finis']}/include/xmetadb_frm.php";
 require_once "{$_FN['src_finis']}/include/xmetadb_query.php";
 require_once "{$_FN['src_finis']}/include/xmetadb_frm_search.php";
 //--------------------------------   xmetadb ------------------------------------<
-
 if (file_exists($_FN['src_application'] . "/include/auth/{$_FN['default_auth_method']}.php"))
     require_once $_FN['src_application'] . "/include/auth/{$_FN['default_auth_method']}.php";
 else
@@ -376,7 +387,8 @@ elseif (file_exists("{$_FN['src_finis']}/themes/{$_FN['theme']}/theme.php"))
 
 include_once("{$_FN['src_finis']}/include/theme.php");
 //----------------------------include theme------------------------------------<
-FN_LoadMessagesFolder(FN_PathSite("{$_FN['src_finis']}/"));
+FN_LoadMessagesFolder("{$_FN['src_finis']}/");
+FN_LoadMessagesFolder("{$_FN['src_application']}/");
 FN_LoadMessagesFolder("{$_FN['src_finis']}/themes/{$_FN['theme']}/");
 
 if (isset($_FN_TMP['maintenance']))

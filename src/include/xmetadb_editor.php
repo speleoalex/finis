@@ -450,13 +450,11 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
 
         foreach ($params as $k => $v)
         {
-            if (is_string($v) && !isset($paramsFRM[$k]) && false !== strstr($k, "xmetadb"))
+            if (is_string($v) && !isset($paramsFRM[$k]) /*&& false !== strstr($k, "xmetadb") */)
             {
                 $paramsFRM[$k] = $v;
             }
         }
-
-            
         $table = new FieldFrm("$dbname", $tablename, $path, $lang, $languages, $paramsFRM);
     }
     $siteurl = "";

@@ -17,6 +17,8 @@ if (!defined("_PATH_NEWS_"))
 
 require_once (_PATH_NEWS_ . "functions.php");
 require_once (_PATH_NEWS_ . "functions_theme.php");
+
+
 global $_FN;
 $op = FN_GetParam("op", $_GET, "html");
 $mode = FN_GetParam("mode", $_GET, "html");
@@ -32,6 +34,7 @@ $guestnews = $config['guestnews'];
 $signews = $config['signews'];
 $generate_googlesitemap = $config['generate_googlesitemap'];
 $guestcomment = $config['guestcomment'];
+
 $CLASS_NEWS = new FNNEWS($config);
 $imgedit = "&#128221;";
 $imgedel = "&#10060;";
@@ -40,6 +43,8 @@ $imgnew = "&plus;&nbsp;";
 $imgback = "&#9664;&nbsp;";
 if ($CLASS_NEWS->IsNewsAdministrator() && isset($_GET['rss']))
     $CLASS_NEWS->GenerateRSS();
+
+
 if ($generate_googlesitemap && is_writable(".") && is_writable(".") && !file_exists("sitemap_news.xml"))
 {
     $CLASS_NEWS->CreateGoogleSitemap();
@@ -118,7 +123,6 @@ switch ($mode)
             $tplfile = FN_FromTheme("modules/news/news.tp.html", false);
             if ($tplfile && file_exists(FN_PathSite("themes/{$_FN['theme']}/modules/news/news.tp.html")))
             {
-
                 $CLASS_NEWS->PrintListNews($tplfile);
             }
             else
@@ -130,6 +134,7 @@ switch ($mode)
                     echo FN_HtmlCloseTable();
                 }
                 $CLASS_NEWS->PrintListNews();
+                
                 $rsslist = $CLASS_NEWS->GetRssList();
                 if (count($rsslist) > 0)
                 {
@@ -163,6 +168,6 @@ switch ($mode)
                 }
             }
         }
-
+        
         break;
 }

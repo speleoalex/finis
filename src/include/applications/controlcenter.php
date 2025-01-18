@@ -10,7 +10,7 @@ ini_set("display_errors", "on");
 error_reporting(E_ALL);
 ob_start();
 global $_FN;
-$_FN['controlcenter'] = basename($_FN['self']);
+$_FN['controlcenter'] = basename($_FN['self'])."?fnapp=controlcenter&";
 
 if (empty($_FN['controlcenter_theme']) || !file_exists("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}"))
     $_FN['controlcenter_theme'] = "classic";
@@ -321,7 +321,11 @@ function FN_TPL_tp_create_ccsection()
 
     $title = FN_GetFolderTitle("{$_FN['src_finis']}/controlcenter/sections/$opt/");
     ob_start();
-    if (!empty($opt) && file_exists("{$_FN['src_finis']}/controlcenter/sections/$opt/section.php"))
+    if (!empty($opt) && file_exists("{$_FN['src_application']}/controlcenter/sections/$opt/section.php"))
+    {
+        include "{$_FN['src_application']}/controlcenter/sections/$opt/section.php";
+    }
+    elseif (!empty($opt) && file_exists("{$_FN['src_finis']}/controlcenter/sections/$opt/section.php"))
     {
         include "{$_FN['src_finis']}/controlcenter/sections/$opt/section.php";
     }
@@ -658,13 +662,16 @@ function FNCC_GetMenuItems()
     }
 
     $dirs = FN_ListDir("{$_FN['src_finis']}/controlcenter/sections/", false);
+    $dirs2 = FN_ListDir("{$_FN['src_application']}/controlcenter/sections/", false);
+    $dirs = array_merge($dirs,$dirs2);
     FN_NatSort($dirs);
     $sectionsIngroup = array();
     foreach ($dirs as $sectiongroup)
     {
         $menu[$sectiongroup] = array();
-
         $sections = FN_ListDir("{$_FN['src_finis']}/controlcenter/sections/$sectiongroup");
+        $sections2 = FN_ListDir("{$_FN['src_application']}/controlcenter/sections/$sectiongroup");
+        $sections = array_unique(array_merge($sections,$sections2));
         FN_NatSort($sections);
         $sectionsIngroup = array();
         foreach ($sections as $i => $section)
@@ -1147,7 +1154,7 @@ function FN_TPL_tp_create_ccsubmenu_($str, $sections)
 function FNCC_XmltableEditor($tablename, $params = array())
 {
     global $_FN;
-
+    $params = array_merge($_FN,$params);
     if (empty($params['layout_template']) && file_exists("controlcenter/themes/{$_FN['controlcenter_theme']}/form.tp.html"))
     {
         $params['layout_template'] = file_get_contents("controlcenter/themes/{$_FN['controlcenter_theme']}/form.tp.html");
@@ -1206,6 +1213,7 @@ function FNCC_XmltableEditor($tablename, $params = array())
     $params['enable_mod_rewrite'] = isset($params['enable_mod_rewrite']) ? $params['enable_mod_rewrite'] : $_FN['enable_mod_rewrite'];
     $params['use_urlserverpath'] = isset($params['use_urlserverpath']) ? $params['use_urlserverpath'] : $_FN['use_urlserverpath'];
     $params['sitepath'] = isset($params['sitepath']) ? $params['sitepath'] : $_FN['sitepath'];
+//    $params['default_database_driver'] =  isset($params['default_database_driver']) ? $params['default_database_driver'] : $_FN['default_database_driver']; 
     XMETADB_editor($tablename, $params);
 }
 

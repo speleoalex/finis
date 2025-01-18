@@ -67,7 +67,9 @@ if (!defined("FNNEWS_FUNCTIONS"))
             {
                 $this->tablename = "news";
             }
+            
             $this->InitTables();
+            
             if (!file_exists("{$_FN['datadir']}/media/{$this->tablename}"))
             {
                 FN_MkDir("{$_FN['datadir']}/media/{$this->tablename}");
@@ -226,7 +228,15 @@ if (!defined("FNNEWS_FUNCTIONS"))
             {
                 FN_Write($str, "{$_FN['datadir']}/fndatabase/$tablename.php", "w");
             }
-            $Table = xmetadb_frm("fndatabase", $tablename, $_FN['datadir']);
+            
+            
+
+                        
+                        
+            $Table = FN_XMDBForm($tablename);
+            
+            
+            
             if (!isset($Table->formvals['guestnews']))
             {
                 FN_Write($str, "{$_FN['datadir']}/fndatabase/$tablename.php", "w");
@@ -409,9 +419,10 @@ if (!defined("FNNEWS_FUNCTIONS"))
             $item['argument_values'] = array();
             $item['img_argument_thumb'] = "";
             $item['title_argument'] = "";
+            
             if ($item['argument'] != "")
             {
-                $TableArguments = xmetadb_frm("fndatabase", $tablename . "_arguments", $_FN['datadir'], $_FN['lang'], $_FN['languages']);
+                $TableArguments = FN_XMDBForm($tablename . "_arguments");
                 $argvalues = $TableArguments->xmltable->GetRecordByPrimaryKey($item['argument']);
                 if (!empty($argvalues['title']))
                 {
@@ -438,6 +449,7 @@ if (!defined("FNNEWS_FUNCTIONS"))
                 $item['img_news'] = "{$_FN['siteurl']}{$_FN['datadir']}/fndatabase/$tablename/{$item['unirecid']}/photo1/" . $item['photo1'];
                 $item['img_news_thumb'] = "{$_FN['siteurl']}{$_FN['datadir']}/fndatabase/$tablename/{$item['unirecid']}/photo1/thumbs/" . $item['photo1'] . ".jpg";
             }
+            
             if ($this->config['enablecomments'])
             {
                 $comments = $this->GetComments($item);
@@ -698,7 +710,7 @@ if (!defined("FNNEWS_FUNCTIONS"))
         function GetComments($newsvalues)
         {
             global $_FN;
-            $tablelinks = xmetadb_frm("fndatabase", $this->config['tablename'] . "_comments", $_FN['datadir']);
+            $tablelinks = FN_XMDBForm( $this->config['tablename'] . "_comments");
 
             $idnews = $newsvalues['unirecid'];
             $r['unirecidrecord'] = $idnews;
@@ -951,11 +963,13 @@ if (!defined("FNNEWS_FUNCTIONS"))
             $newstoprint = false;
             $locktop = $this->ReadVarFromCache("locktop{$_FN['mod']}");
             $newstoprint = $this->ReadVarFromCache("newstoprint{$_FN['mod']}");
+
             if (!is_array($newstoprint) || !is_array($locktop))
             {
                 $locktop = array();
                 $newstoprint = array();
                 $curtime = FN_Time();
+                
                 if (is_array($all))
                 {
                     $i = 1;
@@ -983,8 +997,11 @@ if (!defined("FNNEWS_FUNCTIONS"))
                             $i++;
                         }
                     }
+                    
                 }
+                
                 $this->SaveToCache("locktop{$_FN['mod']}", $locktop);
+                
                 $this->SaveToCache("newstoprint{$_FN['mod']}", $newstoprint);
             }
 
@@ -1024,7 +1041,7 @@ if (!defined("FNNEWS_FUNCTIONS"))
         {
             global $_FN;
             $tablename = $this->config['tablename'];
-            $table = xmetadb_frm("fndatabase", $tablename, $_FN['datadir'], $_FN['lang'], $_FN['languages']);
+            $table = FN_XMDBForm($tablename);
             $text = strtolower(str_replace(" ", "_", $text));
             $text = preg_replace("/à/s", "a", $text);
             $text = preg_replace("/á/s", "a", $text);
@@ -1448,7 +1465,7 @@ if (!defined("FNNEWS_FUNCTIONS"))
             $pubnewsid = FN_GetParam("pubnewsid", $_POST, "html");
             if ($pubnewsid != "")
             {
-                $Tablenews = xmetadb_frm("fndatabase", $tablename, $_FN['datadir'], $_FN['lang'], $_FN['languages']);
+                $Tablenews = FN_XMDBForm($tablename);
                 $itemnews = $Tablenews->xmltable->GetRecordByPrimarykey($pubnewsid);
                 if (!empty($itemnews['unirecid']))
                 {
@@ -1471,7 +1488,7 @@ if (!defined("FNNEWS_FUNCTIONS"))
             $pubnewsid = FN_GetParam("hidenewsid", $_POST, "html");
             if ($pubnewsid != "")
             {
-                $Tablenews = xmetadb_frm("fndatabase", $tablename, $_FN['datadir'], $_FN['lang'], $_FN['languages']);
+                $Tablenews = FN_XMDBForm( $tablename);
                 $itemnews = $Tablenews->xmltable->GetRecordByPrimarykey($pubnewsid);
                 if (!empty($itemnews['unirecid']))
                 {
@@ -1511,7 +1528,7 @@ if (!defined("FNNEWS_FUNCTIONS"))
                 $pkid = FN_GetParam("unirecid", $_POST, "html");
                 if ($pkid != "")
                 {
-                    $Table = xmetadb_frm("fndatabase", $this->config['tablename'], $_FN['datadir'], $_FN['lang'], $_FN['languages']);
+                    $Table = FN_XMDBForm($this->config['tablename']);
                     $itemnews = $Table->xmltable->GetRecordByPrimarykey($pkid);
                     if (isset($itemnews['txtid']) && $itemnews['txtid'] != "")
                     {

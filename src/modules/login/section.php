@@ -35,6 +35,7 @@ switch ($op)
         break;
     case "profile":
         PrintUserProfile();
+        $_FN['return'] = FN_GetUser($_FN['user']);
         break;
     default:
         if ($_FN['user'] == "")
