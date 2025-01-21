@@ -26,6 +26,14 @@ class FINIS
         {
             include_once "{$_FN['src_finis']}/include/applications/{$name}.php";
         }
+        elseif (file_exists("{$_FN['src_application']}/include/methods/{$name}.php"))
+        {
+            include_once "{$_FN['src_application']}/include/methods/{$name}.php";
+        }
+        elseif (file_exists("{$_FN['src_finis']}/include/methods/{$name}.php"))
+        {
+            include_once "{$_FN['src_finis']}/include/methods/{$name}.php";
+        }
         else
         {
             // Handle the error for undefined method

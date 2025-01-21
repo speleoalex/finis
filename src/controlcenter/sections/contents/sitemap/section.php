@@ -758,6 +758,7 @@ function FNCC_print_section($section,$level)
     $border="border:1px solid #ffffff";
     if (file_exists($_FN['src_application']."/sections/{$section['id']}/section.php"))
         $border="border:1px solid #00ff00";
+    FN_PathSite("images/delete.png");
     $html.="<img style=\"vertical-align:middle;cursor:pointer\" onclick=\"if(confirm ('".FN_i18n("you want to permanently delete this page?")."')){window.location='$linkdelete'} else {return false;}\" src=\"images/delete.png\" /></span>";
     $html.="&nbsp;&nbsp;<a style=\"height:22px;cursor:pointer;vertical-align:middle;$border\" alt=\"\" onclick=\"window.location='$link'\">PHP</a>";
     foreach($_FN['listlanguages'] as $l)

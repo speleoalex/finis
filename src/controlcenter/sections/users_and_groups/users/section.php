@@ -92,7 +92,7 @@ foreach ($form->formvals as $k => $v)
 $params['fields_filters'] = $fields_filters;
 //-----------------------------define filters ---------------------------------<
 
-
+FN_PathSite("images/delete.png");
 
 $params['list_onsave'] = false;
 $params['textviewlist'] = "<img style=\"vertical-align:middle;border:0px;\" alt=\"\"  src=\"" . FN_FromTheme("images/users.png") . "\" />&nbsp;" . FN_Translate("user list");

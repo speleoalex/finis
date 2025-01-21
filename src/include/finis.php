@@ -329,7 +329,7 @@ if (!$_FN['consolemode'])
     $_FN['section_header_footer'] = isset($_FN['section_header_footer']) ? $_FN['section_header_footer'] : "";
     if ($usertheme != "")
     {
-        if (file_exists("{$_FN['src_finis']}/themes/$usertheme"))
+        if (file_exists("{$_FN['src_finis']}/themes/$usertheme") || file_exists("{$_FN['src_application']}/themes/$usertheme"))
             $_FN['theme'] = $usertheme;
         else
             $_FN['theme'] = $_FN['theme_default'];
@@ -337,7 +337,7 @@ if (!$_FN['consolemode'])
     if (!empty($_FN['switchtheme']) || FN_IsAdmin())//preview theme
     {
         $themepreview = FN_GetParam("themepreview", $_GET);
-        if ($themepreview != "" && file_exists("{$_FN['src_finis']}/themes/{$_FN['theme']}"))
+        if ($themepreview != "" && (file_exists("{$_FN['src_finis']}/themes/{$_FN['theme']}") || file_exists("{$_FN['src_application']}/themes/{$_FN['theme']}") ))
             $_FN['theme'] = $themepreview;
     }
 //---------------vars in cookie------------------------------------------------<    

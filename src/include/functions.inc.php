@@ -1762,21 +1762,32 @@ function FN_FinisPathToApplicationPath($filepath, $urlAbsolute = false)
 
     // Normalize path separators
     $ds = DIRECTORY_SEPARATOR;
-    $normalizedSourceRoot = str_replace('/', $ds, $sourceRoot);
-    $normalizedFilepath = str_replace('/', $ds, $filepath);
+    $normalizedSourceRoot = str_replace($_FN['slash'], $ds, $sourceRoot);
+    $normalizedFilepath = str_replace($_FN['slash'], $ds, $filepath);
     // Get relative path
     $escapedSourceRoot = preg_quote($normalizedSourceRoot, '/');
-    $relPath = preg_replace('/^' . $escapedSourceRoot . '/', '', $normalizedFilepath);
+    $relPath = preg_replace("{$_FN['slash']}".'^' . $escapedSourceRoot . $_FN['slash'], '', $normalizedFilepath);
     $relPath = ltrim($relPath, $ds);
-    $relPath = str_replace($ds, '/', $relPath);
+    $relPath = str_replace($ds, $_FN['slash'], $relPath);
 
     // Construct destination path
-    $destPath = FN_NormalizePath("$siteRoot/$relPath");
+    $destPath = FN_NormalizePath("$siteRoot{$_FN['slash']}$relPath");
 
     // Copy file if it doesn't exist
     if (!file_exists($destPath))
     {
         FN_Copy($filepath, $destPath, true);
+    }
+    if (is_dir($filepath))
+    {
+       $listFiles=glob("$filepath". DIRECTORY_SEPARATOR."*");
+       foreach($listFiles as $file)
+       {
+           if (!is_dir($file))
+           {
+               FN_FinisPathToApplicationPath($file);
+           }
+       }
     }
 
 
