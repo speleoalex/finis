@@ -75,4 +75,9 @@ class FINIS
         }
         $this->__call($application, array());
     }
+    function isConsole()
+    {
+        global $_FN;
+        return $_FN['consolemode'] ;
+    }
 }
