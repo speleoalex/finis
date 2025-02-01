@@ -468,6 +468,11 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
         $table->SetLayout($params['layout']);
     }
     $layout_template = "";
+    
+    if (!empty($params['html_template_form']))
+    {
+        $params['layout_template'] = $params['html_template_form'];
+    }
     if (!empty($params['layout_template']))
     {
 
@@ -1121,6 +1126,7 @@ set_changed();
                     $htmlexport = str_replace("{textexport}", "$textexport", $htmlexport);
                     $params['urlexport'] = $urlexport;
                 }
+                $params['urlself'] = XMETADB_editor_mergelink($mlink, "?page_$postgetkey=$page&amp;order_$postgetkey=$order&amp;desc_$postgetkey=$reverse&amp;filter{$postgetkey}=$link_FiltersEncoded");
                 $params['html_template_grid'] = str_replace($template_export, $htmlexport, $params['html_template_grid']);
                 $params['html_template_grid'] = str_replace("{htmlexport}", $htmlexport, $params['html_template_grid']);
                 preg_match('/(<!-- start grid -->)(.*)(<!-- end grid -->)/is', $params['html_template_grid'], $out);
@@ -1648,10 +1654,11 @@ set_changed();
                                             if (!empty($field['foreignkey']) && !empty($field['fk_show_field']))
                                             {
                                                 $r = array();
+                                                
                                                 if (function_exists("FN_XMDBTable"))
                                                     $tfk[$field['fk_link_field']] = FN_XMDBTable($field['foreignkey']);
                                                 else
-                                                    $tfk[$field['fk_link_field']] = XMETATable::xmetadbTable($dbname, $field['foreignkey'], $path);
+                                                    $tfk[$field['fk_link_field']] = XMETATable::xmetadbTable($dbname, $field['foreignkey'], $path,$params);
 
 
                                                 $tablefk = $tfk[$field['fk_link_field']];

@@ -94,6 +94,8 @@ class XMETATable extends stdClass
     static function xmetadbTable($databasename, $tablename, $path = "misc", $params = array())
     {
         static $tables = array();
+        
+//        dprint_r($tablename.":".$params['xmetadb_mysqldatabase']);
         if (is_array($tablename))
         {
             return new XMETATable($databasename, $tablename, $path, $params);
@@ -171,7 +173,16 @@ class XMETATable extends stdClass
     {
         return (file_exists("$path/$databasename/$tablename") && file_exists("$path/$databasename/$tablename.php"));
     }
-
+    function setField($fieldname,$values)
+    {
+        if ($fieldname && is_array($values))
+        {
+            foreach ($values as $propriety_name => $value)
+            {
+                $this->fields[$fieldname]->$propriety_name = $value;
+            }            
+        }
+    }
     function __construct($databasename, $tablename, $path = "misc", $params = array())
     {
         $this->connection = false;

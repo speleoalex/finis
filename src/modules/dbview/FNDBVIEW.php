@@ -3035,7 +3035,6 @@ set_changed();
      */
     function Navigate($results, $groups)
     {
-
         global $_FN;
         $return = array();
         //--config-->
@@ -3062,6 +3061,7 @@ set_changed();
             }
         //$return['gresults']=$gresults;
         $ret_groups = array();
+
         foreach ($gresults as $groupname => $group) {
             $fk = $Table->xmltable->fields[$groupname]->foreignkey;
             if (isset($Table->formvals[$groupname]['fk_link_field']))
@@ -3071,7 +3071,7 @@ set_changed();
             $tablegroup = false;
             if ($fk != "" && file_exists("{$_FN['datadir']}/{$_FN['database']}/$fk.php")) {
 
-                $tablegroup = xmetadb_table($_FN['database'], $fk, $_FN['datadir']);
+                $tablegroup = FN_XMDBTable($fk); // xmetadb_table($_FN['database'], $fk, $_FN['datadir']);
             }
             $tplvars['filtertitle'] = $Table->formvals[$groupname]['title'];
             $tplvars['urlremovefilter'] = "";
@@ -3128,6 +3128,7 @@ set_changed();
                 //array("group"=>$group,"vals"=>$tplvars);
             }
         }
+
         $return['filters'] = array();
         $return['filters'] = $ret_groups;
         return $return;

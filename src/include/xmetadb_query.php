@@ -17,6 +17,7 @@ class XMETADatabase
         $this->databasename = $databasename;
         $this->path = $path;
         $this->params = $params;
+       // dprint_r($this->params);
         
     }
     function encode_preg($str)

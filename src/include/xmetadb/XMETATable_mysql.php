@@ -158,7 +158,13 @@ class XMETATable_mysql extends stdClass
             }
             if (!empty($_FN['xmetadb_timezone']))
             {
-                $this->conn->query("SET time_zone = '{$_FN['xmetadb_timezone']}'");
+                try{
+                    $this->conn->query("SET time_zone = '{$_FN['xmetadb_timezone']}'");
+
+                }catch (Exception $e)
+                {
+                    trigger_error($e, E_USER_WARNING);
+                }
             }
             try
             {
@@ -207,15 +213,18 @@ class XMETATable_mysql extends stdClass
 
             if ($result)
             {
+                // dprint_r($result);
                 foreach ($result as $tmp)
                 {
                     if (empty($tmp['Tables_in_' . $this->mysqldatabasename]))
                     {
                         dprint_r("Table:" . $this->tablename);
-                        dprint_r($this->mysqldatabasename);
-                        dprint_r($this->databasename);
+                        dprint_r("mysqldatabasename:".$this->mysqldatabasename);
+                        dprint_r("databasename:".$this->databasename);
+                       
+                        
                     }
-                    if ($tmp['Tables_in_' . $this->mysqldatabasename] == $this->sqltable)
+                    elseif ($tmp['Tables_in_' . $this->mysqldatabasename] == $this->sqltable)
                         $exists = true;
                 }
             }

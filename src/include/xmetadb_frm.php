@@ -517,14 +517,28 @@ $frm_endgroupfooter
 ";
         $this->SetlayoutTemplate($template, $fieldname);
     }
-
+    function setField($fieldname,$values)
+    {
+        if ($fieldname && is_array($values))
+        {
+            foreach ($values as $propriety_name => $value)
+            {
+                $this->xmltable->fields[$fieldname]->$propriety_name = $value;
+            }            
+            foreach ($values as $propriety_name => $value)
+            {
+                $this->formvals[$fieldname][$propriety_name] = $value;
+            }            
+            $this->LoadFieldsForm("",$values);
+        }
+    }
     /**
      *
      * @staticvar boolean $options
      * @param <type> $values
      * @return <type>
      */
-    function LoadFieldsForm($values = "")
+    function LoadFieldsForm($values = "",$fieldvalues=array())
     {
         static $options = array();
         $databasename = $this->databasename;
@@ -542,9 +556,15 @@ $frm_endgroupfooter
         foreach ($records as $record)
         {
             $record = get_object_vars($record);
+            if (is_array($fieldvalues))
+            {
+                foreach ($fieldvalues as $k => $v)
+                    $record[$k] = $v;            
+            }
             $tmp = array();
             foreach ($record as $k => $v)
                 $tmp[$k] = $v;
+            
             // add missing fields
             if (!empty($record['frm_multilanguages']))
             {
@@ -625,10 +645,10 @@ $frm_endgroupfooter
     /**
      *
      * @param object $record
-     * @param array $values
+     * @param array $restr_values
      * @return array
      */
-    function LoadOptions($record, $values = "")
+    function LoadOptions($record, $restr_values = "")
     {
 
         $databasename = $this->databasename;
@@ -648,6 +668,7 @@ $frm_endgroupfooter
             {
                 $databasename_fk = $record['fk_databasename'];
             }
+            //if (FN_IsAdmin())
             $listoptionstabella = XMETATable::xmetadbTable($databasename_fk, $record['foreignkey'], $path_fk, $this->tableparams);
             if (!isset($listoptionstabella->driver))
             {
@@ -675,8 +696,8 @@ $frm_endgroupfooter
                             //left of equal is the name of field
                             if (isset($listoptionstabella->fields[$cname1]))
                             {
-                                if (isset($values[$cname2]))
-                                    $restr[$cname1] = $values[$cname2];
+                                if (isset($restr_values[$cname2]))
+                                    $restr[$cname1] = $restr_values[$cname2];
                                 else
                                 {
                                     // if is  key='pippo'
@@ -915,7 +936,6 @@ $frm_endgroupfooter
             $strhiddenfield .= "<input type=\"hidden\" name=\"$primarykey\" value=\"" . $oldvalues[$primarykey] . "\" />";
         }
         $htmlitems = "";
-
         foreach ($this->formvals as $fieldform_valuesk => $fieldform_values)
         {
 
@@ -1012,7 +1032,7 @@ $frm_endgroupfooter
                     $showfield = false;
                 }
             }
-            if (isset($fieldform_values['frm_show']) && ($fieldform_values['frm_show'] === "0" || $fieldform_values['frm_show'] === 0))
+            if (isset($fieldform_values['frm_show']) && ($fieldform_values['frm_show'] === "0" || $fieldform_values['frm_show'] === 0 || $fieldform_values['frm_show'] === false))
                 $showfield = false;
             $html = "";
             $tplvars = array();
@@ -1907,7 +1927,7 @@ $frm_endgroupfooter
                     if (!empty($field['foreignkey']) && !empty($field['fk_show_field']))
                     {
                         $r = array();
-                        $tfk[$field['fk_link_field']] = XMETATable::xmetadbTable($this->xmltable->databasename, $field['foreignkey'], $this->xmltable->path);
+                        $tfk[$field['fk_link_field']] = XMETATable::xmetadbTable($this->xmltable->databasename, $field['foreignkey'], $this->xmltable->path,$this->tableparams);
                         $tablefk = $tfk[$field['fk_link_field']];
                         $f = $field['fk_link_field'];
                         if ($field['fk_link_field'] != $field['fk_show_field'])

@@ -901,7 +901,7 @@ function xmetadb_NatSort_callback($a, $b)
  */
 function xmetadb_table($databasename, $tablename, $path = "misc", $params = false)
 {
-    return XMETATable::xmetadbTable($databasename, $tablename, $path = "misc", $params = false);
+    return XMETATable::xmetadbTable($databasename, $tablename, $path , $params );
 }
 
 /**

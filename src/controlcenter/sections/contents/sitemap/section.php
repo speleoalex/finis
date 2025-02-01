@@ -555,7 +555,7 @@ var syncdiv = function (id)
             {
                 FN_RemoveDir($_FN['src_application']."/sections/$sid");
             }
-            FN_JsRedirect("?mod{$_FN['mod']}&amp;opt=$opt");
+            FN_JsRedirect("?fnapp=controlcenter&mod{$_FN['mod']}&amp;opt=$opt");
             FN_Log("section deleted:$sid");
             FN_OnSitemapChange();
         }
