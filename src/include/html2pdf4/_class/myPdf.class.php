@@ -12,7 +12,7 @@
 require_once(dirname(__FILE__).'/tcpdfConfig.php');
 require_once(dirname(__FILE__).'/../_tcpdf_'.HTML2PDF_USED_TCPDF_VERSION.'/tcpdf.php');
 
-class HTML2PDF_myPdf extends TCPDF
+class HTML2PDF_myPdf extends TCPDF 
 {
     protected $_footerParam = array();
     protected $_transf      = array();

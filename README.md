@@ -9,6 +9,19 @@ F.I.N.I.S.: Flatnux Is Now Infinitely Scalable
 3. Go to `http://[your website]/`
 4. Run the wizard
 
+## Documentation
+
+FINIS includes comprehensive documentation in the `/doc` folder:
+
+- [Installation Manual](doc/manuale_installazione.md) - Detailed installation instructions
+- [Developer Guide](doc/manuale_sviluppatore.md) - Guide for developing with FINIS
+- [Theme Guide](doc/guida_temi.md) - How to create and customize themes
+- [Administration Manual](doc/manuale_amministrazione.md) - Managing a FINIS website
+- [Module Guide](doc/guida_moduli.md) - Creating custom modules
+- [Database Guide](doc/guida_database.md) - Working with the database abstraction layer
+- [Migration Guide](doc/guida_migrazione.md) - Migrating between versions
+- [API Documentation](doc/documentazione_api.md) - Complete API reference
+
 ## Creating PHP applications in framework mode
 `./sections/home/section.en.html`
 ```html
@@ -88,8 +101,6 @@ try {
     const FN = {};
 }
 ```
-
-
 
 ## Create a complete, configurable website, complete with backend, administration interface and user management
  

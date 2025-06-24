@@ -2,15 +2,12 @@
 class xmetadbfrm_field_base64file
 {
 
-    function __construct()
-    {
-        
-    }
+    function __construct() {}
 
     function show($params)
     {
         $name = $params['name'];
-        $html="<script>
+        $html = "<script>
                 handleFileUpload$name = function (input) {
     const file{$name} = input.files[0];
     if (file{$name}) {
@@ -66,16 +63,14 @@ handleFileUploadDelete$name = function () {
         $attributes = isset($params["htmlattributes"]) ? $params["htmlattributes"] : "";
         //die($attributes);
         $required = "";
-            $style = "";
-        if ($oldval == "")
-        {
-        $style = "display:none";
-            $required = (isset($params['frm_required']) && $params['frm_required'] == 1 ) ? "required=\"required\"" : "";
+        $style = "";
+        if ($oldval == "") {
+            $style = "display:none";
+            $required = (isset($params['frm_required']) && $params['frm_required'] == 1) ? "required=\"required\"" : "";
         }
         $strdelete = "<a style=\"$style\" id=\"fileuploadDelete$name\" href=\"#\" onclick=\"handleFileUploadDelete$name();return false;\">Delete</a>";
         $strInput = "&#x1F4CE;";
-        if (substr($oldval, 0, strlen("data:image/")) === "data:image/")
-        {
+        if (substr($oldval, 0, strlen("data:image/")) === "data:image/") {
             $strInput = "<img style='max-height:60px;max-width:40px' src='{$oldval}' />";
         }
         $html .= "<input value=\"$oldval\" id =\"base64_fileuploadname$name\" $required type=\"hidden\" name=\"" . $params['name'] . "\" type=\"text\" />";
@@ -86,12 +81,29 @@ handleFileUploadDelete$name = function () {
 
     function view($params)
     {
+        $htmlout = "";
         $value = $params['value'];
-        $filename = explode ("/",$value);
-        $filename = explode ($filename[0]);
-        $htmlout .= "$filename";
+        $decoded = @base64_decode($value);
+        if ($decoded)
+            $value = $decoded;
+        $id = md5($value);
+        if (isset($_GET[$id])) {
+            FN_SaveFile($value, "filecontents");
+        }
+        $attributes = isset($params["htmlattributes"]) ? $params["htmlattributes"] : "";
+        $sep = "&";
+        if (false === strstr($_SERVER['REQUEST_URI'], "?")) {
+            $sep = "?";
+        }
+        $bytes = strlen($value);
+        if ($bytes)
+        {
+            $htmlout .= "\n<a $attributes title=\"Download\" href=\"{$_SERVER['REQUEST_URI']}$sep$id\"  >Download</a>";
+        }
         return $htmlout;
     }
-
+    function gridview($params)
+    {
+        return $this->view($params);
+    }
 }
-?>

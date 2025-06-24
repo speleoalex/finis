@@ -330,6 +330,8 @@ function TPL_ApplyTplString($str, $vars, $basepath = false, $config = array())
     foreach ($arrayvars as $key => $value)
     {
         //if----
+
+
         $html_template_if_items = TPL_GetHtmlParts("if {_&" . $key . "}", $strout);
         if ($html_template_if_items)
         {
@@ -349,6 +351,7 @@ function TPL_ApplyTplString($str, $vars, $basepath = false, $config = array())
                         $html_array = TPL_ApplyTplString($html_template_if_clean, $arrayvars, $basepath, $config);
                     }
                 }
+        
                 $strout = TPL_ReplaceHtmlPart("if {_&" . $key . "}", $html_array, $strout);
             }
         }

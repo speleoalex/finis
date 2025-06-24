@@ -27,8 +27,7 @@ function FN_GetPartialTimer()
 {
     global $_FN;
     // Initialize the partial timer if not set
-    if (empty($_FN['timepartial']))
-    {
+    if (empty($_FN['timepartial'])) {
         $_FN['timepartial'] = $_FN['timestart'];
     }
     // Get current time in microseconds
@@ -57,13 +56,11 @@ function FN_GetParam($key, $var = false, $type = "")
     $var = $var === false ? $_REQUEST : $var;
     $ret = $key === false ? $var : (isset($var[$key]) ? $var[$key] : "");
     // Ensure the return value is not an array
-    if (is_array($ret))
-    {
+    if (is_array($ret)) {
         $ret = "";
     }
     // Process the return value based on the specified type
-    switch ($type)
-    {
+    switch ($type) {
         case "html":
             $charset = $_FN['charset_page'] ?? "UTF-8"; // Use null coalescing operator for default charset
             $ret = htmlentities($ret, ENT_QUOTES, $charset);
@@ -75,8 +72,7 @@ function FN_GetParam($key, $var = false, $type = "")
             $ret = $ret !== "" ? floatval($ret) : 0.0;
             break;
         default:
-            if (function_exists($type))
-            {
+            if (function_exists($type)) {
                 return $type($ret);
             }
             break;
@@ -97,14 +93,12 @@ function FN_GetParam($key, $var = false, $type = "")
 function FN_HtmlContent($folder, $usecache = true)
 {
     $str = "";
-    if (file_exists("$folder/section.php"))
-    {
+    if (file_exists("$folder/section.php")) {
         ob_start();
         include_once "$folder/section.php";
         $str = ob_get_clean();
         return $str;
-    }
-    else
+    } else
         $str = FN_HtmlStaticContent($folder, $usecache);
     return $str;
 }
@@ -122,29 +116,22 @@ function FN_HtmlStaticContent($folder, $usecache = false)
 {
     global $_FN;
     static $cache = array();
-    if ($usecache)
-    {
-        if (!empty($cache[$folder]))
-        {
+    if ($usecache) {
+        if (!empty($cache[$folder])) {
             return $cache[$folder]; //cache in memory
         }
-        if (!empty($_FN['use_cache']) && file_exists("{$_FN['datadir']}/_cache/{$_FN['lang']}" . urlencode($folder) . ".cache"))
-        {
+        if (!empty($_FN['use_cache']) && file_exists("{$_FN['datadir']}/_cache/{$_FN['lang']}" . urlencode($folder) . ".cache")) {
             return file_get_contents("{$_FN['datadir']}/_cache/{$_FN['lang']}" . urlencode($folder) . ".cache");
         }
     }
     $filetoread = "";
     $str = "";
-    if (file_exists("$folder/section.{$_FN['lang']}.html"))
-    {
+    if (file_exists("$folder/section.{$_FN['lang']}.html")) {
         $filetoread = "$folder/section.{$_FN['lang']}.html";
-    }
-    elseif (file_exists("$folder/section.{$_FN['lang_default']}.html"))
-    {
+    } elseif (file_exists("$folder/section.{$_FN['lang_default']}.html")) {
         $filetoread = "$folder/section.{$_FN['lang_default']}.html";
     }
-    if ($filetoread)
-    {
+    if ($filetoread) {
         $str = file_get_contents($filetoread);
         $str = FN_RewriteLinksLocalToAbsolute($str, $folder);
     }
@@ -191,35 +178,32 @@ function FN_RewriteLinksLocalToAbsolute($str, $folder)
 
     // Replace local URLs with absolute URLs
     $old = "";
-    while ($str !== $old)
-    {
+    while ($str !== $old) {
         $old = $str;
         $str = preg_replace([
             '/<([^>]+)( background| href| src)=(["\'])([^#:{]*)(["\'])/im',
             '#<([^>]+)(url\((\'?)(?!http))#'
-                ], [
+        ], [
             "<\\1\\2=\\3$sdir\\4\\5",
             "<\\1\\2\\3$sdir"
-                ], $str);
+        ], $str);
     }
 
     // Restore original attribute names
     $str = str_replace(['ferh="', 'ferh=\'', 's_r_c="', 's_r_c=\''], ['href="', 'href=\'', 'src="', 'src=\''], $str);
 
     // Handle mod_rewrite if enabled
-    if ($_FN['enable_mod_rewrite'] > 0 && $_FN['links_mode'] == "html")
-    {
+    if ($_FN['enable_mod_rewrite'] > 0 && $_FN['links_mode'] == "html") {
         $langSuffix = ($_FN['lang'] == $_FN['lang_default']) ? '' : ".{$_FN['lang']}";
         $str = preg_replace([
             '/(href=["\'])index\.php\?mod=([A-Z0-9_]+)(["\'])/is'
-                ], [
+        ], [
             "$1$2{$langSuffix}.html$3"
-                ], $str);
+        ], $str);
     }
 
     // Replace placeholder URL if necessary
-    if (!empty($_FN['use_urlserverpath']))
-    {
+    if (!empty($_FN['use_urlserverpath'])) {
         $str = str_replace("http://____replace____/", $_FN['sitepath'], $str);
     }
 
@@ -242,17 +226,15 @@ function FN_IncludeCSS()
     $css = "";
     $sitepath = FN_SitePath();
     $sectionvalues = FN_GetSectionValues($_FN['mod']);
-    if (!empty($sectionvalues['type']) && file_exists("{$_FN['src_finis']}/modules/{$sectionvalues['type']}/style.css"))
-    {
+    if (!empty($sectionvalues['type']) && file_exists("{$_FN['src_finis']}/modules/{$sectionvalues['type']}/style.css")) {
         $css .= file_get_contents("{$_FN['src_finis']}/modules/{$sectionvalues['type']}/style.css") . "\n";
     }
-    if (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/style.css"))
-    {
+    if (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/style.css")) {
         $css .= file_get_contents("{$_FN['src_application']}/sections/{$_FN['mod']}/style.css") . "\n";
     }
     $html = "<style>$css</style>";
 
-//    $html = "<script>window.setTimeout(function(){document.getElementsByTagName('head')[0].innerHTML+='" . addslashes(str_replace("\n", "", $html)) . "';},10);</script>";
+    //    $html = "<script>window.setTimeout(function(){document.getElementsByTagName('head')[0].innerHTML+='" . addslashes(str_replace("\n", "", $html)) . "';},10);</script>";
 
     return $html;
 }
@@ -277,13 +259,11 @@ function FN_IncludeJS()
     $sitepath = FN_SitePath();
     $html = "";
     $listjs = glob("{$_FN['src_finis']}/include/javascripts/*.js");
-    foreach ($listjs as $file)
-    {
+    foreach ($listjs as $file) {
         FN_PathSite($file);
     }
     $listjs = glob("{$_FN['src_application']}/include/javascripts/*.js");
-    foreach ($listjs as $file)
-    {
+    foreach ($listjs as $file) {
         $html .= "\n\t<script defer=\"defer\" type=\"text/javascript\" src=\"{$sitepath}$file\"></script>";
     }
     return $html;
@@ -306,11 +286,10 @@ function FN_FromTheme($file, $absolute = true)
 
     // Construct theme path
     $themePath = "{$_FN['src_application']}/themes/{$_FN['theme']}/" .
-            ltrim(str_replace("{$_FN['src_finis']}/", "", $applicationPath), '/');
+        ltrim(str_replace("{$_FN['src_finis']}/", "", $applicationPath), '/');
 
     // Check if the file exists in the theme directory
-    if (file_exists(FN_PathSite($themePath)))
-    {
+    if (file_exists(FN_PathSite($themePath))) {
         return $absolute ? $_FN['siteurl'] . $themePath : $themePath;
     }
 
@@ -359,8 +338,7 @@ function FN_GetAccessKey(&$title, $link, $forcekey = "")
         $_FN['accesskey'] = array();
     $showaccesskey = $_FN['showaccesskey'];
     $titlel = strtolower($title);
-    if ($forcekey != "")
-    {
+    if ($forcekey != "") {
         if ($showaccesskey == 1) // sottolinea gli accesskey
         {
             $title = "[" . $forcekey . "]$title";
@@ -368,23 +346,20 @@ function FN_GetAccessKey(&$title, $link, $forcekey = "")
         $_FN['accesskey'][$forcekey] = $link;
         return $forcekey;
     }
-//----------cerco un accesskey libero------------
-    for ($i = 0; $i < strlen($titlel); $i++)
-    {
+    //----------cerco un accesskey libero------------
+    for ($i = 0; $i < strlen($titlel); $i++) {
         $a = $titlel[$i];
         if (!FN_erg("[a-z]", $a))
             continue;
-//---------se esiste gia' per quel link esco --------------
-        if (isset($_FN['accesskey'][$a]) && $_FN['accesskey'][$a] == $link)
-        {
+        //---------se esiste gia' per quel link esco --------------
+        if (isset($_FN['accesskey'][$a]) && $_FN['accesskey'][$a] == $link) {
             if ($showaccesskey == 1) // sottolinea gli accesskey
                 $title = "[" . $a . "]&nbsp;$title";
             $_FN['accesskey'][$a] = $link;
             return $a;
         }
-//-----tento con le altre lettere ------
-        if (!isset($_FN['accesskey'][$a]) && !is_numeric($a))
-        {
+        //-----tento con le altre lettere ------
+        if (!isset($_FN['accesskey'][$a]) && !is_numeric($a)) {
             $_FN['accesskey'][$a] = $link;
             if ($showaccesskey == 1) // sottolinea gli accesskey
             {
@@ -393,14 +368,59 @@ function FN_GetAccessKey(&$title, $link, $forcekey = "")
             return $a;
         }
     }
-    $chrs = array('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
-        'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-        ',', '.', '-', '+', '\\', '*', '@', '#', '?', '$', '!', '%', '/', '(',
-        ')', '=', '^', ';', ':', '.', '_', '|', '*');
-    foreach ($chrs as $a)
-    {
-        if (!isset($_FN['accesskey'][$a]))
-        {
+    $chrs = array(
+        'a',
+        'b',
+        'c',
+        'd',
+        'e',
+        'f',
+        'g',
+        'h',
+        'i',
+        'j',
+        'k',
+        'l',
+        'm',
+        'n',
+        'o',
+        'p',
+        'q',
+        'r',
+        's',
+        't',
+        'u',
+        'v',
+        'w',
+        'x',
+        'y',
+        'z',
+        ',',
+        '.',
+        '-',
+        '+',
+        '\\',
+        '*',
+        '@',
+        '#',
+        '?',
+        '$',
+        '!',
+        '%',
+        '/',
+        '(',
+        ')',
+        '=',
+        '^',
+        ';',
+        ':',
+        '.',
+        '_',
+        '|',
+        '*'
+    );
+    foreach ($chrs as $a) {
+        if (!isset($_FN['accesskey'][$a])) {
             if ($showaccesskey == 1) // sottolinea gli accesskey
             {
                 $title = "[" . $a . "]$title";
@@ -440,8 +460,8 @@ function FN_Tag2Html($string)
 
     $string = str_replace("[img]", "<br /><img src=\"", $string);
     $string = str_replace("[/img]", "\" alt=\"uploaded_image\" /><br />", $string);
-//$string = preg_replace("/\[youtube\](.+?)\[\/youtube\]/s",'<object width="425" height="355"><param name="movie" value="http://www.youtube.com/v/$1&rel=1"></param><param name="wmode" value="transparent"></param><embed src="http://www.youtube.com/v/$1&rel=1" type="application/x-shockwave-flash" wmode="transparent" width="425" height="355"></embed></object>',$string);
-// text color--->
+    //$string = preg_replace("/\[youtube\](.+?)\[\/youtube\]/s",'<object width="425" height="355"><param name="movie" value="http://www.youtube.com/v/$1&rel=1"></param><param name="wmode" value="transparent"></param><embed src="http://www.youtube.com/v/$1&rel=1" type="application/x-shockwave-flash" wmode="transparent" width="425" height="355"></embed></object>',$string);
+    // text color--->
     $string = str_replace("[red]", "<font color='ff0000'>", $string);
     $string = str_replace("[green]", "<font color='00ff00'>", $string);
     $string = str_replace("[blue]", "<font color='0000ff'>", $string);
@@ -454,51 +474,42 @@ function FN_Tag2Html($string)
     $string = str_replace("[/pink]", "</font>", $string);
     $string = str_replace("[/yellow]", "</font>", $string);
     $string = str_replace("[/cyan]", "</font>", $string);
-// text color---<
-// WIKIPEDIA --->
+    // text color---<
+    // WIKIPEDIA --->
     $items = explode("[/wp]", $string);
-    for ($i = 0; $i < count($items); $i++)
-    {
+    for ($i = 0; $i < count($items); $i++) {
         $wp = "";
-        if (stristr($items[$i], "[wp"))
-        {
+        if (stristr($items[$i], "[wp")) {
             $wp_lang = preg_replace("/.*\\[wp lang=/s", "", $items[$i]);
             $wp_lang = preg_replace("/\\].*/s", "", $wp_lang);
             $wp = preg_replace("/.*\\[wp.*\\]/s", "", $items[$i]);
             $wp = preg_replace("/\\[\\/wp\\].*/s", "", $wp);
-            if ($wp != "")
-            {
+            if ($wp != "") {
                 $nuovowp = "<a style=\"text-decoration: none; border-bottom: 1px dashed; color: blue;\" target=\"new\" href=\"http://$wp_lang.wikipedia.org/wiki/$wp\">$wp</a>";
                 $string = str_replace("[wp lang=$wp_lang]" . $wp . "[/wp]", $nuovowp, $string);
             }
         }
     }
-// WIKIPEDIA ---<
+    // WIKIPEDIA ---<
     $items = "";
-// URLs --->
+    // URLs --->
     $items = explode("[/url]", $string);
-    for ($i = 0; $i < count($items); $i++)
-    {
+    for ($i = 0; $i < count($items); $i++) {
         $url = "";
-        if (stristr($items[$i], "[url]"))
-        {
+        if (stristr($items[$i], "[url]")) {
             $url = preg_replace("/.*\\[url\\]/s", "", $items[$i]);
             $url = preg_replace("/\\[\/url\\].*/s", "", $url);
-            if ($url != "")
-            {
-                if (stristr($url, "http://") == FALSE && stristr($url, "https://") == FALSE)
-                {
+            if ($url != "") {
+                if (stristr($url, "http://") == FALSE && stristr($url, "https://") == FALSE) {
                     $nuovourl = "<a target=\"new\" href=\"http://$url\">$url</a>";
-                }
-                else
-                {
+                } else {
                     $nuovourl = "<a target=\"new\" href=\"$url\">$url</a>";
                 }
                 $string = str_replace("[url]" . $url . "[/url]", $nuovourl, $string);
             }
         }
     }
-// URLs ---<
+    // URLs ---<
     return ($string);
 }
 
@@ -511,10 +522,7 @@ function FN_Tag2Html($string)
 function FN_LogEvent($event, $context = "cms")
 {
     global $_FN;
-    if (!file_exists("{$_FN['datadir']}/{$_FN['database']}/fn_log.php"))
-    {
-        FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_log.php", "{$_FN['datadir']}/{$_FN['database']}/fn_log.php");
-    }
+    FN_Install("misc/fndatabase/fn_log.php");
     $table = FN_XMDBTable("fn_log");
     $newvalues = array();
     $newvalues['context'] = preg_replace('/[^a-z0-9]+/', '_', strtolower($context));
@@ -523,7 +531,6 @@ function FN_LogEvent($event, $context = "cms")
     $newvalues['ip'] = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
     $newvalues['date'] = FN_Now();
     $f = $table->InsertRecord($newvalues);
-    FN_Log($event);
 }
 
 /**
@@ -536,22 +543,16 @@ function FN_LogEvent($event, $context = "cms")
 function FN_AddNotification($notificationvalues, $users)
 {
     global $_FN;
-    //if (!file_exists("{$_FN['datadir']}/{$_FN['database']}/fn_notifications.php"))
-    {
-        FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_notifications.php", "{$_FN['datadir']}/{$_FN['database']}/fn_notifications.php");
-    }
-    if ($users && is_string($users))
-    {
-        if (!FN_GetUser($users))
-        {
+    FN_Install("misc/fndatabase/fn_notifications.php");
+    if ($users && is_string($users)) {
+        if (!FN_GetUser($users)) {
             return;
         }
         $users = array($users);
     }
     $users = array_unique($users);
     $table = FN_XMDBTable("fn_notifications");
-    if (is_string($notificationvalues))
-    {
+    if (is_string($notificationvalues)) {
         $text = $notificationvalues;
         $notificationvalues = array();
         $notificationvalues['text'] = "$text";
@@ -564,10 +565,8 @@ function FN_AddNotification($notificationvalues, $users)
     $newvalues['ip'] = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
     $newvalues['date'] = FN_Now();
 
-    foreach ($users as $user)
-    {
-        if ($user)
-        {
+    foreach ($users as $user) {
+        if ($user) {
             $newvalues['username'] = $user;
             $f = $table->InsertRecord($newvalues);
         }
@@ -589,12 +588,9 @@ function FN_GetNotificationsUndisplayed($user, $context = "")
     $notifications = FN_XMETADBQuery($query);
     //$notifications = $table->GetRecords(array("username" => $user));
     $ret_notifications = array();
-    if (is_array($notifications))
-    {
-        foreach ($notifications as $k => $notification)
-        {
-            if ($notification['displayed'] != 1)
-            {
+    if (is_array($notifications)) {
+        foreach ($notifications as $k => $notification) {
+            if ($notification['displayed'] != 1) {
                 $tmp = $notification;
                 $tmp['human_date'] = FN_FormatDate($notification['date'], true);
                 $tmp['link'] = isset($notification['link']) ? $notification['link'] : "";
@@ -626,38 +622,11 @@ function FN_SetNotificationDisplayed($id)
 function FN_Log($txt)
 {
     global $_FN;
-    $string = "";
-    $flog = "{$_FN['datadir']}/log"; //splx zone da forum non c'e' piu'
-    if (!is_dir($flog))
-        mkdir($flog, 0777);
-    $datelog = date("Y-m");
-    if (!file_exists("$flog/$datelog-log.php"))
-    {
-        FN_Write("<?php exit(1);?>\n", "$flog/$datelog-log.php", "a");
-    }
-    if (is_writable("$flog/$datelog-log.php"))
-    {
-        $ip = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
-        $user = isset($_FN['user']) ? $_FN['user'] : "";
-        $txt = str_replace('"', '""', $txt);
-        $ip = str_replace('"', '""', $ip);
-        $user = str_replace('"', '""', $user);
-        $string = XMETATable::now() . ";\"$ip\";\"{$_FN['self']}\";\"{$_FN['mod']}\";\"$user\";\"$txt\";\n";
-        FN_Write($string, "$flog/$datelog-log.php", "a");
-    }
-    else
-    {
-        if (FN_IsAdmin())
-        {
-            echo "<br />";
-            echo "$flog/$datelog-log.php:" . FN_i18n("is read-only") . "<br />";
-        }
-    }
-    if ($_FN['enable_log_email'] == 1)
-    {
+    FN_LogEvent ($txt);
+    if ($_FN['enable_log_email'] == 1) {
         $txtmail = "Log from: {$_FN['sitename']}";
         $txtmail .= "\n\nSite url:{$_FN['siteurl']}";
-        $txtmail .= "\n\nLog: $string";
+        $txtmail .= "\n\nLog: $txt";
         FN_SendMail($_FN['log_email_address'], "[fnlog] {$_FN['sitename']}", $txtmail);
     }
 }
@@ -672,16 +641,12 @@ function FN_UserInGroup($user, $group)
 {
     $user = FN_GetUser($user);
 
-    if (isset($user['group']))
-    {
+    if (isset($user['group'])) {
         $usergroups = explode(",", $user['group']);
-        if (is_array($usergroups))
-        {
+        if (is_array($usergroups)) {
             $groups = explode(",", $group);
-            foreach ($groups as $group)
-            {
-                if (in_array($group, $usergroups))
-                {
+            foreach ($groups as $group) {
+                if (in_array($group, $usergroups)) {
                     // dprint_r(" $user, $group true");
                     return true;
                 }
@@ -701,8 +666,7 @@ function FN_CreateGroupIfNotExists($groupname)
     global $_FN;
     $table = FN_XMDBTable("fn_groups");
     $old = $table->GetRecordByPrimaryKey($groupname);
-    if (!isset($old['groupname']))
-    {
+    if (!isset($old['groupname'])) {
         $table->InsertRecord(array("groupname" => $groupname));
     }
 }
@@ -718,70 +682,42 @@ function FN_InitTables($force = false)
         return;
     if (!file_exists($_FN['datadir'] . "/_cache"))
         FN_MkDir($_FN['datadir'] . "/_cache");
-    if (!empty($_FN['use_cache']) && !file_exists("{$_FN['datadir']}/_cache/html"))
-    {
+    if (!empty($_FN['use_cache']) && !file_exists("{$_FN['datadir']}/_cache/html")) {
         FN_MkDir("{$_FN['datadir']}/_cache/html");
     }
-    if (!file_exists("{$_FN['datadir']}/{$_FN['database']}"))
-    {
+    if (!file_exists("{$_FN['datadir']}/{$_FN['database']}")) {
         $ret = mkdir("{$_FN['datadir']}/{$_FN['database']}");
         if (!$ret)
             dprint_r("error create folder: {$_FN['datadir']}/{$_FN['database']}");
     }
-    if ($force || !file_exists("{$_FN['datadir']}/{$_FN['database']}/fn_i18n.php"))
-    {
-        FN_Copy("{$_FN['src_finis']}include/install/fndatabase/fn_i18n.php", "{$_FN['datadir']}/{$_FN['database']}/fn_i18n.php");
-    }
-    if ($force || !file_exists("{$_FN['datadir']}/{$_FN['database']}/fn_sections.php"))
-    {
-        FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_sections.php", "{$_FN['datadir']}/{$_FN['database']}/fn_sections.php");
-    }
-    if ($force || !file_exists("{$_FN['datadir']}/{$_FN['database']}/fn_sectionstypes.php"))
-    {
-        FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_sectionstypes.php", "{$_FN['datadir']}/{$_FN['database']}/fn_sectionstypes.php");
-    }
-    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_blocks.php"))
-    {
-        FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_blocks.php", "{$_FN['datadir']}/{$_FN['database']}/fn_blocks.php");
-    }
-    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_settings.php"))
-    {
-        FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_settings.php", "{$_FN['datadir']}/{$_FN['database']}/fn_settings.php");
-    }
-    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_oauth_providers.php"))
-    {
-        FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_oauth_providers.php", "{$_FN['datadir']}/{$_FN['database']}/fn_oauth_providers.php");
-    }
-
-
-
-    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_users.php"))
-    {
-        if (file_exists("{$_FN['src_finis']}/include/install/fndatabase/fn_users.custom.php"))
-            FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_users.custom.php", "{$_FN['datadir']}/{$_FN['database']}/fn_users.php");
+    FN_Install("misc/fndatabase/fn_i18n.php", $force);
+    FN_Install("misc/fndatabase/fn_sections.php", $force);
+    FN_Install("misc/fndatabase/fn_sectionstypes.php", $force);
+    FN_Install("misc/fndatabase/fn_blocks.php", $force);
+    FN_Install("misc/fndatabase/fn_settings.php", $force);
+    FN_Install("misc/fndatabase/fn_oauth_providers.php", $force);
+    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_users.php")) {
+        if (file_exists("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_users.custom.php"))
+            FN_Copy("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_users.custom.php", "{$_FN['datadir']}/{$_FN['database']}/fn_users.php");
         else
-            FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_users.php", "{$_FN['datadir']}/{$_FN['database']}/fn_users.php");
+            FN_Copy("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_users.php", "{$_FN['datadir']}/{$_FN['database']}/fn_users.php");
     }
-    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_groups.php"))
-    {
-        FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_groups.php", "{$_FN['datadir']}/{$_FN['database']}/fn_groups.php");
+    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_groups.php")) {
+        FN_Copy("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_groups.php", "{$_FN['datadir']}/{$_FN['database']}/fn_groups.php");
         $table = FN_XMDBTable("fn_groups");
         $r['groupname'] = 'users';
         $table->InsertRecord($r);
     }
-    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_avatars") && file_exists("{$_FN['src_finis']}/include/install/fndatabase/fn_avatars"))
-    {
-        FN_CopyDir("{$_FN['src_finis']}/include/install/fndatabase/fn_avatars", "{$_FN['datadir']}/{$_FN['database']}/");
+    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_avatars") && file_exists("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_avatars")) {
+        FN_CopyDir("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_avatars", "{$_FN['datadir']}/{$_FN['database']}/");
     }
     if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_avatars.php") && file_exists("{$_FN['src_finis']}/include/install/{$_FN['database']}/fn_avatars.php"))
-        FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_avatars.php", "{$_FN['datadir']}/{$_FN['database']}/fn_avatars.php");
-    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_conditions.php"))
-    {
-        FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_conditions.php", "{$_FN['datadir']}/{$_FN['database']}/fn_conditions.php");
+        FN_Copy("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_avatars.php", "{$_FN['datadir']}/{$_FN['database']}/fn_avatars.php");
+    if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_conditions.php")) {
+        FN_Copy("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_conditions.php", "{$_FN['datadir']}/{$_FN['database']}/fn_conditions.php");
         $tcond = FN_XMDBForm("fn_conditions");
         $conditions = $tcond->xmltable->GetRecords();
-        if (!is_array($conditions) || count($conditions) == 0)
-        {
+        if (!is_array($conditions) || count($conditions) == 0) {
 
             $value['text'] = file_get_contents("{$_FN['src_finis']}/modules/login/conditions/conditions.en.html");
             $value['text_it'] = file_get_contents("{$_FN['src_finis']}/modules/login/conditions/conditions.it.html");
@@ -821,12 +757,10 @@ function FN_StripPostSlashes($string)
 function FN_GetDateTime($time)
 {
     global $_FN;
-    if (strlen("$time") == 19 || is_string($time))
-    {
+    if (strlen("$time") == 19 || is_string($time)) {
         $time = strtotime($time);
     }
-    if (!$time)
-    {
+    if (!$time) {
         $time = time();
     }
     $ret = $_FN['days'][date("w", $time)];
@@ -851,8 +785,7 @@ function FN_GetDateTime($time)
 function FN_FormatDate($time, $showtime = true)
 {
     global $_FN;
-    if (strlen("$time") == 19 || !is_numeric($time))
-    {
+    if (strlen("$time") == 19 || !is_numeric($time)) {
         $time = strtotime($time);
     }
     $ret = $_FN['days'][date("w", $time)];
@@ -862,8 +795,7 @@ function FN_FormatDate($time, $showtime = true)
         $tmp = str_replace("0", "", $tmp);
     $ret .= $_FN['months'][$tmp - 1];
     $ret .= date(" Y ", $time);
-    if ($showtime)
-    {
+    if ($showtime) {
         $ret .= date("- H:", $time);
         $ret .= date("i", $time);
     }
@@ -878,8 +810,7 @@ function FN_FormatDate($time, $showtime = true)
 function FN_IsExternalReferer()
 {
     global $_FN;
-    if (empty($_SERVER['HTTP_REFERER']) || !FN_erg($_FN['siteurl'], $_SERVER['HTTP_REFERER']))
-    {
+    if (empty($_SERVER['HTTP_REFERER']) || !FN_erg($_FN['siteurl'], $_SERVER['HTTP_REFERER'])) {
         return true;
     }
     return false;
@@ -899,37 +830,30 @@ function FN_SendMail($to, $subject, $body, $ishtml = false, $from = "")
 {
     global $_FN;
     $replyto = $from;
-    if ($from == "")
-    {
-        $from = "\"{$_FN['sitename']}\" <{$_FN['site_email_address']}>";
+    if ($from == "") {
+        $from = $_FN['site_email_address'];
         $replyto = $_FN['site_email_address'];
     }
-    if (!empty($_FN['FN_SendMail']) && $_FN['FN_SendMail'] != "FN_SendMail")
-    {
+    if (!empty($_FN['FN_SendMail']) && $_FN['FN_SendMail'] != "FN_SendMail") {
         return $_FN['FN_SendMail']($to, $subject, $body, $ishtml, $from);
     }
-    if ($to != "")
-    {
-        if ($ishtml)
-        {
+    if ($to != "") {
+        if ($ishtml) {
             $headers = "MIME-Version: 1.0\n" .
-                    "Content-type: text/html; charset=\"utf-8\"\n" .
-                    "From: $from\n" .
-                    "Reply-To: {$replyto}\n" .
-                    "X-Mailer: PHP/" . phpversion();
-        }
-        else
-        {
+                "Content-type: text/html; charset=\"utf-8\"\n" .
+                "From: $from\n" .
+                "Reply-To: {$replyto}\n" .
+                "X-Mailer: PHP/" . phpversion();
+        } else {
             $headers = "MIME-Version: 1.0\n" .
-                    "Content-Type: text/plain; charset = \"utf-8\"\n";
+                "Content-Type: text/plain; charset = \"utf-8\"\n";
             $headers .= "From: $from\n" .
-                    "Reply-To: {$replyto}\n" .
-                    "X-Mailer: PHP/" . phpversion();
+                "Reply-To: {$replyto}\n" .
+                "X-Mailer: PHP/" . phpversion();
         }
         $message = FN_FixNewline($body);
         $headers = FN_FixNewline($headers);
-        if (@mail($to, $subject, $message, $headers))
-        {
+        if (@mail($to, $subject, $message, $headers)) {
             return true;
         }
     }
@@ -943,19 +867,14 @@ function FN_SendMail($to, $subject, $body, $ishtml = false, $from = "")
  */
 function FN_FixNewline($text)
 {
-    if (strtoupper(substr(PHP_OS, 0, 3) == 'WIN'))
-    {
+    if (strtoupper(substr(PHP_OS, 0, 3) == 'WIN')) {
         $eol = "\r\n";
-    }
-    elseif (strtoupper(substr(PHP_OS, 0, 3) == 'MAC'))
-    {
+    } elseif (strtoupper(substr(PHP_OS, 0, 3) == 'MAC')) {
         $eol = "\r";
-    }
-    else
-    {
+    } else {
         $eol = "\n";
     }
-//fix newline
+    //fix newline
     $text = str_replace("\r\n", "\n", $text);
     $text = str_replace("\r", "", $text);
     $text = str_replace("\n", "$eol", $text);
@@ -970,27 +889,21 @@ function FN_SaveGetPostParam($param, $ignore_post = false, $ignore_get = false, 
 {
     global $_FN;
     $retparam = false;
-    if (!$ignore_cookie && isset($_COOKIE [$param]))
-    {
-        $retparam = $_COOKIE [$param];
+    if (!$ignore_cookie && isset($_COOKIE[$param])) {
+        $retparam = $_COOKIE[$param];
     }
-    if (!$ignore_post && isset($_POST [$param]) && !is_array($_POST [$param]))
-    {
-        if (!$ignore_cookie)
-        {
-            $_COOKIE [$param] = $_POST [$param];
-            setcookie($param, $_POST [$param], time() + 999999999, $_FN ['urlcookie']);
+    if (!$ignore_post && isset($_POST[$param]) && !is_array($_POST[$param])) {
+        if (!$ignore_cookie) {
+            $_COOKIE[$param] = $_POST[$param];
+            setcookie($param, $_POST[$param], time() + 999999999, $_FN['urlcookie']);
         }
-        $retparam = FN_StripPostSlashes($_POST [$param]);
-    }
-    elseif (!$ignore_get && isset($_GET [$param]) && !is_array($_GET [$param]))
-    {
-        if (!$ignore_cookie)
-        {
-            $_COOKIE [$param] = $_GET [$param];
-            setcookie($param, $_GET [$param], time() + 999999999, $_FN ['urlcookie']);
+        $retparam = FN_StripPostSlashes($_POST[$param]);
+    } elseif (!$ignore_get && isset($_GET[$param]) && !is_array($_GET[$param])) {
+        if (!$ignore_cookie) {
+            $_COOKIE[$param] = $_GET[$param];
+            setcookie($param, $_GET[$param], time() + 999999999, $_FN['urlcookie']);
         }
-        $retparam = FN_StripPostSlashes($_GET [$param]);
+        $retparam = FN_StripPostSlashes($_GET[$param]);
     }
     return $retparam;
 }
@@ -1005,45 +918,44 @@ function FN_GetIconByFilename($filename)
     $ext = FN_GetFileExtension($filename);
     $ext = strtolower($ext);
     $dimg = "unknown.png";
-    switch ($ext)
-    {
-        case "sh" :
+    switch ($ext) {
+        case "sh":
             $dimg = "binhex.png";
             break;
-        case "xhtml" :
-        case "html" :
-        case "htm" :
+        case "xhtml":
+        case "html":
+        case "htm":
             $dimg = "web.png";
             break;
-        case "inc" :
-        case "txt" :
-        case "xml" :
-        case "css" :
-        case "" :
+        case "inc":
+        case "txt":
+        case "xml":
+        case "css":
+        case "":
             $dimg = "text.png";
             break;
-        case "png" :
-        case "bmp" :
-        case "jpg" :
-        case "jpeg" :
-        case "ico" :
-        case "gif" :
+        case "png":
+        case "bmp":
+        case "jpg":
+        case "jpeg":
+        case "ico":
+        case "gif":
             $dimg = "image.png";
             break;
-        case "zip" :
-        case "gz" :
+        case "zip":
+        case "gz":
             $dimg = "compressed.png";
             break;
-        case "mp3" :
-        case "wav" :
+        case "mp3":
+        case "wav":
             $dimg = "sound.png";
             break;
-        case "wma" :
-        case "mpeg" :
-        case "rm" :
+        case "wma":
+        case "mpeg":
+        case "rm":
             $dimg = "movie.png";
             break;
-        default :
+        default:
             if (file_exists("images/mime/$ext.png"))
                 $dimg = "$ext.png";
             break;
@@ -1062,8 +974,7 @@ function FN_GetVarsFromTable($tablename)
 
     $var = array();
     if (is_array($items))
-        foreach ($items as $item)
-        {
+        foreach ($items as $item) {
             if (isset($item['varname']) && isset($item['varvalue']))
                 $var[$item['varname']] = $item['varvalue'];
         }
@@ -1081,22 +992,17 @@ function FN_GetMessagesFromFolder($folder)
     $tmp = array();
     $tmp_theme = false;
     $rel_folder = str_replace($_FN['src_finis'], "", $folder);
-    if (file_exists("$folder/languages/{$_FN['lang']}/lang.csv"))
-    {
+    if (file_exists("$folder/languages/{$_FN['lang']}/lang.csv")) {
         $foldertheme = FN_FromTheme("$folder/languages/{$_FN['lang']}/lang.csv");
         $tmp = FN_GetMessagesFromCsv("$folder/languages/{$_FN['lang']}/lang.csv");
-    }
-    elseif (file_exists("$folder/languages/en/lang.csv"))
-    {
+    } elseif (file_exists("$folder/languages/en/lang.csv")) {
         $tmp = FN_GetMessagesFromCsv("$folder/languages/en/lang.csv");
     }
-    if (file_exists($_FN['src_finis'] . "/themes/{$_FN['theme']}/$rel_folder/languages/{$_FN['lang']}/lang.csv"))
-    {
+    if (file_exists($_FN['src_finis'] . "/themes/{$_FN['theme']}/$rel_folder/languages/{$_FN['lang']}/lang.csv")) {
         $tmp_theme = FN_GetMessagesFromCsv($_FN['src_finis'] . "/themes/{$_FN['theme']}/$rel_folder/languages/{$_FN['lang']}/lang.csv");
         $tmp = array_merge($tmp, $tmp_theme);
     }
-    if (file_exists($_FN['src_application'] . "/themes/{$_FN['theme']}/$rel_folder/languages/{$_FN['lang']}/lang.csv"))
-    {
+    if (file_exists($_FN['src_application'] . "/themes/{$_FN['theme']}/$rel_folder/languages/{$_FN['lang']}/lang.csv")) {
         $tmp_theme = FN_GetMessagesFromCsv($_FN['src_application'] . "/themes/{$_FN['theme']}/$rel_folder/languages/{$_FN['lang']}/lang.csv");
         $tmp = array_merge($tmp, $tmp_theme);
     }
@@ -1131,37 +1037,25 @@ function FN_GetFolderTitle($path, $lang = "")
     if ($lang == "")
         $lang = $_FN['lang'];
     $title = "";
-    if (!is_dir($path))
-    {
+    if (!is_dir($path)) {
 
-        if (file_exists("$path.$lang.fn"))
-        {
+        if (file_exists("$path.$lang.fn")) {
             $title = file_get_contents("$path.$lang.fn");
-        }
-        elseif (file_exists("$path.i18n.fn"))
-        {
+        } elseif (file_exists("$path.i18n.fn")) {
             $title = FN_Translate(file_get_contents("$path.i18n.fn"), "Aa", $lang);
-        }
-        else
-        {
+        } else {
             $title = basename($path);
         }
         return $title;
-    }
-    elseif (file_exists("$path/title.$lang.fn"))
-    {
+    } elseif (file_exists("$path/title.$lang.fn")) {
         $title = file_get_contents("$path/title.$lang.fn");
-    }
-    elseif (file_exists("$path/title.i18n.fn"))
-    {
+    } elseif (file_exists("$path/title.i18n.fn")) {
         $title = FN_Translate(file_get_contents("$path/title.i18n.fn"), "Aa", $lang);
-    }
-    elseif (file_exists("$path/title.{$_FN['lang_default']}.fn"))
+    } elseif (file_exists("$path/title.{$_FN['lang_default']}.fn"))
         $title = file_get_contents("$path/title.{$_FN['lang_default']}.fn");
     elseif (file_exists("$path/title.en.fn"))
         $title = file_get_contents("$path/title.en.fn");
-    if ($title === "")
-    {
+    if ($title === "") {
         $title = basename($path);
     }
     $title = str_replace("{siteurl}", $_FN['siteurl'], $title);
@@ -1186,13 +1080,10 @@ function FN_LoadVarsFromTable(&$var, $tablename, $configvars = array(), $ignore 
     if (!is_array($ignore))
         $ignore = array();
     $vars_in_table_assoc = FN_GetVarsFromTable($tablename);
-    if (is_array($var))
-    {
+    if (is_array($var)) {
         //---clear obsolete vars----------------------------------------------->
-        foreach ($vars_in_table_assoc as $k => $v)
-        {
-            if (is_array($configvars) && count($configvars) > 0 && !in_array($k, $configvars))
-            {
+        foreach ($vars_in_table_assoc as $k => $v) {
+            if (is_array($configvars) && count($configvars) > 0 && !in_array($k, $configvars)) {
                 $Table->DelRecord($k);
             }
         }
@@ -1200,28 +1091,21 @@ function FN_LoadVarsFromTable(&$var, $tablename, $configvars = array(), $ignore 
         $settingsByKey = array();
         $settings = $Table->GetRecords();
         if (is_array($settings))
-            foreach ($settings as $v)
-            {
-                if (isset($v['varname']))
-                {
+            foreach ($settings as $v) {
+                if (isset($v['varname'])) {
                     $settingsByKey[$v['varname']] = $v;
                 }
             }
-        foreach ($var as $k => $v)
-        {
+        foreach ($var as $k => $v) {
             if (in_array($k, $ignore))
                 continue;
             if (!in_array($k, $configvars))
                 continue;
             $old = isset($settingsByKey[$k]) ? $settingsByKey[$k] : array();
-            if (!@array_key_exists('defaultvalue', $old))
-            {
+            if (!@array_key_exists('defaultvalue', $old)) {
                 $Table->InsertRecord(array("varname" => $k, "varvalue" => $v, "defaultvalue" => $v));
-            }
-            else
-            {
-                if ($old['defaultvalue'] != $v)
-                {
+            } else {
+                if ($old['defaultvalue'] != $v) {
                     $Table->UpdateRecord(array("varname" => $k, "defaultvalue" => $v));
                 }
             }
@@ -1249,86 +1133,62 @@ function FN_LoadConfig($fileconfig = "", $sectionid = "", $usecache = true)
     $tablename = "";
     //---------------------------- empty fileconfig --------------------------->
     $fileconfig_fullpath = $fileconfig;
-    if ($fileconfig != "" && !file_exists("$fileconfig") && file_exists("{$_FN['src_finis']}/$fileconfig"))
-    {
+    if ($fileconfig != "" && !file_exists("$fileconfig") && file_exists("{$_FN['src_finis']}/$fileconfig")) {
         $fileconfig_fullpath = "{$_FN['src_finis']}/$fileconfig";
     }
     //dprint_r($fileconfig_fullpath);
     $fileconfig = str_replace($_FN['src_finis'] . "/", "", $fileconfig);
-    if ($fileconfig == "")
-    {
-        if ($_FN['block'] != "")
-        {
+    if ($fileconfig == "") {
+        if ($_FN['block'] != "") {
             $blockvalues = FN_GetBlockValues($_FN['block']);
             $module = $blockvalues['type'];
-            if (file_exists("{$_FN['src_finis']}/modules/$module/config.php"))
-            {
+            if (file_exists("{$_FN['src_finis']}/modules/$module/config.php")) {
                 $fileconfig = "modules/{$module}/config.php";
                 $fileconfig_fullpath = "{$_FN['src_finis']}/modules/{$module}/config.php";
-            }
-            else
-            {
+            } else {
                 $fileconfig = "blocks/{$_FN['block']}/config.php";
                 $fileconfig_fullpath = "{$_FN['src_application']}/blocks/{$_FN['block']}/config.php";
             }
-        }
-        else
-        {
-            if (!empty($_FN['sectionvalues']['type']))
-            {
+        } else {
+            if (!empty($_FN['sectionvalues']['type'])) {
                 $fileconfig = "modules/{$_FN['sectionvalues']['type']}/config.php";
                 $fileconfig_fullpath = "{$_FN['src_finis']}/modules/{$_FN['sectionvalues']['type']}/config.php";
-            }
-            else
-            {
-                if ($sectionid == "")
-                {
+            } else {
+                if ($sectionid == "") {
                     $sectionid = $_FN['mod'];
                 }
                 $fileconfig = "{$_FN['src_application']}/sections/{$sectionid}/config.php";
             }
         }
-       
     }
     //---------------------------- empty fileconfig ---------------------------<
-  
-    if (preg_match("/^blocks/is", $fileconfig) || preg_match("/^sections/is", $fileconfig) || preg_match("/^modules/is", $fileconfig))
-    {
-        if ($_FN['block'] != "")
-        {
+
+    if (preg_match("/^blocks/is", $fileconfig) || preg_match("/^sections/is", $fileconfig) || preg_match("/^modules/is", $fileconfig)) {
+        if ($_FN['block'] != "") {
             $sectionid = $_FN['block'];
             $tablename = "fncf_block_{$sectionid}";
         }
 
-        if ($sectionid == "")
-        {
+        if ($sectionid == "") {
             $sectionid = $_FN['mod'];
         }
 
-        if ($sectionid !== "" && $_FN['block'] == "")
-        {
+        if ($sectionid !== "" && $_FN['block'] == "") {
 
             $tablename = "fncf_{$sectionid}";
-            if (file_exists("{$_FN['src_application']}/sections/$sectionid/default.xml.php"))
-            {
+            if (file_exists("{$_FN['src_application']}/sections/$sectionid/default.xml.php")) {
 
                 $sectionvalues = FN_GetSectionValues($sectionid);
-                if (!empty($sectionvalues['type']))
-                {
+                if (!empty($sectionvalues['type'])) {
                     $default = xmetadb_xml2array(file_get_contents("{$_FN['src_application']}/sections/$sectionid/default.xml.php"), "fncf_{$sectionvalues['type']}");
                     $default = (isset($default[0]) && is_array($default[0])) ? $default[0] : array();
                 }
             }
         }
-    }
-    else
-    {
-        if ($fileconfig === "config.php" || $fileconfig === "./config.php")
-        {
+    } else {
+        if ($fileconfig === "config.php" || $fileconfig === "./config.php") {
             $tablename = "fn_settings";
-        }
-        else
-        {
+        } else {
             $tablename = str_replace("/", "_s_", dirname($fileconfig));
             $tablename = str_replace("\\", "_b_", $tablename);
             $tablename = str_replace(".", "_d_", $tablename);
@@ -1338,15 +1198,13 @@ function FN_LoadConfig($fileconfig = "", $sectionid = "", $usecache = true)
     // dprint_r_arrayxml($tablename);
     // @ob_end_flush();
 
-    if (!empty($cache["$tablename"]))
-    {
+    if (!empty($cache["$tablename"])) {
 
         return $cache["$tablename"];
     }
 
 
-    if ($tablename != "" && !file_exists("{$_FN['datadir']}/fndatabase/$tablename.php"))
-    {
+    if ($tablename != "" && !file_exists("{$_FN['datadir']}/fndatabase/$tablename.php")) {
         $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
 <?php exit(0);?>
 <tables>
@@ -1374,26 +1232,22 @@ function FN_LoadConfig($fileconfig = "", $sectionid = "", $usecache = true)
     $config = array();
     $fields = false;
 
-    if (file_exists($fileconfig_fullpath))
-    {
+    if (file_exists($fileconfig_fullpath)) {
         include "$fileconfig_fullpath";
-        if (!empty($default) && is_array($default))
-        {
+        if (!empty($default) && is_array($default)) {
             $config = array_merge($config, $default);
         }
         $fields = array_keys($config);
     }
-    if ($tablename != "")
-    {
+    if ($tablename != "") {
         FN_LoadVarsFromTable($config, $tablename, $fields);
 
         $cache[$tablename] = $config;
     }
-    
-    
-    
-    if (isset($config['id']))
-    {
+
+
+
+    if (isset($config['id'])) {
         unset($config['id']);
     }
 
@@ -1407,19 +1261,15 @@ function FN_NormalizeAllPaths($content)
     $pattern = '/(\s(?:href|src)\s*=\s*)([\"\'])([^\"\']+)\2/i';
 
     // Use preg_replace_callback to process each match
-    $normalizedContent = preg_replace_callback($pattern, function ($matches)
-    {
+    $normalizedContent = preg_replace_callback($pattern, function ($matches) {
         $attribute = $matches[1];  // href= or src=
         $quote = $matches[2];      // ' or "
         $path = $matches[3];       // The actual URL/path
         // Check if the path is a URL with a protocol
-        if (preg_match('~^(?:f|ht)tps?://~i', $path))
-        {
+        if (preg_match('~^(?:f|ht)tps?://~i', $path)) {
             // If it's a URL, don't normalize it
             $normalizedPath = $path;
-        }
-        else
-        {
+        } else {
             // If it's not a URL, normalize the path
             $normalizedPath = FN_NormalizePath($path);
         }
@@ -1445,42 +1295,32 @@ function FN_NormalizePath($path)
 
     // Count the number of initial '../' sequences
     $parentDirCount = 0;
-    while (isset($parts[$parentDirCount]) && $parts[$parentDirCount] === '..')
-    {
+    while (isset($parts[$parentDirCount]) && $parts[$parentDirCount] === '..') {
         $parentDirCount++;
     }
 
     // Add the initial '../' sequences to the normalized parts
-    for ($i = 0; $i < $parentDirCount; $i++)
-    {
+    for ($i = 0; $i < $parentDirCount; $i++) {
         $normalizedParts[] = '..';
     }
 
     // Iterate through the remaining parts of the path
-    for ($i = $parentDirCount; $i < count($parts); $i++)
-    {
+    for ($i = $parentDirCount; $i < count($parts); $i++) {
         $part = $parts[$i];
         // Ignore any '.' as it refers to the current directory
-        if ($part === '.' || $part === '')
-        {
+        if ($part === '.' || $part === '') {
             continue;
         }
 
         // If '..' is found, remove the last directory from the normalized path
-        if ($part === '..')
-        {
-            if (!empty($normalizedParts) && end($normalizedParts) !== '..')
-            {
+        if ($part === '..') {
+            if (!empty($normalizedParts) && end($normalizedParts) !== '..') {
                 array_pop($normalizedParts);
-            }
-            else
-            {
+            } else {
                 // If we can't go up anymore, add '..' to the path
                 $normalizedParts[] = '..';
             }
-        }
-        else
-        {
+        } else {
             // Add the current part to the normalized path
             $normalizedParts[] = $part;
         }
@@ -1490,8 +1330,7 @@ function FN_NormalizePath($path)
     $normalizedPath = implode('/', $normalizedParts);
 
     // If the original path was absolute, prepend '/' to the normalized path
-    if ($isAbsolute)
-    {
+    if ($isAbsolute) {
         $normalizedPath = '/' . $normalizedPath;
     }
 
@@ -1511,24 +1350,22 @@ function FN_RewriteLinksAbsoluteToLocal($content, $directory)
     $relativePath = str_repeat("../", count(array_filter(explode("/", $directory))));
     // Use regular expressions to target only href and src attributes
     $content = preg_replace_callback(
-            '/(href|src)=(["\'])((?:' . preg_quote($targetDirURL, '/') . '|' . preg_quote($targetDirURLnoprotocol, '/') . ').*?)\2/i',
-            function ($matches) use ($targetDirURL, $targetDirURLnoprotocol)
-            {
-                $url = $matches[3];
-                $url = str_replace([$targetDirURL, $targetDirURLnoprotocol], '', $url);
-                return $matches[1] . '=' . $matches[2] . $url . $matches[2];
-            },
-            $content
+        '/(href|src)=(["\'])((?:' . preg_quote($targetDirURL, '/') . '|' . preg_quote($targetDirURLnoprotocol, '/') . ').*?)\2/i',
+        function ($matches) use ($targetDirURL, $targetDirURLnoprotocol) {
+            $url = $matches[3];
+            $url = str_replace([$targetDirURL, $targetDirURLnoprotocol], '', $url);
+            return $matches[1] . '=' . $matches[2] . $url . $matches[2];
+        },
+        $content
     );
 
     // Replace remaining absolute URLs with calculated relative paths
     $content = preg_replace_callback(
-            '/(href|src)=(["\'])(' . preg_quote($baseURL, '/') . '|' . preg_quote($firstpart, '/') . ')(.*?)\2/i',
-            function ($matches) use ($relativePath)
-            {
-                return $matches[1] . '=' . $matches[2] . $relativePath . $matches[4] . $matches[2];
-            },
-            $content
+        '/(href|src)=(["\'])(' . preg_quote($baseURL, '/') . '|' . preg_quote($firstpart, '/') . ')(.*?)\2/i',
+        function ($matches) use ($relativePath) {
+            return $matches[1] . '=' . $matches[2] . $relativePath . $matches[4] . $matches[2];
+        },
+        $content
     );
     return $content;
 }
@@ -1539,8 +1376,7 @@ function FN_extractBaseUrl($url)
     $parsedUrl = parse_url($url);
 
     // Check if scheme and host are present
-    if (!isset($parsedUrl['scheme']) || !isset($parsedUrl['host']))
-    {
+    if (!isset($parsedUrl['scheme']) || !isset($parsedUrl['host'])) {
         return false; // Invalid URL
     }
 
@@ -1548,8 +1384,7 @@ function FN_extractBaseUrl($url)
     $baseUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
 
     // If there's a port, add it
-    if (isset($parsedUrl['port']))
-    {
+    if (isset($parsedUrl['port'])) {
         $baseUrl .= ':' . $parsedUrl['port'];
     }
 
@@ -1577,10 +1412,10 @@ function FN_CheckMail($email)
  */
 function FN_SaveFile($filecontents, $filename, $HeaderContentType = "application/force-download")
 {
-    while (false !== @ob_end_clean()
+    while (
+        false !== @ob_end_clean()
     );
-    if (!$filename)
-    {
+    if (!$filename) {
         $filename = "export";
     }
     header("Content-Type: $HeaderContentType");
@@ -1603,26 +1438,19 @@ function FN_ReadCsvDatabase($filename, $delimiter, $enclosure = '"')
         return array();
     $handle = fopen("$filename", "r");
     $ret = array();
-    while (($data = fgetcsv($handle, 0, $delimiter, $enclosure)) !== false)
-    {
-        if ($row === 1)
-        {
-            foreach ($data as $k)
-            {
-                while (isset($keys[$k]))
-                {
+    while (($data = fgetcsv($handle, 0, $delimiter, $enclosure)) !== false) {
+        if ($row === 1) {
+            foreach ($data as $k) {
+                while (isset($keys[$k])) {
                     $k .= "_";
                 }
                 $keys[$k] = $k;
             }
             $row++;
-        }
-        else
-        {
+        } else {
             $num = 0;
             $tmp = array();
-            foreach ($keys as $k => $val)
-            {
+            foreach ($keys as $k => $val) {
                 $tmp[$k] = isset($data[$num]) ? $data[$num] : "";
                 $num++;
             }
@@ -1667,7 +1495,8 @@ function FN_FixEncoding($str)
  */
 function FN_Redirect($url)
 {
-    while (false !== ob_get_clean()
+    while (
+        false !== ob_get_clean()
     );
     header("location:$url");
     die();
@@ -1693,11 +1522,9 @@ function dprint_r_arrayxml($var)
     static $level = 0;
     if ($level == 0)
         echo "<pre style='border:1px solid red'>";
-    if (is_array($var))
-    {
+    if (is_array($var)) {
         echo "\narray{\n";
-        foreach ($var as $k => $v)
-        {
+        foreach ($var as $k => $v) {
             echo "\t[$k]{\n";
             $level++;
 
@@ -1706,9 +1533,7 @@ function dprint_r_arrayxml($var)
             echo "\n\t}\n";
         }
         echo "\n}\n";
-    }
-    else
-    {
+    } else {
         if (is_string($var))
             echo htmlspecialchars($var);
         else
@@ -1721,21 +1546,18 @@ function dprint_r_arrayxml($var)
 function FN_GetOpenAuthProviders()
 {
     global $_FN;
-    if (!file_exists("{$_FN['datadir']}/fndatabase/fn_oauth_providers.php"))
-    {
+    if (!file_exists("{$_FN['datadir']}/fndatabase/fn_oauth_providers.php")) {
         return array();
     }
     $table = FN_XMDBTable("fn_oauth_providers");
     $recs = $table->GetRecords(array("enabled" => 1));
-    if ($recs)
-    {
-        foreach ($recs as $k => $rec)
-        {
+    if ($recs) {
+        foreach ($recs as $k => $rec) {
             $recs[$k]['urlimage'] = $table->getFilePath($rec, "avatar");
             $recs[$k]['url'] = $_FN['siteurl'] . "?fnloginprovider=" . $rec['id'];
         }
     }
-    return $recs?$recs:array();
+    return $recs ? $recs : array();
 }
 
 /**
@@ -1753,8 +1575,7 @@ function FN_PathSite($filepath, $urlAbsolute = false)
 function FN_FinisPathToApplicationPath($filepath, $urlAbsolute = false)
 {
     global $_FN;
-    if ($filepath[0] != "{$_FN['slash']}")
-    {
+    if ($filepath[0] != "{$_FN['slash']}") {
         $filepath = $_FN['src_finis'] . "{$_FN['slash']}$filepath";
     }
     $siteRoot = $_FN['src_application'];
@@ -1766,7 +1587,7 @@ function FN_FinisPathToApplicationPath($filepath, $urlAbsolute = false)
     $normalizedFilepath = str_replace($_FN['slash'], $ds, $filepath);
     // Get relative path
     $escapedSourceRoot = preg_quote($normalizedSourceRoot, '/');
-    $relPath = preg_replace("{$_FN['slash']}".'^' . $escapedSourceRoot . $_FN['slash'], '', $normalizedFilepath);
+    $relPath = preg_replace("{$_FN['slash']}" . '^' . $escapedSourceRoot . $_FN['slash'], '', $normalizedFilepath);
     $relPath = ltrim($relPath, $ds);
     $relPath = str_replace($ds, $_FN['slash'], $relPath);
 
@@ -1774,20 +1595,16 @@ function FN_FinisPathToApplicationPath($filepath, $urlAbsolute = false)
     $destPath = FN_NormalizePath("$siteRoot{$_FN['slash']}$relPath");
 
     // Copy file if it doesn't exist
-    if (!file_exists($destPath))
-    {
+    if (!file_exists($destPath)) {
         FN_Copy($filepath, $destPath, true);
     }
-    if (is_dir($filepath))
-    {
-       $listFiles=glob("$filepath". DIRECTORY_SEPARATOR."*");
-       foreach($listFiles as $file)
-       {
-           if (!is_dir($file))
-           {
-               FN_FinisPathToApplicationPath($file);
-           }
-       }
+    if (is_dir($filepath)) {
+        $listFiles = glob("$filepath" . DIRECTORY_SEPARATOR . "*");
+        foreach ($listFiles as $file) {
+            if (!is_dir($file)) {
+                FN_FinisPathToApplicationPath($file);
+            }
+        }
     }
 
 
@@ -1798,31 +1615,25 @@ function FN_FinisPathToApplicationPath($filepath, $urlAbsolute = false)
 function FN_getCountryFlag($countryCode, $UnicodeCh = false)
 {
     // Convert country code to lowercase
-    if ($countryCode == "en")
-    {
+    if ($countryCode == "en") {
         $countryCode = "GB";
     }
     $countryCode = strtoupper($countryCode);
 
     // Check if the country code is valid (2 characters)
-    if (strlen($countryCode) === 2)
-    {
+    if (strlen($countryCode) === 2) {
         $flag = '';
         $offset = 127397; // Offset Unicode per convertire lettere in emoji regionali
         // Split the country code into an array of characters
         $chars = str_split($countryCode);
-        foreach ($chars as $char)
-        {
+        foreach ($chars as $char) {
             $codePoint = ord($char) + $offset;
 
             // Decide the flag format based on the UnicodeCh parameter
-            if ($UnicodeCh)
-            {
+            if ($UnicodeCh) {
                 // Decode Unicode character
                 $flag .= json_decode('"\u' . dechex($codePoint) . '"');
-            }
-            else
-            {
+            } else {
                 // Encode HTML entity
                 $flag .= '&#x' . strtoupper(dechex($codePoint)) . ';';
             }
@@ -1832,4 +1643,24 @@ function FN_getCountryFlag($countryCode, $UnicodeCh = false)
     }
 
     return $countryCode; // Return country code if invalid
+}
+
+/**
+ * 
+ * @global type $_FN
+ * @param type $path
+ * @param type $force
+ */
+function FN_Install($path, $force = false)
+{
+    global $_FN;
+    $path_site = str_replace("/fndatabase/", "/{$_FN['database']}/", $path);
+    $path_site = preg_replace('/^misc\//', "{$_FN['datadir']}/", $path_site);
+    if (!file_exists("{$_FN['src_application']}/$path") || $force == true) {
+        if (file_exists("{$_FN['src_finis']}/include/install/$path")) {
+           
+            FN_Copy("{$_FN['src_finis']}/include/install/$path", "{$_FN['src_application']}/$path_site");
+            //die("{$_FN['src_application']}/$path_site");
+        }
+    }
 }

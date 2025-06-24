@@ -1155,22 +1155,22 @@ function FNCC_XmltableEditor($tablename, $params = array())
 {
     global $_FN;
     $params = array_merge($_FN,$params);
-    if (empty($params['layout_template']) && file_exists("controlcenter/themes/{$_FN['controlcenter_theme']}/form.tp.html"))
+    if (empty($params['layout_template']) && file_exists(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/form.tp.html")))
     {
-        $params['layout_template'] = file_get_contents("controlcenter/themes/{$_FN['controlcenter_theme']}/form.tp.html");
-        $params['template_path'] = "controlcenter/themes/{$_FN['controlcenter_theme']}/";
+        $params['layout_template'] = file_get_contents(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/form.tp.html"));
+        $params['template_path'] = dirname(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/form.tp.html"))."/" ;
     }
-    if (empty($params['html_template_grid']) && file_exists("controlcenter/themes/{$_FN['controlcenter_theme']}/grid.tp.html"))
+    if (empty($params['html_template_grid']) && file_exists(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/grid.tp.html")))
     {
-        $params['html_template_grid'] = file_get_contents("controlcenter/themes/{$_FN['controlcenter_theme']}/grid.tp.html");
-        $params['template_path'] = "controlcenter/themes/{$_FN['controlcenter_theme']}/";
+        $params['html_template_grid'] = file_get_contents(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/grid.tp.html"));
+        $params['template_path'] =  dirname(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/grid.tp.html"))."/" ;
     }
-    if (empty($params['html_template_view']) && file_exists("controlcenter/themes/{$_FN['controlcenter_theme']}/view.tp.html"))
+    if (empty($params['html_template_view']) && file_exists(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/view.tp.html")))
     {
-        $params['html_template_view'] = file_get_contents("controlcenter/themes/{$_FN['controlcenter_theme']}/view.tp.html");
-        $params['template_path'] = "controlcenter/themes/{$_FN['controlcenter_theme']}/";
+        $params['html_template_view'] = file_get_contents(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/view.tp.html"));
+        $params['template_path'] =  dirname(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/grid.tp.html"))."/" ;
     }
-
+    FN_PathSite("controlcenter/themes/{$_FN['controlcenter_theme']}/img/");
 
     if (empty($params['xmldatabase']))
     {
@@ -1214,7 +1214,7 @@ function FNCC_XmltableEditor($tablename, $params = array())
     $params['use_urlserverpath'] = isset($params['use_urlserverpath']) ? $params['use_urlserverpath'] : $_FN['use_urlserverpath'];
     $params['sitepath'] = isset($params['sitepath']) ? $params['sitepath'] : $_FN['sitepath'];
 //    $params['default_database_driver'] =  isset($params['default_database_driver']) ? $params['default_database_driver'] : $_FN['default_database_driver']; 
-    XMETADB_editor($tablename, $params);
+    FN_XMETATableEditor($tablename, $params);
 }
 
 /**

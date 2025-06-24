@@ -228,20 +228,22 @@ trh = function (over,elem){
 <!-- start grid -->
 Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle}</a> <!-- end page --> <!-- start currentpage --><b><a href=\"{pagelink}\">{pagetitle}</a></b> <!-- end currentpage --> <!-- end pages -->
 <!-- start table -->
-<table style=\"border-color:{bordercolor}\">
+<table >
+    <thead>
     <!-- start gridheader -->
     <!-- start gridrow --><tr style=\"background-color:{bkheader}\">
-    <!-- start gridfields --><!-- start gridfield --><td><a href=\"{link}\">{fieldvalue}</a>{arrow}</td><!-- end gridfield -->
+    <!-- start gridfields --><!-- start gridfield --><td ><a href=\"{link}\">{fieldvalue}</a>{arrow}</td><!-- end gridfield -->
     <!-- end gridfields -->
-    <td colspan=\"{numactions}\">---</td></tr><!-- end gridrow -->
+    <td  colspan=\"{numactions}\">---</td></tr><!-- end gridrow -->
     <!-- end gridheader -->
 
     <!-- start gridbody -->
     <!-- start gridrow -->
     <tr style=\"background-color:{bkrow}\" onmouseover=\"trh(1,this)\" onmouseout=\"trh(0,this)\"   >
-    <!-- start gridfields --><!-- start gridfield --><td>{fieldvalue}</td><!-- end gridfield --><!-- end gridfields --></tr>
+    <!-- start gridfields --><!-- start gridfield --><td  >{fieldvalue}</td><!-- end gridfield --><!-- end gridfields --></tr>
     <!-- end gridrow -->
     <!-- end gridbody -->
+    </thead>
 </table>
 <!-- end table -->
 <!-- end grid -->
@@ -321,9 +323,6 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
     $bgcolor2 = isset($params['bkrow2']) ? $params['bkrow2'] : "#ffffff";
     $bgcolorover = isset($params['bgcolorover']) ? $params['bgcolorover'] : "#ffff00";
     $backgroundcolorheader = isset($params['bkheader']) ? $params['bkheader'] : "#dfdfdf";
-    $bordercolor = isset($params['bordercolor']) ? $params['bordercolor'] : "#d8d8d8";
-    $textcolor = isset($params['textcolor']) ? $params['textcolor'] : "#000000";
-    $linkcolor = isset($params['linkcolor']) ? $params['linkcolor'] : "#000000";
     $flink = isset($params['link']) ? $params['link'] : "";
     $flink_listmode = isset($params['link_listmode']) ? $params['link_listmode'] : $params['link'];
     $flink_linkcancel = isset($params['link_cancel']) ? $params['link_cancel'] : "";
@@ -336,6 +335,9 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
     $enableexport = isset($params['enableexport']) ? $params['enableexport'] : false;
     $textexport = isset($params['textexport']) ? $params['textexport'] : "";
     $reverse = isset($params['defaultorderdesc']) ? $params['defaultorderdesc'] : false;
+    $limit = isset($params['limit']) ? $params['limit'] : false;
+    $min = isset($params['limit']) ? 0 : false;
+    
     $maxpages = isset($params['maxpages']) ? $params['maxpages'] : 100;
     //dprint_r($params);
     if (!isset($params['isadmin']))
@@ -347,7 +349,7 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
     $onupdate = isset($params['onupdate']) ? $params['onupdate'] : "";
     //function on insert form
     $function_on_insert = isset($params['function_on_insert']) ? $params['function_on_insert'] : "";
-
+ 
     $function_on_update = isset($params['function_on_update']) ? $params['function_on_update'] : "";
     $function_on_delete = isset($params['function_on_delete']) ? $params['function_on_delete'] : "";
 
@@ -971,7 +973,7 @@ set_changed();
                 $html .= $table->HtmlShowView($table->GetRecordTranslatedByPrimarykey($pk));
                 $linkviewlist = XMETADB_editor_mergelink($flink_listmode, "?page_$postgetkey=$page&amp;order_$postgetkey=$order&amp;desc_$postgetkey=$reverse&amp;filter{$postgetkey}=$link_FiltersEncoded");
                 $tplvars["link_view_list"] = $linkviewlist . $flink_linkanchor;
-                $html .= "<br /><br /><a style=\"color:$linkcolor\" href=\"$linkviewlist$flink_linkanchor\">$textviewlist</a><br /><br />";
+                $html .= "<br /><br /><a href=\"$linkviewlist$flink_linkanchor\">$textviewlist</a><br /><br />";
 
                 $link_modify = "";
                 $link_view = "";
@@ -992,7 +994,7 @@ set_changed();
                 }
                 $tplvars['link_modify'] = $link_modify;
                 $tplvars['link_view'] = $link_view;
-
+                
                 if (isset($params['html_template_view']) && false !== strstr($params['html_template_view'], "<!-- if "))
                 {
                     $layout_template_view = $params['html_template_view'];
@@ -1026,6 +1028,7 @@ set_changed();
                         $params['html_template_grid'] = file_get_contents($params['html_template_grid']);
                     }
                 }
+                
 
                 $tplvars['filters'] = array();
                 //dprint_r($array_filters);
@@ -1166,17 +1169,25 @@ set_changed();
                 else
                 {
                     $fieldstoread = $__fieldstoread = array();
+                    $fields_extra = array();
                     if ($fields != false && !is_array($fields))
                     {
                         $fields = explode("|", $fields);
+                        if (!empty($params['fields_extra']))
+                        {
+                            $fields_extra = explode("|", $params['fields_extra']);
+                        }
                         $__fieldstoread = $fields;
                         if (!isset($__fieldstoread[$table->xmltable->primarykey]))
                         {
                             $__fieldstoread[] = $table->xmltable->primarykey;
                         }
+
                     }
                     if ($__fieldstoread)
                     {
+                        $__fieldstoread = array_merge($__fieldstoread,$fields_extra);
+                        $__fieldstoread = array_unique($__fieldstoread);
                         foreach ($__fieldstoread as $fieldname)
                         {
                             $fieldname = preg_replace("/\[.*\]/s", "", $fieldname);
@@ -1223,7 +1234,13 @@ set_changed();
                     }
                     else
                     {
-                        $num_records = $table->xmltable->GetNumRecords($restr);
+                        $num_records = $table->xmltable->GetNumRecords($restr,$min, $limit);
+                    }
+                    if ($all === false)
+                    {
+                        
+                        $all = $table->xmltable->GetRecords ($restr, $min, $limit, false, false, $fieldstoread);
+                        $num_records = $all?count($all):0;
                     }
                     if (intval($recordsperpage) != false)
                     {
@@ -1233,21 +1250,21 @@ set_changed();
                         $start = ($page * $recordsperpage - $recordsperpage) + 1;
                         $end = $start + $recordsperpage - 1;
                         $end = min($end, $num_records);
+                        
+                        
                     }
                     else
                     {
                         $start = 1;
                         $end = $num_records;
                     }
-                    if ($all === false)
-                    {
-                        $all = $table->xmltable->GetRecords($restr, false, false, false, false, $fieldstoread);
-                    }
+                    
                     if ($opmod == "export")
-                    {
+                    {  
                         if (isset($function_export) && function_exists($function_export))
                         {
                             $function_export($all);
+                            
                         }
                         else
                         {
@@ -1325,8 +1342,6 @@ set_changed();
                         }
                     }
                     $tplvars['nav_pages'] = $tmp_nav_pages;
-
-                    //dprint_r("page=$page cp=$cp numpages=$numPages num_records=$num_records");
                     if ($numPages > $maxpages && $page < $numPages)
                     {
                         //next page --->
@@ -1349,7 +1364,14 @@ set_changed();
                         //end last page ---<
                     }
                     $htmlpages_full = $htmlpages;
-
+                    /*
+                    if (FN_IsAdmin())
+                    {
+                        dprint_r($tplvars);
+                        dprint_xml($htmlpages_full);
+                        die($htmlpages);
+                    }
+                       */ 
                     //----------------------header----------------------------->
                     $html_GridHeader = "";
                     $orderfield = array();
@@ -1632,6 +1654,15 @@ set_changed();
                                             $tparams['fieldform'] = $table;
                                             $value = $table->formclass[$field['name']]->view($tparams);
                                         }
+                                        elseif (method_exists($table->formclass[$field['name']], "gridview"))
+                                        {
+                                            $tparams = $field;
+                                            $tparams['name'] = $field['name'];
+                                            $tparams['value'] = $row[$field['name']];
+                                            $tparams['values'] = $row;
+                                            $tparams['fieldform'] = $table;
+                                            $value = $table->formclass[$field['name']]->gridview($tparams);
+                                        }                                        
                                         else
                                         {
                                             $value = $row[$field['name']];
@@ -1782,6 +1813,11 @@ set_changed();
                         unset($params['filters']);
                         $tplvars['method'] = "post";
                         $params['template_path'] = isset($params['template_path']) ? $params['template_path'] : "";
+
+                        if (FN_IsAdmin())
+                        {
+                          //  dprint_r($tplvars);
+                        }
                         $html = TPL_ApplyTplString($params['html_template_grid'], $tplvars, $params['template_path'], $params);
                     }
                 }

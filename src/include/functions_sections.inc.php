@@ -350,16 +350,44 @@ function FN_InitSections()
             }
         }
     }
+    $sectionstypes_local = glob("{$_FN['src_application']}/modules/*");        
+    foreach ($sectionstypes_local as $sectiontype)
+    {
+        if (is_dir($sectiontype))
+        {
+            $sectiontype = basename($sectiontype);
+            if (!isset($_FN['sectionstypes'][$sectiontype]))
+            {
+                $tmp = array();
+                $defaultxmlfile = file_exists("{$_FN['src_application']}/modules/$sectiontype/default.xml.php") ? "{$_FN['src_application']}/modules/$sectiontype/default.xml.php" : "{$_FN['src_application']}/modules/$sectiontype/default.xml";
+                if (file_exists("$defaultxmlfile"))
+                {
+                    $default = xmetadb_xml2array(file_get_contents("$defaultxmlfile"), "fncf_$sectiontype");
+                    if (isset($default[0]) && is_array($default[0]))
+                    {
+                        $tmp = $default[0];
+                    }
+                }
+                $tmp['name'] = $sectiontype;
+                if (empty($tmp['title']))
+                    $tmp['title'] = str_replace("_", " ", $tmp['name']);
+                $flag_mod_st = true;
+                $table = FN_XMDBTable("fn_sectionstypes");
+                $table->InsertRecord($tmp);
+            }
+        }
+    }   
     $sectionstypes = $_FN['sectionstypes'];
     foreach ($sectionstypes as $sectiontype)
     {
-        if (!is_dir("{$_FN['src_finis']}/modules/" . $sectiontype['name']))
+        if (!is_dir("{$_FN['src_finis']}/modules/" . $sectiontype['name']) && !is_dir("{$_FN['src_application']}/modules/" . $sectiontype['name']))
         {
             $flag_mod_st = true;
             $table = FN_XMDBTable("fn_sectionstypes");
-            $table->DelRecord($sectiontype['name']);
+            //$table->DelRecord($sectiontype['name']);
         }
     }
+    
     if ($flag_mod)
     {
         $_FN['sections'] = FN_GetAllSections();
@@ -412,6 +440,7 @@ function FN_GetSectionValuesAndLoadConfig($section = "")
  */
 function FN_HtmlSection($section = "")
 {
+
     global $_FN;
     static $sectioncontents = false;
     if ($sectioncontents !== false)
@@ -448,7 +477,6 @@ function FN_HtmlSection($section = "")
     {
         $modcont = false;
     }
-   
     // Generate HTML based on the modcont parameter
     $html = $modcont ? FN_HtmlOnlineAdmin($modcont) : FN_RunSection($section, true) . $htmlconfig;
     $sectioncontents = $html;
@@ -511,9 +539,12 @@ function FN_RunSection($section, $return_html)
 {
     global $_FN;
     $sectionvalues = FN_GetSectionValuesAndLoadConfig($section);
-
     // Determine the folder path for the section or module
-    if (!empty($sectionvalues['type']) && file_exists("{$_FN['src_finis']}/modules/{$sectionvalues['type']}"))
+    if (!empty($sectionvalues['type']) && file_exists("{$_FN['src_application']}/modules/{$sectionvalues['type']}/section.php"))
+    {
+        $folder = "{$_FN['src_application']}/modules/{$sectionvalues['type']}";
+    }
+    elseif (!empty($sectionvalues['type']) && file_exists("{$_FN['src_finis']}/modules/{$sectionvalues['type']}"))
     {
         $folder = "{$_FN['src_finis']}/modules/{$sectionvalues['type']}";
     }
@@ -524,6 +555,7 @@ function FN_RunSection($section, $return_html)
 
 
     $str = "";
+
     // Check if the section.php file exists in the folder
     if (file_exists("$folder/section.php"))
     {
@@ -531,9 +563,8 @@ function FN_RunSection($section, $return_html)
         {
 
             // Start output buffering
-            ob_start();
+            ob_start();            
             include_once "$folder/section.php";
-
             // Get the contents of the buffer
             $str = ob_get_clean();
             return $str;
@@ -578,6 +609,7 @@ function FN_SectionExists($section)
  */
 function FN_SectionIsInsideThis($section_to_check_id, $section = "")
 {
+    
     global $_FN;
     if ($section == "")
         $section = $_FN['mod'];
@@ -589,7 +621,14 @@ function FN_SectionIsInsideThis($section_to_check_id, $section = "")
         {
             return true;
         }
-        $tmpsection = FN_GetSectionValues($tmpsection['parent']);
+        if ($tmpsection['parent'] != $tmpsection['id'])
+        {
+            $tmpsection = FN_GetSectionValues($tmpsection['parent']);            
+        }        
+        else
+        {
+            return false;
+        }
     }
     return false;
 }
@@ -787,7 +826,11 @@ function FN_HtmlBlock($block)
     }
     $_FN['block'] = $block;
     $blockvalues = FN_GetBlockValues($block);
-    if (!empty($blockvalues['type']) && file_exists("{$_FN['src_finis']}/modules/{$blockvalues['type']}") && FN_erg("^block_", $blockvalues['type']))
+    if (!empty($blockvalues['type']) && file_exists("{$_FN['src_application']}/modules/{$blockvalues['type']}") && FN_erg("^block_", $blockvalues['type']))
+    {
+        $html = FN_HtmlContent("{$_FN['src_application']}/modules/{$blockvalues['type']}");
+    }
+    elseif (!empty($blockvalues['type']) && file_exists("{$_FN['src_finis']}/modules/{$blockvalues['type']}") && FN_erg("^block_", $blockvalues['type']))
     {
         $html = FN_HtmlContent("{$_FN['src_finis']}/modules/{$blockvalues['type']}");
     }

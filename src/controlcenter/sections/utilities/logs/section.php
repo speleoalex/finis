@@ -18,7 +18,7 @@ if ($log == "")
 	{
 		$filename=basename($log);
 		$date=substr($filename,0,7);
-		echo "<br /><a href=\"?opt=$opt&amp;log=$filename\">" . $date . "</a>";
+		echo "<br /><a href=\"?fnapp=controlcenter&opt=$opt&amp;log=$filename\">" . $date . "</a>";
 	}
 }
 else
@@ -31,7 +31,7 @@ else
 		$row=explode(";",$row);
 		$rows[]=$row;
 	}
-	echo "<a href=\"?opt=$opt\">".  FN_Translate("back")."</a>";
+	echo "<a href=\"?fnapp=controlcenter&opt=$opt\">".  FN_Translate("back")."</a>";
 	FNLOG_PrintTable($rows);
 	
 }

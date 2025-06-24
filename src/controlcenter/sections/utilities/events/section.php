@@ -10,11 +10,7 @@
 defined('_FNEXEC') or die('Restricted access');
 global $_FN;
 $tablename = "fn_log";
-if (!file_exists("{$_FN['datadir']}/{$_FN['database']}/fn_log.php"))
-{
-    FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_log.php", "{$_FN['datadir']}/{$_FN['database']}/fn_log.php");
-}
-
+FN_Install("misc/fndatabase/fn_log.php");
 $tablefrm = FN_XMDBForm($tablename);
 $opt = FN_GetParam("opt", $_GET, "html");
 
@@ -28,7 +24,7 @@ $link_filters = "";
 $fields_filters = array("context", "user", "date%"); //todo
 $fields_filters = array("context", "user", "date");
 
-$params['link'] = "opt=$opt&amp;mod={$_FN['mod']}&amp;{$link_filters}";
+$params['link'] = "fnapp=controlcenter&opt=$opt&amp;mod={$_FN['mod']}&amp;{$link_filters}";
 
 //echo FNCC_HtmlFilters($tablefrm, $fields_filters, $link_filters);
 
@@ -43,4 +39,3 @@ if (is_array($array_filters))
 
 
 FNCC_XmltableEditor($tablename, $params);
-?>

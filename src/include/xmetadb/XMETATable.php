@@ -94,14 +94,11 @@ class XMETATable extends stdClass
     static function xmetadbTable($databasename, $tablename, $path = "misc", $params = array())
     {
         static $tables = array();
-        
-//        dprint_r($tablename.":".$params['xmetadb_mysqldatabase']);
         if (is_array($tablename))
         {
             return new XMETATable($databasename, $tablename, $path, $params);
         }
-        
-        $assoc = is_array($params) ? md5(serialize(ksort($params))):"";        
+        $assoc = is_array($params) ? md5(serialize(ksort($params))) : "";
         $id = "$databasename," . $tablename . ",$path;" . $assoc;
         if (!isset($tables[$id]))
         {
@@ -156,7 +153,6 @@ class XMETATable extends stdClass
         if (!file_exists("$path/$databasename/$tablename"))
         {
             mkdir("$path/$databasename/$tablename");
-            //dprint_r("$path/$databasename/$tablename");
         }
         $file = fopen("$path/$databasename/$tablename.php", "w");
         fwrite($file, $str);
@@ -173,16 +169,7 @@ class XMETATable extends stdClass
     {
         return (file_exists("$path/$databasename/$tablename") && file_exists("$path/$databasename/$tablename.php"));
     }
-    function setField($fieldname,$values)
-    {
-        if ($fieldname && is_array($values))
-        {
-            foreach ($values as $propriety_name => $value)
-            {
-                $this->fields[$fieldname]->$propriety_name = $value;
-            }            
-        }
-    }
+
     function __construct($databasename, $tablename, $path = "misc", $params = array())
     {
         $this->connection = false;
@@ -203,12 +190,12 @@ class XMETATable extends stdClass
         {
             $this->defaultdriver = $params['default_database_driver'];
         }
-        
+
         if (!empty($params['default_database_driver']))
         {
             $this->defaultdriver = $params['default_database_driver'];
         }
-        
+
         //if is xml
         if (is_array($tablename))
         {
@@ -219,7 +206,7 @@ class XMETATable extends stdClass
             if (isset($tablename['tablename']))
                 $this->tablename = $tablename['tablename'];
             else
-                die("tablename is not set");
+                trigger_error("tablename is not set", E_USER_ERROR);
 
             foreach ($fields as $field)
             {
@@ -229,8 +216,8 @@ class XMETATable extends stdClass
         }
         else
         {
-            if ($tablename == "")
-                die("tablename is empty");
+            if ($tablename == "")                
+                trigger_error("tablename is empty",E_USER_ERROR);
             $this->tablename = $tablename;
             if (!file_exists("$path/$databasename/{$this->tablename}.php"))
             {
@@ -292,23 +279,32 @@ class XMETATable extends stdClass
         {
             foreach ($params as $k => $v)
             {
-                $this->params[$k]=$v;
-               // $this->$k = $v;
+                $this->params[$k] = $v;
+                // $this->$k = $v;
             }
         }
-        
-        $this->setDriver();
 
+        $this->setDriver();
     }
-    
-    function setDriver($drivertype="")
+
+    function setField($fieldname, $values)
+    {
+        if ($fieldname && is_array($values))
+        {
+            foreach ($values as $propriety_name => $value)
+            {
+                $this->fields[$fieldname]->$propriety_name = $value;
+            }
+        }
+    }
+
+    function setDriver($drivertype = "")
     {
         $this->driver = $drivertype;
         //modalita' database---->
         if (!$this->driver)
         {
             $this->driver = get_xml_single_element("driver", $this->xmldescriptor);
-            
         }
         if ($this->driver == "" && $this->defaultdriver != "")
         {
@@ -318,27 +314,26 @@ class XMETATable extends stdClass
         {
             $this->driver = "xmlphp";
         }
-        
-        
-        
+
+
+
         if (file_exists(__DIR__ . "/XMETATable_{$this->driver}.php"))
         {
             include_once(__DIR__ . "/XMETATable_{$this->driver}.php");
         }
 
         $classname = "XMETATable_" . $this->driver;
+
         if (!class_exists($classname))
         {
-            die("xmetadberror: $classname not exists in table {$this->tablename}");
+            trigger_error("xmetadberror: $classname not exists in table {$this->tablename}", E_USER_ERROR);
         }
-        //die("{$this->tablename}:$classname");
         $this->driverclass = new $classname($this, $this->params);
         if (!is_object($this->driverclass))
-            die("xmetadberror: $this->proprieties = array();>driverclass");
-        //modalita' database----<
-        $this->sendFileToClient();        
-        
+            trigger_error("xmetadberror: $this->proprieties = array();>driverclass", E_USER_ERROR);
+        $this->sendFileToClient();
     }
+
     function sendFileToClient()
     {
         $unirecid = FN_GetParam("unirecid", $_REQUEST);
@@ -854,8 +849,7 @@ class XMETATable extends stdClass
                                 }
                                 if (!file_exists("$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean))
                                 {
-                                    trigger_error("failed copy {$_FILES[$key]['tmp_name']}");
-                                    dprint_r("failed copy {$_FILES[$key]['tmp_name']} to " . "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
+                                    trigger_error("failed copy {$_FILES[$key]['tmp_name']} to " . "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean, E_USER_WARNING);
                                 }
                             }
                             else
@@ -865,8 +859,7 @@ class XMETATable extends stdClass
                                 FN_Copy($tmpname, "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
                                 if (!file_exists("$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean))
                                 {
-                                    trigger_error("failed copy {$_FILES[$key]['tmp_name']}", E_USER_WARNING);
-                                    dprint_r("failed copy {$_FILES[$key]['tmp_name']} to " . "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
+                                    trigger_error("failed copy {$_FILES[$key]['tmp_name']} to " . "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean, E_USER_WARNING);
                                 }
                             }
                             $create_thumb[$key] = true;

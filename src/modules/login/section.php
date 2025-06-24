@@ -14,6 +14,7 @@ $op = FN_GetParam("op", $_GET);
 $username = FN_GetParam("user", $_GET);
 if (!FN_IsAdmin())
     $username = $_FN['user'];
+
 switch ($op)
 {
     case "register":

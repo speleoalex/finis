@@ -21,14 +21,13 @@ if ($themetoedit == "")
 }
 
 $path_config_file = "";
-if (file_exists("{$_FN['src_application']}/themes/$themetoedit/$edit"))
+if (file_exists("{$_FN['src_finis']}/themes/$themetoedit/$edit"))
 {
-    $path_config_file = $_FN['src_finis'];
-    
+    $path_config_file = "{$_FN['src_finis']}/themes/$themetoedit/$edit";    
 }
 elseif (file_exists("{$_FN['src_application']}/themes/$themetoedit/$edit"))
 {
-    $path_config_file = $_FN['src_application'];
+    $path_config_file ="{$_FN['src_application']}/themes/$themetoedit/$edit";
     
 }
 
@@ -132,9 +131,9 @@ function resizeThumb(w,h){
         echo "<iframe id=\"thumb\" style=\"border:1px solid;height:250px;width:100%\" src=\"index.php?themepreview=$themetoedit\"></iframe>";
 //		echo "<br /><img alt=\"\" style=\"vertical-align:middle\" src=\"images/left.png\" /> <a href=\"?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;themetoedit=$themetoedit\">".FN_i18n("back")."</a>";
         echo "<div style=\"text-align:right\"><img border=\"\" alt=\"\" style=\"vertical-align:middle\"src=\"" . FN_FromTheme("images/modify.png") . "\" />&nbsp;";
-        if (file_exists("themes/$themetoedit/structure.php"))
+        if (file_exists("{$_FN['src_application']}/themes/$themetoedit/structure.php"))
             echo "<a href=\"?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;themetoedit=$themetoedit&amp;edit=structure.php\">" . FN_i18n("modify") . " <b>\"$themetoedit\"</b> (structure.php, " . FN_i18n("for advanced users only") . ")</a><br />";
-        if (file_exists("themes/$themetoedit/template.tp.html"))
+        if (file_exists("{$_FN['src_application']}/themes/$themetoedit/template.tp.html"))
             echo "<a href=\"?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;themetoedit=$themetoedit&amp;edit=template.tp.html\">" . FN_i18n("modify") . " <b>\"$themetoedit\"</b> (index.tp.html, " . FN_i18n("for advanced users only") . ")</a>";
 
         echo "</div>";

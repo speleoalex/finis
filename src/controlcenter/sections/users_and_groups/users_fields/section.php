@@ -165,7 +165,7 @@ if (file_exists("{$_FN['src_application']}/{$_FN['datadir']}/{$_FN['database']}/
 }
 if (isset($_GET['loaddefault']))
 {
-    FN_Copy("{$_FN['src_finis']}/include/install/fndatabase/fn_users.php", "{$_FN['src_application']}/{$_FN['datadir']}/{$_FN['database']}/fn_users_tmp.php");
+    FN_Copy("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_users.php", "{$_FN['src_application']}/{$_FN['datadir']}/{$_FN['database']}/fn_users_tmp.php");
 }
 //-------------------------init table with default values----------------------<
 
@@ -180,7 +180,7 @@ $xmlori = $xml = file_get_contents("{$_FN['src_application']}/{$_FN['datadir']}/
 if (isset($_GET['loaddefault']) || (empty($_POST['op___xdb_']) && empty($_POST) && $edit == "" && $save == "" && count($_GET) <= 2))
 {
     if (isset($_GET['loaddefault']))
-        $xml = file_get_contents("{$_FN['src_finis']}/include/install/fndatabase/fn_users.php");
+        $xml = file_get_contents("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_users.php");
     else
         $xml = file_get_contents("{$_FN['src_application']}/{$_FN['datadir']}/{$_FN['database']}/fn_users.php");
     preg_match_all('/<(' . "name" . '[^\/]*?)>([^<]*)<\/\1>/s', $xml, $t1);
@@ -337,7 +337,7 @@ else
     edit_struct_table("fn_users_tmp", "{$_FN['src_application']}/{$_FN['datadir']}", $_FN['database']);
     $xml1 = $xmlori;
     $xml2 = file_get_contents("{$_FN['src_application']}/{$_FN['datadir']}/{$_FN['database']}/fn_users_tmp.php");
-    $xml3 = file_get_contents("{$_FN['src_finis']}/include/install/fndatabase/fn_users.php");
+    $xml3 = file_get_contents("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_users.php");
     $xml4 = file_get_contents("{$_FN['src_application']}/{$_FN['datadir']}/{$_FN['database']}/fn_users.php");
     $xml1 = str_replace("\t", "", str_replace("\n", "", str_replace("\r", "", $xml1)));
     $xml2 = str_replace("\t", "", str_replace("\n", "", str_replace("\r", "", $xml2)));

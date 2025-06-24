@@ -143,6 +143,7 @@ function FN_TPL_html_MakeThemeFromTemplate($templatefile)
 
     $vars['credits'] = FN_HtmlCredits();
     $vars['navbar'] = FN_HtmlNavbar();
+
     if (!empty($_FN['sectionvalues']))
     {
         $vars['section_title'] = $_FN['sectionvalues']['title'];
@@ -179,17 +180,24 @@ function FN_TPL_html_MakeThemeFromTemplate($templatefile)
     {
         $vars['blocks_top'] = FN_GetBlocksContentsArray("top");
     }
+
+
     $notifications = FN_GetNotificationsUndisplayed($_FN['user']);
     $vars['is_home'] = ($_FN['mod'] == $_FN['home_section']) ? true : "";
     $vars['notifications'] = $notifications;
     $vars['notifications_count'] = count($notifications);
+
+
     $vars['menuitems'] = FN_GetMenuTree();
+
     $vars['nav'] = FN_GetSectionsTree();
 
     $vars['url_logo'] = file_exists("themes/{$_FN['theme']}/images/logo.png") ? "themes/{$_FN['theme']}/images/logo.png" : "";
     if (!$vars['url_logo'])
         $vars['url_logo'] = file_exists("themes/{$_FN['theme']}/images/logo.svg") ? "themes/{$_FN['theme']}/images/logo.svg" : "";
 
+    
+    
     FN_TPL_CopyFilesFromSrcToApplication($tplstring, dirname($templatefile) . "/");
     $html = FN_TPL_include_tpl(FN_TPL_ApplyTplString($tplstring, $vars, dirname($templatefile) . "/"), $vars);
 
@@ -935,6 +943,7 @@ function FN_GetMenuTree($parent = "")
     $sections = FN_GetSections($parent);
     if (empty($sections) || count($sections) == 0)
         return array();
+    
     foreach ($sections as $section)
     {
         $menuitem = $section;
@@ -943,6 +952,7 @@ function FN_GetMenuTree($parent = "")
             $proprieties = FN_GetSectionProprieties($section['id']);
             $menuitem = array_merge($section, $proprieties);
         }
+
         $menuitem['menulevel'] = $lev;
         $accesskey = FN_GetAccessKey($menuitem['title'], "index.php?mod={$section['id']}");
         $menuitem['accesskey'] = $accesskey;
@@ -951,6 +961,7 @@ function FN_GetMenuTree($parent = "")
         $menuitem['opened'] = FN_SectionIsInsideThis($section['id']) ? true : "";
         $menuitem['link'] = FN_RewriteLink("index.php?mod={$section['id']}", "&amp;", true);
         $lev++;
+        
         $menuitem['childs'] = FN_GetMenuTree($section['id']);
         $menuitem['class'] = "";
         $count = is_array($menuitem['childs']) ? count($menuitem['childs']) : "";

@@ -20,6 +20,7 @@ if (file_exists("{$_FN['src_application']}/themes/{$_FN['theme']}/structure.php"
     include "{$_FN['src_application']}/themes/{$_FN['theme']}/structure.php";
     $str = ob_get_clean();
 }
+
 elseif (file_exists("{$_FN['src_application']}/themes/{$_FN['theme']}/template.{$_FN['mod']}.tp.html"))
 {
     $str = FN_TPL_html_MakeThemeFromTemplate("{$_FN['src_application']}/themes/{$_FN['theme']}/template.{$_FN['mod']}.tp.html");
@@ -30,10 +31,12 @@ elseif (!empty($_FN['sectionvalues']['type']) && file_exists("{$_FN['src_applica
 }
 elseif (file_exists(FN_FinisPathToApplicationPath("{$_FN['src_application']}/themes/{$_FN['theme']}/template.tp.html")))
 {
-    
-
     $str = FN_TPL_html_MakeThemeFromTemplate("{$_FN['src_application']}/themes/{$_FN['theme']}/template.tp.html");
+
 }
+
+
+
 if (file_exists(FN_FinisPathToApplicationPath("{$_FN['src_application']}/sections/{$_FN['mod']}/footer.php")))
 {
     ob_start();

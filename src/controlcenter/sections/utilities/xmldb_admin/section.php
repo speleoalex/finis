@@ -197,7 +197,7 @@ function show_fntables($databasename, $path)
     fn_natsort($listatabelle);
     //-----lista delle tabelle ------
     echo "\n<table cellpadding=\"1\" cellspacing=\"1\" style=\"background-color:#{$_FN['table_border']}\" >\n<tbody>";
-    echo "<tr>";
+    echo "<th>";
     echo "<td  style=\"background-color:#{$_FN['table_background']}\"style=\"background-color:#{$_FN['table_background']}\" >" . FN_Translate("table name") . "</td>";
     echo "<td  style=\"background-color:#{$_FN['table_background']}\"style=\"background-color:#{$_FN['table_background']}\" ></td>";
     echo "<td  style=\"background-color:#{$_FN['table_background']}\"style=\"background-color:#{$_FN['table_background']}\" ></td>";
@@ -205,7 +205,7 @@ function show_fntables($databasename, $path)
     echo "<td  style=\"text-align:center;background-color:#{$_FN['table_background']}\"style=\"background-color:#{$_FN['table_background']}\" >" . FN_Translate("driver") . "</td>";
     echo "<td  style=\"text-align:center;background-color:#{$_FN['table_background']}\"style=\"background-color:#{$_FN['table_background']}\" >" . FN_Translate("action") . "</td>";
 
-    echo "</tr>";
+    echo "</th>";
     foreach ($listatabelle as $tabella)
     {
         echo "\n<tr>";
@@ -226,8 +226,6 @@ function show_fntables($databasename, $path)
         {
              $driver = $_FN['tables'][$tabella]['driver'];
         }
-        
-        
         echo "\n<td style=\"text-align:center;background-color:#{$_FN['table_background']}\" >($driver)" . "</a></td>";
         if ($driver == "xml")
             echo "\n<td style=\"text-align:center;background-color:#{$_FN['table_background']}\" ><a href=\"?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;op=tomysql&amp;t=$tabella\">" . "$driver-&gt;mysql" . "</a></td>";

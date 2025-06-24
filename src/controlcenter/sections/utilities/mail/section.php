@@ -34,7 +34,7 @@ if ($from == "")
 }
 if (FN_IsAdmin())
 {
-    echo "<form method=\"post\" action=\"?opt=$opt\">";
+    echo "<form method=\"post\" action=\"?fnapp=controlcenter&opt=$opt\">";
     echo FN_Translate("from");
     echo "<br /><input value=\"$from\" name=\"from\" type=\"text\" />";
     echo "(default: {$_FN['site_email_address']})<br />";
