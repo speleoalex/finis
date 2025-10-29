@@ -1,0 +1,33 @@
+@CHARSET "UTF-8";
+
+/*select category block*/
+.fnc_subcategories {
+	text-align: center;
+	white-space: normal;
+}
+
+.fnc_subcategories img {
+	border: 2px;
+	vertical-align: middle;
+	width: 100px;
+}
+
+.fnc_subcategories div {
+	display: -moz-inline-stack;
+	display: inline-block;
+	zoom: 1; 
+	display: inline;
+	height: 145px;
+	width: 155px;
+	margin: 2px;
+	vertical-align: middle;
+}
+
+.fnc_subcategories_br {
+	clear: both;
+}
+
+/*select category*/
+.fnc_category_4 img {
+	
+}

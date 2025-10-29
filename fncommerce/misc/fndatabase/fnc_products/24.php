@@ -1,0 +1,39 @@
+<?php exit(0)?>
+<fndatabase>
+	<fnc_products>
+		<unirecid>24</unirecid>
+		<name>Disciples: Sacred Lands</name>
+		<status>1</status>
+		<model>PC-DISC</model>
+		<sort_order></sort_order>
+		<description>A new age is dawning...&lt;br&gt;&lt;br&gt;Enter the realm of the Sacred Lands, where the dawn of a New Age has set in motion the most momentous of wars. As the prophecies long foretold, four races now clash with swords and sorcery in a desperate bid to control the destiny of their gods. Take on the quest as a champion of the Empire, the Mountain Clans, the Legions of the Damned, or the Undead Hordes and test your faith in battles of brute force, spellbinding magic and acts of guile. Slay demons, vanquish giants and combat merciless forces of the dead and undead. But to ensure the salvation of your god, the hero within must evolve.&lt;br&gt;&lt;br&gt;The day of reckoning has come... and only the chosen will survive.</description>
+		<photo1>disciples.gif</photo1>
+		<photo2></photo2>
+		<photo3></photo3>
+		<photo4></photo4>
+		<photo5></photo5>
+		<photo6></photo6>
+		<attachment></attachment>
+		<attachment2></attachment2>
+		<height></height>
+		<width></width>
+		<depth></depth>
+		<year></year>
+		<weight>8.00</weight>
+		<manufacturers>8</manufacturers>
+		<freeshipping></freeshipping>
+		<quantity>17</quantity>
+		<price>90.0000</price>
+		<vat></vat>
+		<name_it></name_it>
+		<description_it></description_it>
+		<name_en></name_en>
+		<description_en></description_en>
+		<name_de></name_de>
+		<name_es></name_es>
+		<description_de></description_de>
+		<description_es></description_es>
+		<name_fr></name_fr>
+		<description_fr></description_fr>
+	</fnc_products>
+</fndatabase>

@@ -1,0 +1,15 @@
+8-2013
+-corretto cambio di categoria del prodotto
+
+9-2011
+-eseguito porting in FN_NEXT
+-aggiunta opzione solo catalogo
+-aggiunta opzione "mostra prezzi"
+
+3-2010 
+
+-corretto bug sui costi aggiuntivi nel caso venga cambiato il metodo di pagamento.
+-aggiunto supporto per diverso indirizzo di spedizione.
+
+-creato fncommerce.css
+-aggiunte classi personalizzabili alle categorie

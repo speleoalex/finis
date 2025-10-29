@@ -57,16 +57,16 @@ class FN_LoopManager
         $this->istanceId = md5($scriptName . $callback . $timerString);
 
         if (false && is_writable(sys_get_temp_dir())) {
-            $this->lockFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->istanceId . '.lock';
-            $this->stateFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->istanceId . '.state'; // State file
+            $this->lockFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->istanceId . '.loopmanager.lock';
+            $this->stateFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $this->istanceId . '.loopmanager.state'; // State file
 
         } else {
             global $_FN;
             if (!file_exists("{$_FN['src_application']}/{$_FN['datadir']}" . DIRECTORY_SEPARATOR . "tmp")) {
                 mkdir("{$_FN['src_application']}/{$_FN['datadir']}" . DIRECTORY_SEPARATOR . "tmp");
             }
-            $this->lockFile = realpath("{$_FN['src_application']}/{$_FN['datadir']}" . DIRECTORY_SEPARATOR . "tmp") . DIRECTORY_SEPARATOR . $this->istanceId . '.lock';
-            $this->stateFile = realpath("{$_FN['src_application']}/{$_FN['datadir']}" . DIRECTORY_SEPARATOR . "tmp") . DIRECTORY_SEPARATOR  . $this->istanceId . '.state'; // State file
+            $this->lockFile = realpath("{$_FN['src_application']}/{$_FN['datadir']}" . DIRECTORY_SEPARATOR . "tmp") . DIRECTORY_SEPARATOR . $this->istanceId . '.loopmanager.lock';
+            $this->stateFile = realpath("{$_FN['src_application']}/{$_FN['datadir']}" . DIRECTORY_SEPARATOR . "tmp") . DIRECTORY_SEPARATOR  . $this->istanceId . '.loopmanager.state'; // State file
         }
 
         $this->debug = $debugFile;
@@ -207,6 +207,7 @@ class FN_LoopManager
 
     public function run()
     {
+        global $_FN;
         $this->log("lockFile:{$this->lockFile}");
         if (empty($_GET[$this->istanceId])) {
             $this->log("Background script launch " . FN_Now());
@@ -230,6 +231,11 @@ class FN_LoopManager
                     } elseif ($this->isValidURL($callback)) {
                         $this->log("Execute URL $callback {$this->timerString}");
                         $this->callUrl($callback);
+                        $this->log("End execute $callback {$this->timerString}");
+                    }
+                    elseif (isset($callback[0]) && $callback[0]=="?") {
+                        $this->log("Execute LOCAL URL $callback {$this->timerString}");
+                        $this->callUrl($_FN['siteurl'].$callback);
                         $this->log("End execute $callback {$this->timerString}");
                     }
                     else{

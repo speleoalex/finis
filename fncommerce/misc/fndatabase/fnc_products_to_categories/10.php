@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?php exit(0);?>
+<fndatabase>
+	<fnc_products_to_categories>
+		<unirecid>4</unirecid>
+		<category>10</category>
+		<product>4</product>
+	</fnc_products_to_categories>
+	<fnc_products_to_categories>
+		<unirecid>6</unirecid>
+		<category>10</category>
+		<product>6</product>
+	</fnc_products_to_categories>
+	<fnc_products_to_categories>
+		<unirecid>9</unirecid>
+		<category>10</category>
+		<product>9</product>
+	</fnc_products_to_categories>
+	<fnc_products_to_categories>
+		<unirecid>10</unirecid>
+		<category>10</category>
+		<product>10</product>
+	</fnc_products_to_categories>
+	<fnc_products_to_categories>
+		<unirecid>11</unirecid>
+		<category>10</category>
+		<product>11</product>
+	</fnc_products_to_categories>
+	<fnc_products_to_categories>
+		<unirecid>12</unirecid>
+		<category>10</category>
+		<product>12</product>
+	</fnc_products_to_categories>
+	<fnc_products_to_categories>
+		<unirecid>13</unirecid>
+		<category>10</category>
+		<product>13</product>
+	</fnc_products_to_categories>
+	<fnc_products_to_categories>
+		<unirecid>17</unirecid>
+		<category>10</category>
+		<product>17</product>
+	</fnc_products_to_categories>
+	<fnc_products_to_categories>
+		<unirecid>18</unirecid>
+		<category>10</category>
+		<product>18</product>
+	</fnc_products_to_categories>
+	
+</fndatabase>

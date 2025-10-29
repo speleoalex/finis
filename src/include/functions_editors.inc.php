@@ -57,7 +57,6 @@ function FN_HtmlEditConfFile($file, $formaction = "", $exit = "", $allow = false
     $opt = FN_GetParam("opt", $_GET);
     $filecontents = file_get_contents($file);
     $dirfile = dirname($file);
-
     $htmlsaved = "";
     if ($mod == "")
         $mod = $_FN['mod'];
@@ -85,8 +84,14 @@ function FN_HtmlEditConfFile($file, $formaction = "", $exit = "", $allow = false
         $file = str_replace($thispath, "", $path . $_FN['slash'] . basename($file));
         if (FN_erg("^modules/", $file))
         {
-            $file = "{$_FN['src_finis']}/$file";
-            $filepath = $file;
+            if (file_exists($file))
+            {
+                $filepath = $file;
+            }
+            else{
+                $file = "{$_FN['src_finis']}/$file";
+                $filepath = $file;
+            }
             if ($block != "")
                 $tableconf = "fncf_block_{$block}";
             else
@@ -105,9 +110,9 @@ function FN_HtmlEditConfFile($file, $formaction = "", $exit = "", $allow = false
         }
     }
 
-//    dprint_r($file);
-//    dprint_r($filepath);
-//    dprint_r($tableconf);
+//dprint_r($file);
+//dprint_r($filepath);
+//dprint_r($tableconf);
     
 //    die();
     echo "<!-- splx $tableconf -->";

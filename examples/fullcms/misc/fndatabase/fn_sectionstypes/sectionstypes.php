@@ -45,4 +45,8 @@
 		<name>news</name>
 		<title>news</title>
 	</fn_sectionstypes>
+	<fn_sectionstypes>
+		<name>php</name>
+		<title>php</title>
+	</fn_sectionstypes>
 </fndatabase>

@@ -1,0 +1,75 @@
+
+<!-- if {shopping_cart} -->
+<div class="container" id="shoppingcart">
+    <form method="post" action="{formaction}" id="Myshoppingcartform">
+        <div class="row">
+            <div class="col-sm">
+                <div class="card">
+                    <div class="card-header" ><h2>Carrello</h2></div>
+                    <div  class="table-responsive col-sm-12">
+                        <div class="card-body " >
+                            <table class="table no-more-tables">
+                                <thead>
+                                    <tr>
+                                        <th colspan="2">{i18n:Product}</th>
+                                        <th>{i18n:Price}</th>
+                                        <th>{i18n:Quantity}</th>
+                                        <th>{i18n:Total}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- foreach {products} -->
+                                    <tr>
+                                        <td><!-- if {product_img} -->
+                                            <img src="{product_img}" alt="{product_img}" style="max-width:100px;max-height:100px" />
+                                            <!-- end if {product_img} -->
+                                        </td>
+                                        <td data-title="{i18n:Product}">{name}</td>
+                                        <td data-title="{i18n:Price}" >{price_txt} </td>
+                                        <td data-title="{i18n:Quantity}" ><input onchange="document.getElementById('btn_op').value = 'setcart';document.getElementById('Myshoppingcartform').submit()" class="form-control mb-2 mr-sm-2" type="number" min="0"  value="{qta}" name="qta{ProductCode}" /><a href="{url_remove}" class="btn btn-danger">X</a></td>
+                                        <td data-title="{i18n:Total}">{total_price_txt}</td>
+                                    </tr>
+                                    <!-- end foreach {products} -->
+                                    <tr>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td></td>
+                                        <td>{total_price_txt}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <input id="btn_op" type="hidden" name ="op" value="shipping" />
+                            <button class="btn btn-primary" type="submit">{i18n:Complete your purchase}</button>
+                            <a class="btn btn-primary" href="{urlcancel}">{i18n:Continue shopping}</a>
+                            <hr />
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+<!-- end if {shopping_cart} -->
+
+<!-- if not {shopping_cart} -->
+<div class="container" id="shoppingcart">
+
+    {i18n:Your cart is empty}<br /><br />
+
+</div>
+<a class="btn btn-primary" href="{urlcancel}">{i18n:Continue shopping}</a>
+<!-- end if not {shopping_cart} -->
+<!-- if {error} -->
+<div class="row">
+    <div class="col-sm">
+        <div class="card">
+            <div class="card-body" >
+                {error}
+            </div>
+        </div>
+    </div>
+</div>
+<!-- end if {error} -->
+

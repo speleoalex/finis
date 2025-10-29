@@ -1,0 +1,98 @@
+<?php exit(0);?>
+<tables>
+	<field>
+		<name>unirecid</name>
+		<primarykey>1</primarykey>
+		<extra>autoincrement</extra>
+		<frm_show>0</frm_show>
+	</field>
+	<field>
+		<name>title</name>
+		<frm_required>1</frm_required>
+		<frm_multilanguages>auto</frm_multilanguages>
+		<frm_it>Titolo del negozio</frm_it>
+		<frm_en>Title</frm_en>
+	</field>
+	<field>
+		<name>text</name>
+		<frm_it>Messaggio introduttivo</frm_it>
+		<frm_en>Intro message</frm_en>
+		<frm_cols>80</frm_cols>
+		<frm_rows>10</frm_rows>
+		<type>text</type>
+		<frm_type>html</frm_type>
+		<frm_multilanguages>auto</frm_multilanguages>
+	</field>
+	<!--
+	<field>
+		<name>datefrom</name>
+		<frm_it>Valido solamente dalla data:</frm_it>
+		<frm_type>datetime</frm_type>
+	</field>	
+	<field>
+		<name>dateto</name>
+		<frm_it>alla data:</frm_it>
+		<frm_type>datetime</frm_type>
+	</field>
+	-->
+<field>
+		<name>title_it</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>text_it</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>title_en</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>title_es</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>title_de</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>title_fr</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>text_en</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>text_es</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>text_de</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>text_fr</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>title_ru</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>text_ru</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+</tables>

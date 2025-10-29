@@ -99,7 +99,7 @@ switch ($op)
         show_tools();
         $params ['link'] = "fnapp=controlcenter&op=editdata&amp;opt=$opt&amp;t=$tablename";
         //$params ['xmldatabase'] = "fndatabase";
-        FNCC_xmltableeditor($tablename, $params);
+        FNCC_XMETATableEditor($tablename, $params);
         break;
 
     case "editxml":
@@ -265,7 +265,7 @@ function edit_table($tablename, $path, $databasename)
     $params ['link'] = "op=edit&amp;opt=$opt&amp;t=$tablename";
     $params ['xmldatabase'] = "tables";
 
-    FNCC_xmltablEeditor(false, $params);
+    FNCC_XMETATableEditor(false, $params);
     return;
 }
 

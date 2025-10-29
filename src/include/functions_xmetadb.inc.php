@@ -211,7 +211,6 @@ function FN_setCommonParams($params = array())
 function FN_XMETATableEditor($tablename,$params=array())
 {
     
-    
     global $_FN;
     require_once ("{$_FN['src_finis']}/include/xmetadb_editor.php");
     if (empty($params['xmldatabase']))
@@ -238,6 +237,7 @@ function FN_XMETATableEditor($tablename,$params=array())
     {
         $params['link']=$link;
     }
+    
     //messages--->
     $params['path']=isset($params['path']) ? $params['path'] : $_FN['datadir'];
     $params['recordsperpage']=isset($params['recordsperpage']) ? $params['recordsperpage'] : 20;
@@ -282,6 +282,9 @@ function FN_XMETATableEditor($tablename,$params=array())
     $params['enable_mod_rewrite'] = isset($params['enable_mod_rewrite']) ? $params['enable_mod_rewrite'] : $_FN['enable_mod_rewrite'];
     $params['use_urlserverpath'] = isset($params['use_urlserverpath']) ? $params['use_urlserverpath'] : $_FN['use_urlserverpath'];
     $params['sitepath'] = isset($params['sitepath']) ? $params['sitepath'] : $_FN['sitepath'];    
+    
+      
+
     return XMETADB_editor($tablename,$params);
 }
 

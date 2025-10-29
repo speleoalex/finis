@@ -2,7 +2,10 @@
 //---------datetime-------------------------------------------->
 class xmetadbfrm_field_datetime
 {
-
+    function htmlfilter($params)
+    {
+        return $this->show($params);
+    }
     function show($params)
     {
         global $_FN;

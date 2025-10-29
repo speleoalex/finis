@@ -1,0 +1,50 @@
+<!-- if not {fnc_only_catalog} -->
+<div class="text-right" style="float:right">
+    <a class="btn btn-outline-primary" href="{url_cart}"> {i18n:My shopping cart} ({cart_num_items})</a>
+</div>
+<!-- end if not {fnc_only_catalog} -->
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <!-- foreach {navbar} -->
+        <li class="breadcrumb-item"><a href="{url}">{title}</a></li>
+        <!-- end foreach {navbar} -->
+    </ol>
+</nav>
+
+
+<div class="row">
+    <!-- foreach {categories} -->
+    <div class="col-xs-12 col-sm-6 col-md-6 col-lg-4 col-xl-3">
+        <div class="card" style="">
+            <!-- if {url_img} -->
+            <img class="card-img-top" src="{url_img}" alt="{name}">
+            <!-- end if {url_img} -->
+            <div class="card-body">
+                <h5 class="card-title">{name}</h5>
+                <p class="card-text">{description}</p>
+                <a href="{url}" class="btn btn-primary">{i18n:View}</a>
+            </div>
+        </div>
+    </div>
+    <!-- end foreach {categories} -->
+</div>
+
+<table class="table no-more-tables">
+    <!-- foreach {products} -->
+    <tr>
+        <!-- if {url_img} -->
+        <td><a href="{url}" class=""><img class="" style="max-height:200px;max-width:200px;" src="{url_img}"
+                    alt="{name}" /></a></td>
+        <!-- end if {url_img} -->
+
+        <td><a href="{url}" class="">{name}</a></td>
+        <td>{txt_price}</td>
+        <td><a href="{url_addtocart}" class="btn btn-primary">{i18n:Add to cart}</a></td>
+    </tr>
+    <!-- end foreach {products} -->
+</table>
+<!-- if {url_orders} -->
+<br />
+<a href="{url_orders}" class="btn btn-primary">{i18n:View my orders}</a>
+<!-- if {url_orders} -->

@@ -1,0 +1,129 @@
+<!-- if not {fnc_only_catalog} -->
+    <div class="text-right" style="float:right">
+        <a class="btn btn-outline-primary" href="{url_cart}"> {i18n:My shopping cart} ({cart_num_items})</a>
+    </div>
+<!-- end if not {fnc_only_catalog} -->
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <!-- foreach {navbar} -->
+        <li class="breadcrumb-item"><a href="{url}">{title}</a></li>
+        <!-- end foreach {navbar} -->
+    </ol>
+</nav>
+<!-- if {product_img} -->
+<img src="{product_img}" alt="{product_img}" />
+<!-- end if {product_img} -->
+<h1>{product_name}</h1>
+<p>
+    {product_description}
+</p>
+{i18n:Code}: {product_model}<br />
+{i18n:Price}: {product_price}<br />
+<!-- if not {fnc_only_catalog} -->
+{txt_in_stock}<br />
+<br /><a class="btn btn-primary" href="{url_addtocart}">&#x1F6D2; {i18n:Add to cart}</a>
+<!-- end if not {fnc_only_catalog} -->
+<!-- if {manufacture_image} -->
+<div style="float:right"><img src="{manufacture_image}" alt="" title="{manufacturer_title}"></div>
+<!-- end if {manufacture_image} -->
+<hr />
+
+<div><a class="btn btn-primary" href="{url_cancel}">{i18n:Continue shopping}</a></div>
+<!-- if {is_admin} -->
+<br /><div><a class="btn btn-danger" href="{url_modify}">{i18n:Modify}</a></div>
+<!-- end if {is_admin} -->
+
+
+<script language="javascript">
+    var oldhtmlstyle;
+    function create_gallery(id)
+    {
+        window.scroll(0, 0);
+
+        document.getElementById('busy').style.display = 'block';
+
+        try {
+            oldhtmlstyle = document.getElementsByTagName('html')[0].style.overflow;
+            document.getElementsByTagName('html')[0].style.overflow = 'hidden';
+        } catch (e) {
+        }
+        document.getElementById(id).style.display = 'block';
+        var imageList = document.getElementById(id);
+        if (!imageList)
+            return false;
+        var gListItems = imageList.getElementsByTagName('img'); //get the images into an array
+        for (var item in gListItems)
+        {
+            if (gListItems[item].style != undefined)
+            {
+                gListItems[item].setAttribute('onclick', 'gallery_next("' + id + '")')
+                if (item == 0)
+                    gListItems[item].style.display = 'block';
+                else
+                    gListItems[item].style.display = 'none';
+                gListItems[item].style.cursor = 'pointer';
+
+            }
+        }
+    }
+
+    function close_gallery(id)
+    {
+        try {
+            document.getElementsByTagName('html')[0].style.overflow = oldhtmlstyle;
+        } catch (e) {
+        }
+        document.getElementById(id).style.display = 'none';
+        document.getElementById('busy').style.display = 'none';
+
+    }
+    function gallery_next(id)
+    {
+        var imageList = document.getElementById(id);
+        var next = 0;
+        if (!imageList)
+            return false;
+        var gListItems = imageList.getElementsByTagName('img'); //get the images into an array
+        for (item in gListItems)
+        {
+            var n = item;
+            n++;
+            if (gListItems[item].style != undefined && gListItems[item].style.display == 'block')
+            {
+                if (gListItems[n] == undefined || gListItems[n].style == undefined)
+                    next = 0;
+                else
+                    next = n;
+            }
+            if (gListItems[item].style != undefined)
+                gListItems[item].style.display = 'none';
+        }
+        gListItems[next].style.display = 'block';
+    }
+    function gallery_prev(id)
+    {
+        var imageList = document.getElementById(id);
+        var prev = 0;
+        if (!imageList)
+            return false;
+        var gListItems = imageList.getElementsByTagName('img'); //get the images into an array
+        for (item in gListItems)
+        {
+            var p = item;
+            if (gListItems[item].style != undefined && gListItems[item].style.display == 'block')
+            {
+                prev = p;
+            }
+            if (gListItems[item].style != undefined)
+                gListItems[item].style.display = 'none';
+        }
+        prev--;
+        if (prev < 0)
+        {
+            for (prev = 0; gListItems[prev] != undefined && gListItems[prev].style != undefined; prev++)
+                ;
+            prev--;
+        }
+        gListItems[prev].style.display = 'block';
+    }
+</script>

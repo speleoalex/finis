@@ -1,0 +1,81 @@
+<?php exit(0);?>
+<fndatabase>
+	<fnc_zones>
+		<unirecid>66</unirecid>
+		<country>38</country>
+		<code>AB</code>
+		<name>Alberta</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>67</unirecid>
+		<country>38</country>
+		<code>BC</code>
+		<name>British Columbia</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>68</unirecid>
+		<country>38</country>
+		<code>MB</code>
+		<name>Manitoba</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>69</unirecid>
+		<country>38</country>
+		<code>NF</code>
+		<name>Newfoundland</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>70</unirecid>
+		<country>38</country>
+		<code>NB</code>
+		<name>New Brunswick</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>71</unirecid>
+		<country>38</country>
+		<code>NS</code>
+		<name>Nova Scotia</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>72</unirecid>
+		<country>38</country>
+		<code>NT</code>
+		<name>Northwest Territories</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>73</unirecid>
+		<country>38</country>
+		<code>NU</code>
+		<name>Nunavut</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>74</unirecid>
+		<country>38</country>
+		<code>ON</code>
+		<name>Ontario</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>75</unirecid>
+		<country>38</country>
+		<code>PE</code>
+		<name>Prince Edward Island</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>76</unirecid>
+		<country>38</country>
+		<code>QC</code>
+		<name>Quebec</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>77</unirecid>
+		<country>38</country>
+		<code>SK</code>
+		<name>Saskatchewan</name>
+	</fnc_zones>
+	<fnc_zones>
+		<unirecid>78</unirecid>
+		<country>38</country>
+		<code>YT</code>
+		<name>Yukon Territory</name>
+	</fnc_zones>
+</fndatabase>

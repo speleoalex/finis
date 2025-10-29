@@ -1,0 +1,39 @@
+<?php exit(0)?>
+<fndatabase>
+	<fnc_products>
+		<unirecid>25</unirecid>
+		<name>Microsoft Internet Keyboard PS/2</name>
+		<status>1</status>
+		<model>MSINTKB</model>
+		<sort_order></sort_order>
+		<description>The Internet Keyboard has 10 Hot Keys on a comfortable standard keyboard design that also includes a detachable palm rest. The Hot Keys allow you to browse the web, or check e-mail directly from your keyboard. The IntelliType Pro software also allows you to customize your hot keys - make the Internet Keyboard work the way you want it to!</description>
+		<photo1>intkeyboardps2.gif</photo1>
+		<photo2></photo2>
+		<photo3></photo3>
+		<photo4></photo4>
+		<photo5></photo5>
+		<photo6></photo6>
+		<attachment></attachment>
+		<attachment2></attachment2>
+		<height></height>
+		<width></width>
+		<depth></depth>
+		<year></year>
+		<weight>8.00</weight>
+		<manufacturers>2</manufacturers>
+		<freeshipping></freeshipping>
+		<quantity>16</quantity>
+		<price>69.9900</price>
+		<vat></vat>
+		<name_it></name_it>
+		<description_it></description_it>
+		<name_en></name_en>
+		<description_en></description_en>
+		<name_de></name_de>
+		<name_es></name_es>
+		<description_de></description_de>
+		<description_es></description_es>
+		<name_fr></name_fr>
+		<description_fr></description_fr>
+	</fnc_products>
+</fndatabase>
