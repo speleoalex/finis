@@ -26,9 +26,9 @@ class fnc_shippingmethods_DELIVERY
 	function get_total()
 	{
 		global $_FN;
-		$cost = 0;
-		$costzonestable ="";
-		include ("modules/fncommerce/modules/shippingmethods/DELIVERY/config.php");
+		$config = FN_LoadConfig("modules/fncommerce/modules/shippingmethods/DELIVERY/config.php");
+		$cost = isset($config['cost']) ? $config['cost'] : 0;
+		$costzonestable = isset($config['costzonestable']) ? $config['costzonestable'] : "";
 		if ($costzonestable!="" && xmltableexists("fndatabase",$costzonestable,$_FN['datadir']))
 		{
 			
@@ -100,8 +100,8 @@ class fnc_shippingmethods_DELIVERY
 	}
 	function get_orderstatus()
 	{
-		$urltraching="";
-		include ("modules/fncommerce/modules/shippingmethods/DELIVERY/config.php");
+		$config = FN_LoadConfig("modules/fncommerce/modules/shippingmethods/DELIVERY/config.php");
+		$urltraching = isset($config['urltraching']) ? $config['urltraching'] : "";
 
 		return "";
 	}	

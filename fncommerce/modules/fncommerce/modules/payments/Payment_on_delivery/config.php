@@ -1,5 +1,5 @@
 <?php
 //[it]Costo
 //[en]Cost
-$cost = 3;
+$config['cost'] = 3;
 ?>

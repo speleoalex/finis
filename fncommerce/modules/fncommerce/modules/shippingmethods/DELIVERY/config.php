@@ -8,12 +8,12 @@
 
 //[it]Costo spedizione di default
 //[en]Default shipping cost
-$cost = 0;
+$config['cost'] = 0;
 //[it]Tabella per costi di spedizione {misc/fndatabase/fnc_shippingzones_*.php}
 //[en]Shipping cost table {misc/fndatabase/*.php)
-$costzonestable = "";
-//[it]URL per tracciamento 
+$config['costzonestable'] = "";
+//[it]URL per tracciamento
 //[en]URL traccking
-$urltraching = "";
+$config['urltraching'] = "";
 
 ?>

@@ -45,9 +45,8 @@ class fnc_payments_Payment_on_delivery
 	}
 	function get_cost()
 	{
-		$cost=0;
-		include ("modules/fncommerce/modules/payments/Payment_on_delivery/config.php");
-		return $cost;	
+		$config = FN_LoadConfig("modules/fncommerce/modules/payments/Payment_on_delivery/config.php");
+		return isset($config['cost']) ? $config['cost'] : 0;
 	}
 
 	/**
@@ -70,8 +69,7 @@ class fnc_payments_Payment_on_delivery
 	 */
 	function do_payment()
 	{
-		$iban = "";
-		include ("modules/fncommerce/modules/payments/Payment_on_delivery/config.php");
+		$config = FN_LoadConfig("modules/fncommerce/modules/payments/Payment_on_delivery/config.php");
 
 		$str=Payment_on_delivery;
 		return $str;

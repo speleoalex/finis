@@ -444,7 +444,7 @@ function fnc_getcategory($id)
  * 
  * 
  */
-function fnc_getcategories($r = false)
+function fnc_getcategories($r = false, $hide_empty = true)
 {
     global $_FN, $_FNC;
     $ret = array();
@@ -461,8 +461,40 @@ function fnc_getcategories($r = false)
                 $ret[$cat['unirecid']] = $cat;
             }
         }
-    } else
-        return $_FNC['categories'];
+    } else {
+        $ret = $_FNC['categories'];
+    }
+
+    // Filtra le categorie vuote (senza prodotti e senza sottocategorie)
+    if ($hide_empty) {
+        foreach ($ret as $cat_id => $cat) {
+            $has_products = false;
+            $has_subcategories = false;
+
+            // Verifica se ha prodotti
+            if (isset($_FNC['products_to_categories'][$cat_id]) &&
+                is_array($_FNC['products_to_categories'][$cat_id]) &&
+                count($_FNC['products_to_categories'][$cat_id]) > 0) {
+                $has_products = true;
+            }
+
+            // Verifica se ha sottocategorie
+            if (!$has_products) {
+                foreach ($_FNC['categories'] as $subcat) {
+                    if (isset($subcat['parent']) && $subcat['parent'] == $cat_id) {
+                        $has_subcategories = true;
+                        break;
+                    }
+                }
+            }
+
+            // Rimuove la categoria se non ha né prodotti né sottocategorie
+            if (!$has_products && !$has_subcategories) {
+                unset($ret[$cat_id]);
+            }
+        }
+    }
+
     return $ret;
 }
 
@@ -730,8 +762,43 @@ function fnc_getproductsbycategory($cat, $ranges = "")
 }
 
 /**
+ * recupera i prodotti non associati a nessuna categoria
+ *
+ * @param string $cat parametro non utilizzato (mantenuto per compatibilità)
+ * @return array array di prodotti non categorizzati
+ */
+function fnc_getuncategorizedproducts($cat = "")
+{
+    global $_FN, $_FNC;
+    $categorized_products = array();
+
+    // Raccoglie tutti gli ID dei prodotti che sono associati a una categoria
+    if (isset($_FNC['products_to_categories']) && is_array($_FNC['products_to_categories'])) {
+        foreach ($_FNC['products_to_categories'] as $category_id => $products) {
+            if (is_array($products)) {
+                foreach ($products as $product_id => $product) {
+                    $categorized_products[$product_id] = true;
+                }
+            }
+        }
+    }
+
+    // Ritorna solo i prodotti che non sono in nessuna categoria
+    $ret = array();
+    if (isset($_FNC['allproducts']) && is_array($_FNC['allproducts'])) {
+        foreach ($_FNC['allproducts'] as $product_id => $product) {
+            if (!isset($categorized_products[$product_id])) {
+                $ret[$product_id] = $product;
+            }
+        }
+    }
+
+    return $ret;
+}
+
+/**
  * recupera i prodotti all' interno di una categoria
- * 
+ *
  */
 function fnc_getproductscountbycategory($cat, $ranges = array(), $filters = "")
 {
@@ -983,6 +1050,135 @@ function fnc_validate_fiscal_code($code)
 }
 
 /**
+ * Inizializza la tabella fnc_orderstatus con gli stati ordine di default
+ *
+ * @return int Numero di record inseriti
+ */
+function fnc_init_orderstatus()
+{
+    global $_FN;
+
+    // Get the order status table
+    $table = FN_XMDBTable("fnc_orderstatus");
+
+    // Check if table is empty
+    $records = $table->GetRecords();
+
+    if (!empty($records)) {
+        return 0; // Table already initialized
+    }
+
+    // Define default order statuses
+    $default_statuses = array(
+        array(
+            'unirecid' => 'opened',
+            'name' => 'Aperto',
+            'name_en' => 'Open',
+            'name_es' => '',
+            'name_de' => '',
+            'name_fr' => '',
+            'notes' => '',
+            'subject_notify' => '',
+            'body_notify' => '',
+            'subject_notify_en' => '',
+            'subject_notify_es' => '',
+            'subject_notify_de' => '',
+            'subject_notify_fr' => '',
+            'body_notify_en' => '',
+            'body_notify_es' => '',
+            'body_notify_de' => '',
+            'body_notify_fr' => ''
+        ),
+        array(
+            'unirecid' => 'working',
+            'name' => 'In lavorazione',
+            'name_en' => '',
+            'name_es' => '',
+            'name_de' => '',
+            'name_fr' => '',
+            'notes' => '',
+            'subject_notify' => 'Notifica ordine n. {ordernumber}',
+            'body_notify' => '<p>Il tuo ordine &egrave; ora in lavorazione</p>',
+            'subject_notify_en' => '',
+            'subject_notify_es' => '',
+            'subject_notify_de' => '',
+            'subject_notify_fr' => '',
+            'body_notify_en' => '',
+            'body_notify_es' => '',
+            'body_notify_de' => '',
+            'body_notify_fr' => ''
+        ),
+        array(
+            'unirecid' => 'delivered',
+            'name' => 'Evaso',
+            'name_en' => 'Delivered',
+            'name_es' => '',
+            'name_de' => '',
+            'name_fr' => '',
+            'notes' => '',
+            'subject_notify' => '',
+            'body_notify' => '',
+            'subject_notify_en' => '',
+            'subject_notify_es' => '',
+            'subject_notify_de' => '',
+            'subject_notify_fr' => '',
+            'body_notify_en' => '',
+            'body_notify_es' => '',
+            'body_notify_de' => '',
+            'body_notify_fr' => ''
+        ),
+        array(
+            'unirecid' => 'deleted',
+            'name' => 'Cancellato',
+            'name_en' => 'Deleted',
+            'name_es' => '',
+            'name_de' => '',
+            'name_fr' => '',
+            'notes' => '',
+            'subject_notify' => '',
+            'body_notify' => '',
+            'subject_notify_en' => '',
+            'subject_notify_es' => '',
+            'subject_notify_de' => '',
+            'subject_notify_fr' => '',
+            'body_notify_en' => '',
+            'body_notify_es' => '',
+            'body_notify_de' => '',
+            'body_notify_fr' => ''
+        ),
+        array(
+            'unirecid' => 'sent',
+            'name' => 'Spedito',
+            'name_en' => '',
+            'name_es' => '',
+            'name_de' => '',
+            'name_fr' => '',
+            'notes' => '',
+            'subject_notify' => 'Il tuo ordine è stato spedito',
+            'body_notify' => '<p>Il tuo ordine &egrave; stato spedito</p>',
+            'subject_notify_en' => '',
+            'subject_notify_es' => '',
+            'subject_notify_de' => '',
+            'subject_notify_fr' => '',
+            'body_notify_en' => '',
+            'body_notify_es' => '',
+            'body_notify_de' => '',
+            'body_notify_fr' => ''
+        )
+    );
+
+    // Insert each status
+    $inserted = 0;
+    foreach ($default_statuses as $status) {
+        if ($table->InsertRecord($status)) {
+            $inserted++;
+        }
+    }
+
+    return $inserted;
+}
+
+/**
  * inizializza le tabelle
  *
  */
@@ -1006,6 +1202,9 @@ function fnc_initTables()
         mkdir("{$_FN['datadir']}/fndatabase/fnc_products");
     }
     //----------prodotti-------------------------------------<
+    //----------orderstatus------------------------------------>
+    fnc_init_orderstatus();
+    //----------orderstatus----------------------------------<
 }
 
 /**

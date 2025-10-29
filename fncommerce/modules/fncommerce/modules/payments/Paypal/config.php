@@ -7,9 +7,9 @@
  */
 //[it]E-mail account Paypal
 //[en]E-mail Paypal account
-$paypal_email="test@test.it";
+$config['paypal_email'] = "test@test.it";
 //[it]Costo Paypal
 //[en]Paypal cost
-$paypal_cost = 0;
+$config['paypal_cost'] = 0;
 
 ?>

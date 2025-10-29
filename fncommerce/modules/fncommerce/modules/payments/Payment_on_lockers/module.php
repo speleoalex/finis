@@ -54,9 +54,8 @@ class fnc_payments_Payment_on_lockers
 
     function get_cost()
     {
-        $cost = 0;
-        include ("modules/fncommerce/modules/payments/Payment_on_lockers/config.php");
-        return $cost;
+        $config = FN_LoadConfig("modules/fncommerce/modules/payments/Payment_on_lockers/config.php");
+        return isset($config['cost']) ? $config['cost'] : 0;
     }
 
     /**
@@ -80,8 +79,7 @@ class fnc_payments_Payment_on_lockers
      */
     function do_payment()
     {
-        $iban = "";
-        include ("modules/fncommerce/modules/payments/Payment_on_lockers/config.php");
+        $config = FN_LoadConfig("modules/fncommerce/modules/payments/Payment_on_lockers/config.php");
 
         $str = Payment_on_lockers;
         return $str;

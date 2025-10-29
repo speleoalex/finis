@@ -25,9 +25,9 @@ class fnc_shippingmethods_DHL
 	function get_total()
 	{
 		global $_FN;
-		$cost = 0;
-		$costzonestable ="";
-		include ("modules/fncommerce/modules/shippingmethods/DHL/config.php");
+		$config = FN_LoadConfig("modules/fncommerce/modules/shippingmethods/DHL/config.php");
+		$cost = isset($config['cost']) ? $config['cost'] : 0;
+		$costzonestable = isset($config['costzonestable']) ? $config['costzonestable'] : "";
 		if ($costzonestable!="" && xmltableexists("fndatabase",$costzonestable,$_FN['datadir']))
 		{
 			
@@ -96,12 +96,12 @@ class fnc_shippingmethods_DHL
 	}
 	function get_orderstatus()
 	{
-		$urltraching="";
-		include ("modules/fncommerce/modules/shippingmethods/DHL/config.php");
-		if ($this->order['trackingnumber']!="")
+		$config = FN_LoadConfig("modules/fncommerce/modules/shippingmethods/DHL/config.php");
+		$urltraching = isset($config['urltraching']) ? $config['urltraching'] : "";
+		if (isset($this->order['trackingnumber']) && $this->order['trackingnumber']!="" && $urltraching!="")
 		{
 			$link=str_replace("{trackingnumber}",$this->order['trackingnumber'],$urltraching);
-			return "<br /><br />"._DHLORDERTRACKING.":<a target=\"_blank\" href=\"$link\">Tracking number:".$this->order['trackingnumber']."</a>";
+			return "<br /><br />".FN_Translate("Order tracking").":<a target=\"_blank\" href=\"$link\">".FN_Translate("Tracking number").":".$this->order['trackingnumber']."</a>";
 		}
 		return "";
 	}	

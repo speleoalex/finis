@@ -4,19 +4,19 @@ function NEXI_Button($order)
 {
     global $_FN;
     $html = "";
-    include ("modules/fncommerce/modules/payments/NEXI/config.php");
+    $config = FN_LoadConfig("modules/fncommerce/modules/payments/NEXI/config.php");
     if ($order['orderstatus'] != "opened")
     {
         return "pagamento eseguito";
     }
 // Pagamento semplice - Avvio pagamento
-// Alias e chiave segreta 
+// Alias e chiave segreta
     /*
       $orderid = FN_GetParam("orderid",$_GET,"flat");
       if ($orderid=="")
       $orderid = FN_GetParam("pk___xdb_fnc_orders",$_GET,"flat");
       $order = fnc_get_order($orderid);
-     * 
+     *
      */
     $res = FN_GetParam("res", $_REQUEST, "html");
     if ($res == "ok")
@@ -32,8 +32,8 @@ function NEXI_Button($order)
     {
         die();
     }
-    $ALIAS = 'ALIAS_WEB_00051830'; // Sostituire con il valore fornito da Nexi
-    $CHIAVESEGRETA = '1L0ZCMB1U1O6I055CVNWJ0G7I6LLXEL1'; // Sostituire con il valore fornito da Nexi
+    $ALIAS = isset($config['ALIAS']) ? $config['ALIAS'] : ''; // Sostituire con il valore fornito da Nexi
+    $CHIAVESEGRETA = isset($config['CHIAVESEGRETA']) ? $config['CHIAVESEGRETA'] : ''; // Sostituire con il valore fornito da Nexi
     $requestUrl = "https://int-ecommerce.nexi.it/ecomm/ecomm/DispatcherServlet";
     // $merchantServerUrl = "https://" . $_SERVER['HTTP_HOST'] . "/xpay/php/pagamento_semplice/codice_base/";
     $divisa = "EUR";

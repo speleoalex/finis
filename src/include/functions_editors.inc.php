@@ -516,7 +516,6 @@ var movedown = function (node)
                     $htmlcheckbox .= "<input type=\"hidden\" value=\"" . htmlentities($varvalue) . "\" name=\"conf_$j\"  />";
                     $is_file = false;
                     $dirtoopenpath = "";
-
                     if (file_exists("{$_FN['datadir']}/{$_FN['database']}/$dirtoopen.php"))
                     {
                         $t = FN_XMDBTable($dirtoopen);
@@ -542,7 +541,6 @@ var movedown = function (node)
                     }
                     if (!empty($dirtoopenpath) && is_dir($dirtoopenpath))
                     {
-
                         $allopt = FN_ListDir($dirtoopenpath);
                     }
                     $htmlcheckbox .= "<div id=\"checkconf$j\">";

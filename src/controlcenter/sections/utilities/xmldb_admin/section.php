@@ -235,7 +235,7 @@ function show_fntables($databasename, $path)
         echo "\n</tr>";
     }
     echo "</tbody></table>";
-    echo "<br /><img src=\"" . FN_FromTheme("images/add.png") . "\" alt=\"\"/>&nbsp;<a href=\"?opt=$opt&amp;op=new\">" . FN_i18n("new") . "</a>";
+    echo "<br /><img src=\"" . FN_FromTheme("images/add.png") . "\" alt=\"\"/>&nbsp;<a href=\"?fnapp=controlcenter&opt=$opt&amp;op=new\">" . FN_i18n("new") . "</a>";
 }
 
 /**
@@ -313,7 +313,7 @@ function new_table($tablename, $path, $databasename)
             if (isset($_POST['xmltablesinglefile']))
                 $singlefilename = $xmltablename;
             echo XMETATable::createMetadbTable("fndatabase", $xmltablename, array(0 => $newvalues), $_FN['datadir'], $singlefilename);
-            FN_JsRedirect("?opt=$opt&op=edit&t=$xmltablename");
+            FN_JsRedirect("?fnapp=controlcenter&opt=$opt&op=edit&t=$xmltablename");
             return;
         }
         //

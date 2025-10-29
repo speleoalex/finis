@@ -26,13 +26,13 @@ foreach ($liststeps_tmp as $step)
 //-------------------------steps list-----------------------------------------<
 if ($edit == "")
 {
-	echo "<div><a href=\"?opt=$opt&amp;edit=fncommerce/modules\">" . FN_Translate("choose modules") . "</a><br /><br /><br /></div>";
+	echo "<div><a href=\"?fnapp=controlcenter&opt=$opt&amp;edit=modules/fncommerce/modules\">" . FN_Translate("choose modules") . "</a><br /><br /><br /></div>";
 	foreach ($liststeps as $itemstep)
 	{
 
 		echo "<table border=\"0\">";
 		echo "<tr><td>";
-		echo "\n<a href=\"?mod={$_FN['mod']}&amp;opt=$opt&amp;edit=fncommerce/modules/\">";
+		echo "\n<a href=\"?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;edit=modules/fncommerce/modules/\">";
 		if (in_array($itemstep,$steps_modules))
 		{
 			echo FN_Translate("enabled");
@@ -46,7 +46,7 @@ if ($edit == "")
 		echo "</td>";
 		$title=FN_GetFolderTitle("modules/fncommerce/modules/$itemstep");
 		echo "\n<td colspan=\"4\"><b>{$title}:</b>";
-		echo "\n<a href=\"?mod={$_FN['mod']}&amp;opt=$opt&amp;edit=fncommerce/modules/{$itemstep}\">[" . FN_Translate("modify") . "]</a></td>";
+		echo "\n<a href=\"?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;edit=modules/fncommerce/modules/{$itemstep}\">[" . FN_Translate("modify") . "]</a></td>";
 		echo "</tr>";
 
 		//--------------------list modules------------------------------------->
@@ -67,7 +67,7 @@ if ($edit == "")
 		{
 			echo "<tr>";
 			echo "<td>";
-			echo "\n<a href=\"?mod={$_FN['mod']}&amp;opt=$opt&amp;edit=fncommerce/modules/{$itemstep}\">";
+			echo "\n<a href=\"?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;edit=modules/fncommerce/modules/{$itemstep}\">";
 			if (in_array($item,$list_enabled_modules))
 			{
 				echo FN_Translate("enabled");
@@ -84,7 +84,7 @@ if ($edit == "")
 			$title=FN_GetFolderTitle("modules/fncommerce/modules/$itemstep/$item");
 			echo "<td>{$title}</td>";
 			echo "<td>";
-			echo "<a href=\"?opt=$opt&amp;edit=fncommerce/modules/{$itemstep}/{$item}\">";
+			echo "<a href=\"?fnapp=controlcenter&opt=$opt&amp;edit=modules/fncommerce/modules/{$itemstep}/{$item}\">";
 			echo "[" . FN_Translate("configure","aa") . "]</a>";
 			echo "</td>";
 			echo "</tr>";
@@ -94,7 +94,8 @@ if ($edit == "")
 }
 else
 {
-	echo "<br />";
-	fn_editconffile("$edit/config.php","?opt=$opt&amp;edit=$edit","?opt=$opt");
+
+	echo "<br />$edit";
+	fn_editconffile("$edit/config.php","?fnapp=controlcenter&opt=$opt&amp;edit=$edit","?fnapp=controlcenter&opt=$opt");
 }
 ?>

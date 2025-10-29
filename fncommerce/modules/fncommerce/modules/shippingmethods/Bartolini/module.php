@@ -31,23 +31,23 @@ class fnc_shippingmethods_Bartolini
 	
 	function get_total ()
 	{
-		$cost=0;
-		include ("modules/fncommerce/modules/shippingmethods/Bartolini/config.php");
+		$config = FN_LoadConfig("modules/fncommerce/modules/shippingmethods/Bartolini/config.php");
+		$costvalue = isset($config['cost']) ? $config['cost'] : 0;
 		$cost = array (
 			'title' => "Bartolini",
-			'total' => $cost
+			'total' => $costvalue
 		); //deve tornare dalla funzione del modulo
 		$this->order['costs']["shippingmethods"] = $cost;
 		return $this->order;
 	}
 	function get_orderstatus()
 	{
-		$urltraching="";
-		include ("modules/fncommerce/modules/shippingmethods/Bartolini/config.php");
-		if ($this->order['trackingnumber']!="")
+		$config = FN_LoadConfig("modules/fncommerce/modules/shippingmethods/Bartolini/config.php");
+		$urltraching = isset($config['urltraching']) ? $config['urltraching'] : "";
+		if (isset($this->order['trackingnumber']) && $this->order['trackingnumber']!="" && $urltraching!="")
 		{
 			$link=str_replace("{trackingnumber}",$this->order['trackingnumber'],$urltraching);
-			return "<br /><br />"._BARTOLINIORDERTRACKING.":<a target=\"_blank\" href=\"$link\">Tracking number:".$this->order['trackingnumber']."</a>";
+			return "<br /><br />".FN_Translate("Order tracking").":<a target=\"_blank\" href=\"$link\">".FN_Translate("Tracking number").":".$this->order['trackingnumber']."</a>";
 		}
 		return "";
 	}	

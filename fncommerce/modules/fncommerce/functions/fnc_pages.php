@@ -66,55 +66,7 @@ function print_navigation()
     }
     echo FN_TPL_ApplyTplString($htmltpl, $vars);
     return;
-    /*
-      if (!$_FN['fnc_only_catalog'])
-      echo html_cart();
-      //"<div style=\"text-align:right;\"><a href=\"?mod={$_FN['mod']}&amp;op=showcart\">" . FN_Translate("my chart") . " (".fnc_get_cart_count().")</a></div>";
-      //-------------layout navigazione categorie---------->
-      echo "<table width=\"100%\" border=\"0\">";
-      echo "<tr>";
-      echo "<td >";
-      echo html_category_path($cat);
-      if ($_FN['show_ranges'] != "")
-      echo html_range($_FN['show_ranges']);
-      echo "</td>";
-      echo "</tr>";
-      echo "<tr>";
-      if ($_FN['show_categories_tree_check'] == 1 || $_FN['show_categories_tree'] == 1)
-      {
-      echo "<td  valign=\"top\" width=\"180\">";
 
-      if ($_FN['show_categories_tree_check'] == 1)
-      {
-      if ($cat != "" && $mode == "")
-      $_GET["cat_$cat"] = "1";
-      print_categories_tree_check();
-      }
-      if ($_FN['show_categories_tree'] == 1)
-      {
-      print_categories_tree();
-      }
-      echo "</td>";
-      }
-      echo "<td valign=\"top\">";
-      //messaggio introduttivo ---->
-      if ($cat == "")
-      {
-      $t = fnc_getcontents_config();
-      $t = $t['text'];
-      echo "$t";
-      }
-      //messaggio introduttivo ----<
-      print_results();
-      echo "</td>";
-      echo "</tr>";
-      echo "</table>";
-      //-------------layout navigazione categorie----------<
-      if (!$_FN['fnc_only_catalog'])
-      if ($_FN['user'] != '' && fnc_have_orders($_FN['user']))
-      {
-      echo "<br /><a href=\"?mod={$_FN['mod']}&amp;op=orderstatus\">" . FN_Translate("orders") . "</a>";
-      } */
 }
 
 /**
@@ -218,7 +170,13 @@ function get_results()
     }
     else
     {
-        $all = fnc_getproductsbycategory($cat);
+        if ($cat)
+        {
+            $all = fnc_getproductsbycategory($cat);
+        }
+        else{
+            $all = fnc_getuncategorizedproducts();
+        }
     }
     $cetegories = fnc_GetSubCategories($cat);
 
@@ -232,46 +190,74 @@ function get_results()
 }
 
 /**
- * 
- * 
+ *
+ *
  */
 function html_orderstatus($idorder)
 {
     $ordervalues = fnc_get_order($idorder);
-    //dprint_r($ordervalues);
-    $ret = "";
-    $ret .= FN_Translate("order number") . ": $idorder";
-    $ret .= "<p>" . FN_Translate("order status") . ": " . fnc_translate_orderstatus($ordervalues['orderstatus']) . "</p>";
-    $ret .= "<em>" . str_replace("\n", "<br />", $ordervalues['address']) . "</em><br />";
-    $ret .= "<b>" . FN_i18n("Delivery_address") . ":</b><br />";
-    $ret .= "<em>" . str_replace("\n", "<br />", $ordervalues['shippingaddress']) . "</em><br />";
 
-    $ret .= FN_Translate("order details") . ":" . fnc_get_ordercost_details($ordervalues);
+    // Prepare template variables
+    $vars = array();
 
+    // Order information
+    $vars['order_id'] = $idorder;
+    $vars['order_status_raw'] = $ordervalues['orderstatus'];
+    $vars['order_status'] = fnc_translate_orderstatus($ordervalues['orderstatus']);
+
+    // Addresses
+    $vars['billing_address'] = str_replace("\n", "<br />", $ordervalues['address']);
+    $vars['shipping_address'] = str_replace("\n", "<br />", $ordervalues['shippingaddress']);
+
+    // Order details
+    $vars['order_cost_details'] = fnc_get_ordercost_details($ordervalues);
+
+    // Translations
+    $vars['txt_order_number'] = FN_Translate("order number");
+    $vars['txt_order_status'] = FN_Translate("order status");
+    $vars['txt_billing_address'] = FN_i18n("Billing_address");
+    $vars['txt_shipping_address'] = FN_i18n("Delivery_address");
+    $vars['txt_order_details'] = FN_Translate("order details");
+    $vars['txt_payment'] = FN_Translate("payment");
+    $vars['txt_shipping_status'] = FN_Translate("shipping status");
+
+    // Payment module
+    $vars['show_payment_module'] = false;
+    $vars['payment_html'] = "";
     if ($ordervalues['orderstatus'] == "opened")
+    {
         if (isset($ordervalues['payments']) && $ordervalues['payments'] != "" && file_exists("modules/fncommerce/modules/payments/{$ordervalues['payments']}/module.php"))
         {
             require_once ("modules/fncommerce/modules/payments/{$ordervalues['payments']}/module.php");
             $classname = "fnc_payments_{$ordervalues['payments']}";
             $payment = new $classname($ordervalues);
-            $ret .= $payment->do_payment();
+            $vars['payment_html'] = $payment->do_payment();
+            $vars['show_payment_module'] = true;
         }
+    }
 
+    // Shipping status
+    $vars['show_shipping_status'] = false;
+    $vars['shipping_status_html'] = "";
     if (isset($ordervalues['shippingmethods']) && $ordervalues['shippingmethods'] != "" && file_exists("modules/fncommerce/modules/shippingmethods/{$ordervalues['shippingmethods']}/module.php"))
     {
         require_once ("modules/fncommerce/modules/shippingmethods/{$ordervalues['shippingmethods']}/module.php");
         $classname = "fnc_shippingmethods_{$ordervalues['shippingmethods']}";
         $shippingmethod = new $classname($ordervalues);
-        $ret .= $shippingmethod->get_orderstatus();
+        $vars['shipping_status_html'] = $shippingmethod->get_orderstatus();
+        $vars['show_shipping_status'] = true;
     }
 
-    //dprint_r($ordervalues);
-    return $ret;
+    // Load and apply template
+    $filetpl = FN_FromTheme("modules/fncommerce/pages/orderstatus.tp.html", false);
+    $strtpl = file_get_contents($filetpl);
+
+    return FN_TPL_ApplyTplString($strtpl, $vars);
 }
 
 /**
- * 
- * 
+ *
+ *
  */
 function print_orders($user)
 {
@@ -279,38 +265,50 @@ function print_orders($user)
     $orders = fnc_get_orders(array(
         "username" => $user
     ));
-    echo "<h2>" . FN_Translate("orders status") . "</h2>";
-    if (is_array($orders) && count($orders) > 0)
+
+    // Prepare template variables
+    $vars = array();
+
+    // Translations
+    $vars['txt_orders_status'] = FN_Translate("orders status");
+    $vars['txt_order_number'] = FN_Translate("order number");
+    $vars['txt_date'] = FN_Translate("date");
+    $vars['txt_status'] = FN_Translate("status");
+    $vars['txt_total'] = FN_Translate("total");
+    $vars['txt_actions'] = FN_Translate("actions");
+    $vars['txt_view_status'] = FN_Translate("order status");
+    $vars['txt_no_order'] = FN_Translate("no order");
+    $vars['txt_continue_shopping'] = FN_translate("continue shopping");
+
+    // Check if there are orders
+    $vars['has_orders'] = is_array($orders) && count($orders) > 0;
+    $vars['no_orders'] = !$vars['has_orders'];
+
+    // Prepare orders array for template
+    $vars['orders'] = array();
+    if ($vars['has_orders'])
     {
-        echo "<table border=\"1\" cellpadding=\"2\" cellspacing=\"2\">";
         foreach ($orders as $ordervalues)
         {
-            echo "<tr>";
-            echo "<td>";
-            echo $ordervalues['unirecid'];
-            echo "</td>";
-            echo "<td>";
-            echo ($ordervalues['time']);
-            echo "</td>";
-            echo "<td>";
-            echo fnc_translate_orderstatus($ordervalues['orderstatus']);
-            echo "</td>";
-            echo "<td style=\"text-align:right\">";
-            echo fnc_format_price($ordervalues['total']);
-            echo "</td>";
-            echo "<td>";
-            echo "<a href=\"?mod={$_FN['mod']}&amp;op=orderstatus&amp;orderid={$ordervalues['unirecid']}\">" . FN_Translate("order status") . "</a>";
-            echo "</td>";
-            echo "</tr>";
+            $order = array();
+            $order['order_id'] = $ordervalues['unirecid'];
+            $order['order_date'] = $ordervalues['time'];
+            $order['order_status'] = fnc_translate_orderstatus($ordervalues['orderstatus']);
+            $order['order_total'] = fnc_format_price($ordervalues['total']);
+            $order['order_url'] = "?mod={$_FN['mod']}&amp;op=orderstatus&amp;orderid={$ordervalues['unirecid']}";
+            $vars['orders'][] = $order;
         }
-        echo "</table>";
     }
-    else
-        echo FN_Translate("no order");
-    echo "<br /><br /><br /><a href=\"" . FN_RewriteLink("?mod={$_FN['mod']}") . "\">" . FN_translate("continue shopping") . "</a>";
-    echo "&nbsp;&nbsp;<img style=\"vertical-align:middle\" src=\"" . FN_FromTheme("images/fn_fastforward.png") . "\" alt=\"\" title=\"" . FN_translate("continue shopping") . "\" />";
 
-    //dprint_r($orders);
+    // URLs and images
+    $vars['url_continue_shopping'] = FN_RewriteLink("?mod={$_FN['mod']}");
+    $vars['img_continue'] = FN_FromTheme("images/fn_fastforward.png");
+
+    // Load and apply template
+    $filetpl = FN_FromTheme("modules/fncommerce/pages/orders.tp.html", false);
+    $strtpl = file_get_contents($filetpl);
+
+    echo FN_TPL_ApplyTplString($strtpl, $vars);
 }
 
 /**
@@ -842,7 +840,6 @@ function print_products_table($all)
     if (is_array($all) && count($all) > 0)
     {
         echo "<table width=\"100%\" border=\"0\">";
-        //echo "<tr><td>"._VARIE_IMMAGINE."</td><td>"._VARIE_DESCRIZIONE."</td><td style=\"text-align:right\">".FN_Translate("price")."</td><td>&nbsp;</td></tr>";
         foreach ($all as $prod)
         {
             echo "<tr>";

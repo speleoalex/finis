@@ -1,10 +1,5 @@
 <?php
 global $_FN;
-if (file_exists("modules/fncommerce/modules/payments/Bank_transfert/languages/{$_FN['lang']}.php"))
-	require_once ("modules/fncommerce/modules/payments/Bank_transfert/languages/{$_FN['lang']}.php");
-else
-	require_once ("modules/fncommerce/modules/payments/Bank_transfert/languages/en.php");
-
 class fnc_payments_Bank_transfert
 {
 	var $order;
@@ -18,21 +13,21 @@ class fnc_payments_Bank_transfert
 	}
 	function title()
 	{
-		return _FFBONIFICO;
+		return FN_Translate("Bank transfer");
 	}
 	function description()
 	{
 		return "";
 	}
-	
-	
+
+
 	function show_option($order)
 	{
 
-		$ck="";
-		if (isset($order['payments']) && $order['payments']=="Bank_transfert")
-			$ck="checked=\"checked\"";
-		echo "<input $ck name=\"payments\" value=\"Bank_transfert\" type=\"radio\">Bank transfer<br>";
+		$ck = "";
+		if (isset($order['payments']) && $order['payments'] == "Bank_transfert")
+			$ck = "checked=\"checked\"";
+		echo "<input $ck name=\"payments\" value=\"Bank_transfert\" type=\"radio\">" . FN_Translate("Bank_transfert") . "<br>";
 	}
 
 	/**
@@ -41,11 +36,11 @@ class fnc_payments_Bank_transfert
 	 */
 	function get_total()
 	{
-		$cost=0;
-		include ("modules/fncommerce/modules/payments/Bank_transfert/config.php");
-		$cost = array (
+		$config = FN_LoadConfig("modules/fncommerce/modules/payments/Bank_transfert/config.php");
+		$costvalue = isset($config['cost']) ? $config['cost'] : 0;
+		$cost = array(
 			'title' => "Bank_transfer",
-			'total' => $cost
+			'total' => $costvalue
 		); //deve tornare dalla funzione del modulo
 		$this->order['costs']["payments"] = $cost;
 		return $this->order;
@@ -56,16 +51,18 @@ class fnc_payments_Bank_transfert
 	 */
 	function do_payment()
 	{
-		$iban = "";
-		include ("modules/fncommerce/modules/payments/Bank_transfert/config.php");
+		$config = FN_LoadConfig("modules/fncommerce/modules/payments/Bank_transfert/config.php");
+		$owner = isset($config['owner']) ? $config['owner'] : "";
+		$bank = isset($config['bank']) ? $config['bank'] : "";
+		$iban = isset($config['iban']) ? $config['iban'] : "";
 
-		$str = "<b>" . _FFINFOPAGAMENTO . ":</b><br />";
+		$str = "<b>" . FN_Translate("Payment information") . ":</b><br />";
 		$str .= fnc_format_price($this->order['total']) . "<br /><br />";
-		$str .= _FFDAINTESTAREA . ":";
-		$str .= "<br />" . _FFINTESTATARIO . ":$owner";
-		$str .= "<br />" . _FFBANCA . ":$bank";
-		$str .= "<br />" . _FFIBAN . ":$iban";
-		$str .= "<br /><br />" . _FFPAGABONIFICO;
+		$str .= FN_Translate("To pay to") . ":";
+		$str .= "<br />" . FN_Translate("Owner") . ":$owner";
+		$str .= "<br />" . FN_Translate("Bank") . ":$bank";
+		$str .= "<br />" . FN_Translate("IBAN") . ":$iban";
+		$str .= "<br /><br />" . FN_Translate("We will process your order as soon as we receive the payment. Thank you");
 		return $str;
 	}
 }

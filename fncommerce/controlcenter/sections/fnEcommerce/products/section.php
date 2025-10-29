@@ -32,7 +32,7 @@ function insertproducts($newvalues)
     switch ($opmod)
     {
         case "insnew" :
-            $categories = fnc_getcategories();
+            $categories = fnc_getcategories(false, false);
             $p_categories = fnc_getcategoriesbyproduct($pid);
             $categories_in_product = array();
             foreach ($p_categories as $c)
@@ -56,7 +56,7 @@ function insertproducts($newvalues)
                 if (!$catselect)
                     FN_Alert(FN_Translate("this product is not yet associated with any category"));
                 //dprint_r($_POST);
-                $categories = fnc_getcategories();
+                $categories = fnc_getcategories(false, false);
                 $p_categories = fnc_getcategoriesbyproduct($pid);
                 $categories_in_product = array();
                 foreach ($p_categories as $c)
@@ -64,7 +64,7 @@ function insertproducts($newvalues)
                     $categories_in_product[$c['unirecid']] = $c;
                 }
             }
-            echo "<b>" . _ADMIN_CATEGORIE . "</b>";
+            echo "<b>" . FN_Translate("categories") . "</b>";
             foreach ($categories as $category)
             {
                 $ck = "";

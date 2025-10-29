@@ -7,9 +7,9 @@
  */
 //[it]Alias
 //[en]Alias
-$ALIAS="";
+$config['ALIAS'] = "";
 //[it]Chiave segreta
 //[en]Secret Key
-$CHIAVESEGRETA = 0;
+$config['CHIAVESEGRETA'] = 0;
 
 ?>

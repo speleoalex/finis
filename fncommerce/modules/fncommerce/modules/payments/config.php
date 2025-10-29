@@ -5,8 +5,8 @@
  * 
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  */
-//[it]lista dei metodi di pagamento{+fncommerce/modules/payments}
-//[en]list of payment methods {+fncommerce/modules/payments}
+//[it]lista dei metodi di pagamento{+modules/fncommerce/modules/payments}
+//[en]list of payment methods {+modules/fncommerce/modules/payments}
 $list_enabled_modules = "Bank_transfert,NEXI,Payment_on_lockers";
 
 ?>

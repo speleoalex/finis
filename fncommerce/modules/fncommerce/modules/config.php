@@ -7,8 +7,8 @@
  */
  
  
-//[it]sequenza moduli abilitati per il pagamento {+fncommerce/modules}
-//[en]sequence of modules enabled for payment {+fncommerce/modules}
+//[it]sequenza moduli abilitati per il pagamento {+}
+//[en]sequence of modules enabled for payment {+}
 $steps_modules = "shippingmethods,payments";
  
 ?>

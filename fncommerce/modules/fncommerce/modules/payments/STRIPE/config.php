@@ -5,11 +5,11 @@
  * 
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  */
-//[it]E-mail account Paypal
-//[en]E-mail Paypal account
-$paypal_email="test@test.it";
-//[it]Costo Paypal
-//[en]Paypal cost
-$paypal_cost = 0;
+//[it]Chiave API Stripe
+//[en]Stripe API Key
+$config['stripe_api_key'] = "test@test.it";
+//[it]Costo Stripe
+//[en]Stripe cost
+$config['stripe_cost'] = 0;
 
 ?>
