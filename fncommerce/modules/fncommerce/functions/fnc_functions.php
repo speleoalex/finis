@@ -19,10 +19,7 @@ if (!isset($_FNC['categories'])) {
 
 $_FNC['errors'] = false;
 include(__DIR__ . "/fncommerce.php");
-if (file_exists(__DIR__ . "/languages/{$_FN['lang']}.php"))
-    require_once(__DIR__ . "/languages/{$_FN['lang']}.php");
-else
-    require_once(__DIR__ . "/languages/{$_FN['lang']}.php");
+FN_LoadMessagesFolder("modules/fncommerce/");
 
 if (!isset($_FNC['allproducts'])) {
     $tableproduct = FN_XMDBForm("fnc_products"); //new FieldFrm("fndatabase","fnc_products",$_FN['datadir'],$_FN['lang'],$_FN['languages']);
@@ -43,7 +40,14 @@ if (!isset($_FNC['allproducts'])) {
             $_FNC['allproducts'][$item['unirecid']]['manufacture_image'] = "";
             $_FNC['allproducts'][$item['unirecid']]['url_img'] = $tableproduct->xmltable->getFilePath($item, 'photo1');
             $_FNC['allproducts'][$item['unirecid']]['url'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=view&id={$item['unirecid']}&cat=$cat");
-            $_FNC['allproducts'][$item['unirecid']]['txt_price'] = fnc_format_price($item['price']);
+            // Supporto prezzi scaglionati: se contiene ":", mostra il prezzo più basso
+            if (strpos($item['price'], ':') !== false) {
+                $_FNC['allproducts'][$item['unirecid']]['txt_price'] = FN_i18n("from") . " " . fnc_format_price(fnc_get_price_by_quantity($item['price'], 1));
+                $_FNC['allproducts'][$item['unirecid']]['price_tiers'] = fnc_format_price_tiers($item['price'], 'html');
+            } else {
+                $_FNC['allproducts'][$item['unirecid']]['txt_price'] = fnc_format_price($item['price']);
+                $_FNC['allproducts'][$item['unirecid']]['price_tiers'] = '';
+            }
             $_FNC['allproducts'][$item['unirecid']]['url_addtocart'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=addtocart&p={$item['unirecid']}&from_cat=$cat");
             //carrello--->
             $qta = FN_GetParam("qta{$item['unirecid']}", $_REQUEST, "flat");
@@ -808,20 +812,179 @@ function fnc_getcategoriesbyproduct($pid)
 /**
  * formatta il prezzo
  * @param price
- * 
+ *
  */
 function fnc_format_price($price)
 {
     global $_FN;
     $price = round(floatval($price), 2);
     //$price = sprintf("%.3f {$_FN['currency_symbol']}", $price);
-    $price = number_format($price, 2, _FN_DEC_SEPARATOR, _FN_THOWSANDS_SEPARATOR) . "&nbsp;" . $_FN['currency_symbol'];
+    $dec_sep = FN_i18n("decimal separator");
+    $thousands_sep = FN_i18n("thousands separator");
+    $price = number_format($price, 2, $dec_sep, $thousands_sep) . "&nbsp;" . $_FN['currency_symbol'];
     return $price;
 }
 
 /**
+ * Calcola il prezzo unitario in base alla quantità e agli scaglioni
+ * Formato prezzo scaglionato: 1:90,10:80,100:70
+ * Significa: 1-9 unità a 90, 10-99 unità a 80, 100+ unità a 70
+ *
+ * @param string $price_string Stringa del prezzo (può contenere scaglioni)
+ * @param int $quantity Quantità richiesta
+ * @return float Prezzo unitario per la quantità specificata
+ */
+function fnc_get_price_by_quantity($price_string, $quantity)
+{
+    // Se non contiene ":", è un prezzo semplice
+    if (strpos($price_string, ':') === false) {
+        return floatval($price_string);
+    }
+
+    // Parsifica gli scaglioni
+    $tiers = array();
+    $parts = explode(',', $price_string);
+
+    foreach ($parts as $part) {
+        $part = trim($part);
+        if (strpos($part, ':') !== false) {
+            list($qty, $price) = explode(':', $part);
+            $tiers[intval($qty)] = floatval($price);
+        }
+    }
+
+    // Se non ci sono scaglioni validi, restituisce 0
+    if (empty($tiers)) {
+        return 0;
+    }
+
+    // Ordina gli scaglioni per quantità (dal più alto al più basso)
+    krsort($tiers);
+
+    // Trova il prezzo corretto per la quantità
+    foreach ($tiers as $tier_qty => $tier_price) {
+        if ($quantity >= $tier_qty) {
+            return $tier_price;
+        }
+    }
+
+    // Se non trova uno scaglione, usa il primo disponibile
+    return reset($tiers);
+}
+
+/**
+ * Visualizza gli scaglioni di prezzo in formato HTML
+ * Formato prezzo scaglionato: 1:90,10:80,100:70
+ *
+ * @param string $price_string Stringa del prezzo (può contenere scaglioni)
+ * @param string $format Formato di output: 'html' o 'text'
+ * @return string HTML o testo con gli scaglioni formattati
+ */
+function fnc_format_price_tiers($price_string, $format = 'html')
+{
+    // Se non contiene ":", è un prezzo semplice
+    if (strpos($price_string, ':') === false) {
+        return fnc_format_price($price_string);
+    }
+
+    // Parsifica gli scaglioni
+    $tiers = array();
+    $parts = explode(',', $price_string);
+
+    foreach ($parts as $part) {
+        $part = trim($part);
+        if (strpos($part, ':') !== false) {
+            list($qty, $price) = explode(':', $part);
+            $tiers[intval($qty)] = floatval($price);
+        }
+    }
+
+    // Se non ci sono scaglioni validi, restituisce prezzo a 0
+    if (empty($tiers)) {
+        return fnc_format_price(0);
+    }
+
+    // Ordina gli scaglioni per quantità (dal più basso al più alto)
+    ksort($tiers);
+
+    // Crea l'output
+    $output = array();
+    $tiers_array = array_keys($tiers);
+    $count = count($tiers_array);
+
+    for ($i = 0; $i < $count; $i++) {
+        $qty = $tiers_array[$i];
+        $price = $tiers[$qty];
+        $next_qty = isset($tiers_array[$i + 1]) ? $tiers_array[$i + 1] - 1 : null;
+
+        if ($format == 'html') {
+            if ($next_qty !== null) {
+                $output[] = "<div class=\"price-tier\"><span class=\"qty-range\">$qty-$next_qty " . FN_i18n("pcs") . ":</span> <span class=\"price\">" . fnc_format_price($price) . "</span></div>";
+            } else {
+                $output[] = "<div class=\"price-tier\"><span class=\"qty-range\">$qty+ " . FN_i18n("pcs") . ":</span> <span class=\"price\">" . fnc_format_price($price) . "</span></div>";
+            }
+        } else {
+            if ($next_qty !== null) {
+                $output[] = "$qty-$next_qty " . FN_i18n("pcs") . ": " . fnc_format_price($price);
+            } else {
+                $output[] = "$qty+ " . FN_i18n("pcs") . ": " . fnc_format_price($price);
+            }
+        }
+    }
+
+    return ($format == 'html') ? implode("\n", $output) : implode(", ", $output);
+}
+
+/**
+ * Valida un codice fiscale o tax ID generico
+ * Accetta vari formati internazionali senza validazione ferrea
+ *
+ * @param string $code Codice fiscale/tax ID da validare
+ * @return bool True se valido, false altrimenti
+ */
+function fnc_validate_fiscal_code($code)
+{
+    // Rimuove spazi e caratteri speciali comuni
+    $code = trim($code);
+    $code = str_replace(array(' ', '-', '.', '/'), '', $code);
+
+    // Verifica che non sia vuoto
+    if (empty($code)) {
+        return false;
+    }
+
+    // Verifica lunghezza minima e massima ragionevole (tra 5 e 20 caratteri)
+    $length = strlen($code);
+    if ($length < 5 || $length > 20) {
+        return false;
+    }
+
+    // Verifica che contenga solo caratteri alfanumerici
+    if (!preg_match('/^[A-Z0-9]+$/i', $code)) {
+        return false;
+    }
+
+    // Verifica che contenga almeno un carattere alfanumerico valido
+    // (non solo numeri o solo lettere per codici molto corti)
+    if ($length <= 8) {
+        // Per codici corti, verifica che abbia un mix ragionevole
+        $has_letter = preg_match('/[A-Z]/i', $code);
+        $has_number = preg_match('/[0-9]/', $code);
+
+        // Accetta solo numeri se la lunghezza è >= 6 (es. codici fiscali numerici)
+        // Altrimenti richiede un mix
+        if ($length < 6 && (!$has_letter || !$has_number)) {
+            return false;
+        }
+    }
+
+    // Codice valido
+    return true;
+}
+
+/**
  * inizializza le tabelle
- * 
+ *
  */
 function fnc_initTables()
 {
@@ -892,9 +1055,11 @@ function fnc_calculate_order_cost($orderstatus)
     foreach ($cart as $k => $item) {
         $product = fnc_getproduct($item['pid']);
         if (isset($product['name'])) {
-            $total += intval($item['qta']) * floatval($product['price']);
+            // Calcola il prezzo unitario in base alla quantità (supporta prezzi scaglionati)
+            $unit_price = fnc_get_price_by_quantity($product['price'], intval($item['qta']));
+            $total += intval($item['qta']) * $unit_price;
             $orderstatus['cart'][$k]['name'] = $product['name'];
-            $orderstatus['cart'][$k]['price'] = $item['qta'] * floatval($product['price']);
+            $orderstatus['cart'][$k]['price'] = $item['qta'] * $unit_price;
         }
     }
     //-------costi prodotti --------------------- ------<
@@ -924,7 +1089,9 @@ function fnc_get_ordercost_details($orderstatus)
         if (!isset($item['name']) || !isset($item['price'])) {
             $tmp = fnc_getproduct($item['pid']);
             $item['name'] = $tmp['name'];
-            $item['price'] = $tmp['price'];
+            // Calcola il prezzo totale in base alla quantità (supporta prezzi scaglionati)
+            $unit_price = fnc_get_price_by_quantity($tmp['price'], intval($item['qta']));
+            $item['price'] = $unit_price * intval($item['qta']);
         }
         $str .= "<tr>";
         $str .= "<td>{$item['name']} x {$item['qta']}</td><td style=\"text-align:right\">" . fnc_format_price($item['price']) . "</td>";
@@ -941,7 +1108,7 @@ function fnc_get_ordercost_details($orderstatus)
     //-------costi aggiuntivi dichiarati dai moduli ------<
     //-------totale ------>
     $str .= "<tr>";
-    $str .= "<td><b>" . _VARIE_TOTALE_ORDINE . "</b></td><td style=\"text-align:right;font-weight:bold\">" . fnc_format_price($orderstatus['total']) . "</td>";
+    $str .= "<td><b>" . FN_i18n("total order") . "</b></td><td style=\"text-align:right;font-weight:bold\">" . fnc_format_price($orderstatus['total']) . "</td>";
     $str .= "</tr>";
     //-------totale ------<
     $str .= "</table>";

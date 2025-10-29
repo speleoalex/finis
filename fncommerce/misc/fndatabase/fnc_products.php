@@ -239,6 +239,7 @@
 		<frm_it>Prezzo</frm_it>
 		<frm_en>Prezzo</frm_en>					
 		<name>price</name>
+		<frm_help_i18n>Example: 1:90,10:80,100:70</frm_help_i18n>
 	</field>
 	<field>
 		<frm_it>Tassa</frm_it>

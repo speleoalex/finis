@@ -516,8 +516,11 @@ function print_cart()
             $prod['qta'] = $item['qta'];
             $prod['ProductCode'] = $item['pid'];
 
-            $prod['price_txt'] = fnc_format_price($prod['price']);
-            $prod['total_price'] = intval($item['qta']) * floatval($prod['price']);
+            // Calcola il prezzo unitario in base alla quantità (supporta prezzi scaglionati)
+            $unit_price = fnc_get_price_by_quantity($prod['price'], intval($item['qta']));
+            $prod['price'] = $unit_price;
+            $prod['price_txt'] = fnc_format_price($unit_price);
+            $prod['total_price'] = intval($item['qta']) * $unit_price;
             $total += $prod['total_price'];
             $prod['total_price_txt'] = fnc_format_price($prod['total_price']);
             $products[] = $prod;
@@ -1376,6 +1379,17 @@ function html_product($pid)
     $vars['order'] = fnc_get_order_temp();
     $vars['cart_num_items'] = fnc_get_cart_count();
     $vars['url_cart'] = FN_RewriteLink("?mod={$_FN['mod']}&amp;op=showcart");
+
+    // Supporto prezzi scaglionati
+    if (strpos($prod['price'], ':') !== false) {
+        $vars['product_price_tiers'] = fnc_format_price_tiers($prod['price'], 'html');
+        $vars['product_has_tiered_pricing'] = true;
+        $vars['product_price_from'] = FN_i18n("from") . " " . fnc_format_price(fnc_get_price_by_quantity($prod['price'], 1));
+    } else {
+        $vars['product_price_tiers'] = '';
+        $vars['product_has_tiered_pricing'] = false;
+        $vars['product_price_from'] = '';
+    }
 
     $vars['url_addtocart'] = FN_RewriteLink("?mod={$_FN['mod']}&amp;op=addtocart&amp;p={$prod['unirecid']}&amp;from_cat=$cat");
     $vars['url_cancel'] = FN_RewriteLink("?mod={$_FN['mod']}&cat=$cat");

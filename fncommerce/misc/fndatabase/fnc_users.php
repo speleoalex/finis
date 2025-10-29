@@ -54,6 +54,9 @@
         <frm_it>Codice fiscale *</frm_it>
         <frm_en>Fiscal Code *</frm_en>
         <frm_required_condition>type = "private"</frm_required_condition>
+        <frm_verify>fnc_validate_fiscal_code</frm_verify>
+        <frm_help_it>Inserisci un codice fiscale valido (5-20 caratteri alfanumerici)</frm_help_it>
+        <frm_help_en>Enter a valid fiscal code (5-20 alphanumeric characters)</frm_help_en>
     </field>
     <field>
         <name>vat</name>
@@ -61,6 +64,9 @@
         <frm_en>VAT *</frm_en>
         <frm_endgroup></frm_endgroup>
         <frm_required_condition>type = "company"</frm_required_condition>
+        <frm_verify>fnc_validate_fiscal_code</frm_verify>
+        <frm_help_it>Inserisci una partita IVA valida (5-20 caratteri alfanumerici)</frm_help_it>
+        <frm_help_en>Enter a valid VAT number (5-20 alphanumeric characters)</frm_help_en>
     </field>	
 
     <field>
