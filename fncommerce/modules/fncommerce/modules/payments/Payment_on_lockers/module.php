@@ -31,8 +31,8 @@ class fnc_payments_Payment_on_lockers
     }
 
     /**
-     * ricava costo transazione e ritorna l' ordine aggiornato
-     * 
+     * Returns option data for display (new style)
+     * Returns array with: id, title, description, cost
      */
     function show_option($order)
     {
@@ -41,15 +41,17 @@ class fnc_payments_Payment_on_lockers
         {
             $payment = "Pagamento al ritiro tramite NEXIPay";
         }
-        $ck = "";
-        if (isset($order['payments']) && $order['payments'] == "Payment_on_lockers")
-            $ck = "checked=\"checked\"";
-        echo "<input $ck name=\"payments\" value=\"Payment_on_lockers\" type=\"radio\">" . $payment;
-        if (($c = $this->get_cost()) > 0)
-            echo "&nbsp;(" . Payment_on_lockers_price . " " .
-            fnc_format_price($c) .
-            ")";
-        echo "<br />";
+
+        $cost = $this->get_cost();
+
+        $option = array(
+            'id' => 'Payment_on_lockers',
+            'title' => $payment,
+            'description' => '', // Optional description
+            'cost' => ($cost > 0) ? fnc_format_price($cost) : ''
+        );
+
+        return $option;
     }
 
     function get_cost()

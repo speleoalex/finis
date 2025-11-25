@@ -21,29 +21,36 @@ class fnc_payments_Paypal
 	{
 		return "";
 	}
+	/**
+	 * Returns option data for display (new style)
+	 * Returns array with: id, title, description, cost
+	 */
 	function show_option($order)
 	{
 		global $_FN;
-		$ck="";
-		if (isset($order['payments']) && $order['payments']=="Paypal")
-			$ck="checked=\"checked\"";
 
-		echo "<input $ck name=\"payments\" value=\"Paypal\" type=\"radio\">".$this->title()."&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-		//echo "<br />";
-$h=opendir("modules/fncommerce/modules/payments/Paypal/carts");
-while (false !== $file= readdir($h)) 
-	if (FN_GetFileExtension($file)=="gif")
-		echo	"&nbsp;<img style=\"vertical-align:middle\" alt=\"\" src=\"{$_FN['siteurl']}/fncommerce/modules/payments/Paypal/carts/$file\" />";
-closedir($h);
+		// Build description with card icons
+		$description = '';
+		$h = opendir("modules/fncommerce/modules/payments/Paypal/carts");
+		while (false !== $file = readdir($h))
+		{
+			if (FN_GetFileExtension($file) == "gif")
+			{
+				$description .= "&nbsp;<img style=\"vertical-align:middle\" alt=\"\" src=\"{$_FN['siteurl']}/fncommerce/modules/payments/Paypal/carts/$file\" />";
+			}
+		}
+		closedir($h);
 
+		$cost = $this->get_cost();
 
-		if (($c=$this->get_cost())>0)
-			echo "&nbsp;(".FN_Translate("surcharge of"). " ".
-			fnc_format_price($c).
-			")";
-		echo "<br />";
-	
-	
+		$option = array(
+			'id' => 'Paypal',
+			'title' => $this->title(),
+			'description' => $description, // Card icons as HTML
+			'cost' => ($cost > 0) ? fnc_format_price($cost) : ''
+		);
+
+		return $option;
 	}
 	function get_cost ()
 	{

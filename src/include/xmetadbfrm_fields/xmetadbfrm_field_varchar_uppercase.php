@@ -2,7 +2,10 @@
 
 class xmetadbfrm_field_varchar_uppercase
 {
-
+    function htmlfilter($params)
+    {
+        return $this->show($params);
+    }
     function show($params)
     {
         $toltips=($params['frm_help']!= "") ? "title=\"".$params['frm_help']."\"" : "";

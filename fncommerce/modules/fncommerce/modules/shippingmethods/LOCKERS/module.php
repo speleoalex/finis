@@ -21,12 +21,23 @@ class fnc_shippingmethods_LOCKERS
         return "(".FN_Translate("pick up").")";
     }
 
+    /**
+     * Returns option data for display (new style)
+     * Returns array with: id, title, description, cost
+     */
     function show_option($order)
     {
-        $ck = "";
-        if (isset($order['shippingmethods']) && $order['shippingmethods'] == "LOCKERS")
-            $ck = "checked=\"checked\"";
-        echo "<input $ck  name=\"shippingmethods\" value=\"LOCKERS\" type=\"radio\" />".FN_Translate("pick up in locker")."<br>";
+        $config = FN_LoadConfig("modules/fncommerce/modules/shippingmethods/LOCKERS/config.php");
+        $cost = isset($config['cost']) ? $config['cost'] : 0;
+
+        $option = array(
+            'id' => 'LOCKERS',
+            'title' => FN_Translate("pick up in locker"),
+            'description' => $this->description(),
+            'cost' => ($cost > 0) ? fnc_format_price($cost) : ''
+        );
+
+        return $option;
     }
 
     function get_total()

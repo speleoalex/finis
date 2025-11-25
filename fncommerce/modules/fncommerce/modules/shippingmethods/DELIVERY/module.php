@@ -16,12 +16,23 @@ class fnc_shippingmethods_DELIVERY
 	{
 		return "(ritiro)";
 	}
+	/**
+	 * Returns option data for display (new style)
+	 * Returns array with: id, title, description, cost
+	 */
 	function show_option($order)
 	{
-		$ck="";
-		if (isset($order['shippingmethods']) && $order['shippingmethods']=="DHL")
-			$ck="checked=\"checked\"";
-		echo "<input $ck  name=\"shippingmethods\" value=\"DHL\" type=\"radio\" />DHL<br>";
+		$config = FN_LoadConfig("modules/fncommerce/modules/shippingmethods/DELIVERY/config.php");
+		$cost = isset($config['cost']) ? $config['cost'] : 0;
+
+		$option = array(
+			'id' => 'DELIVERY',
+			'title' => $this->title(),
+			'description' => $this->description(),
+			'cost' => ($cost > 0) ? fnc_format_price($cost) : ''
+		);
+
+		return $option;
 	}
 	function get_total()
 	{

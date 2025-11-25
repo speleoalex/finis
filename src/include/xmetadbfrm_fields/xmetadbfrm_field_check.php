@@ -7,7 +7,22 @@ class xmetadbfrm_field_check
     {
         
     }
-
+    function htmlfilter($params)
+    {
+        $html = "";
+        $toltips = "";
+        $oldval = $params['value'];
+        $ch = "";
+        if ($oldval != "")
+            $ch = "checked=\"checked\"";
+        if ($oldval != $params['frm_checkon'])
+        {
+            $ch = "";
+        }
+        $attributes = isset($params["htmlattributes"]) ? $params["htmlattributes"] : "";
+        $html .= "<input $attributes $ch type=\"checkbox\" value=\"" . $params['frm_checkon'] . "\" name=\"" . $params['name'] . "\"  />";
+        return $html;
+    }
     function show($params)
     {
         $html = "";

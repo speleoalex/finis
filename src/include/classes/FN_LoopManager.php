@@ -205,9 +205,10 @@ class FN_LoopManager
         }
     }
 
-    public function run()
+    public function run($onExecuteCallback = null)
     {
         global $_FN;
+        $exec = false;
         $this->log("lockFile:{$this->lockFile}");
         if (empty($_GET[$this->istanceId])) {
             $this->log("Background script launch " . FN_Now());
@@ -217,6 +218,7 @@ class FN_LoopManager
         $this->log("Istance {$this->istanceId} " . date("Y-m-d H:i:s"));
         $lastExecution = 0;
         while (true) {
+            $exec = 0;
             $this->keepLoop();
             $callback = $this->callback;
             // Check if it's time to execute based on timerString
@@ -228,20 +230,25 @@ class FN_LoopManager
                         $this->log("Execute $callback {$this->timerString}");
                         $callback();
                         $this->log("End execute $callback {$this->timerString}");
+                        $exec = 1;
                     } elseif ($this->isValidURL($callback)) {
                         $this->log("Execute URL $callback {$this->timerString}");
                         $this->callUrl($callback);
                         $this->log("End execute $callback {$this->timerString}");
-                    }
-                    elseif (isset($callback[0]) && $callback[0]=="?") {
+                        $exec = 1;
+                    } elseif (isset($callback[0]) && $callback[0] == "?") {
                         $this->log("Execute LOCAL URL $callback {$this->timerString}");
-                        $this->callUrl($_FN['siteurl'].$callback);
+                        $this->callUrl($_FN['siteurl'] . $callback);
                         $this->log("End execute $callback {$this->timerString}");
-                    }
-                    else{
+                        $exec = 1;
+                    } else {
                         $this->log("Error Execute $callback {$this->timerString}");
-
+                        $exec = -1;
                     }
+                }
+                // Chiama la callback se l'esecuzione è andata a buon fine
+                if ($exec > 0 && is_callable($onExecuteCallback)) {
+                    $onExecuteCallback();
                 }
             }
             usleep(500);
@@ -370,7 +377,7 @@ class FN_LoopManager
     {
         // Get the current Unix timestamp
         $currentTime = time();
-        
+
         // Split the timer string into its main components
         // Format: "Y-m-d H:i:s w" where w is the day of the week
         $parts = explode(' ', $this->timerString);
@@ -380,17 +387,17 @@ class FN_LoopManager
 
         // Initially assume all criteria match
         $match = true;
-        
+
         // Keep track of the position of the last part with interval (*/n)
         // This will be used to calculate the correct time divisor
         $partPos = "";
-        
+
         // Iterate through all 7 time components
         // 0=Year, 1=Month, 2=Day, 3=Hour, 4=Minute, 5=Second, 6=DayOfWeek
         for ($i = 0; $i < 7; $i++) {
             // Select the correct part of the timer string based on the index
             $part = $i < 3 ? $dateParts[$i] : ($i < 6 ? $timeParts[$i - 3] : $weekDayPart);
-            
+
             // Get the corresponding current value from the actual time
             // For the first 6 values use date/time components, for the 7th use day of week
             $currentValue = $i < 6 ? date(['Y', 'm', 'd', 'H', 'i', 's'][$i], $currentTime) : date('w', $currentTime);
@@ -401,14 +408,14 @@ class FN_LoopManager
                 if (strpos($part, '/') !== false) {
                     $partPos = $i; // Store position to calculate divisor
                     list(, $interval) = explode('/', $part);
-                    
+
                     // Check if current value is divisible by the interval
                     // If not, the criteria is not satisfied
                     if (intval($currentValue) % intval($interval) !== 0) {
                         $match = false;
                         break;
                     }
-                } 
+                }
                 // Handle specific values (e.g. "12" = only when it's 12)
                 elseif ($part != $currentValue) {
                     $match = false;
@@ -416,7 +423,7 @@ class FN_LoopManager
                 }
             }
         }
-        
+
         // Map positions to their equivalent in seconds for anti-duplication calculation
         // $i 0 = year (31536000 seconds)
         // $i 1 = month (2592000 seconds, approximate)
@@ -445,23 +452,23 @@ class FN_LoopManager
             if ($this->time_performed === false) {
                 $this->time_performed = $currentTime;
                 $match = true;
-            } 
+            }
             // Check if we're still in the same time interval as the last execution
             // Divide both times by the divisor and compare them as integers
             elseif (intval($currentTime / $div) == intval($this->time_performed / $div)) {
                 // Same interval: block execution to prevent duplications
                 $match = false;
-            } 
+            }
             // New interval: update time and allow execution
             else {
                 $this->time_performed = $currentTime;
                 $match = true;
             }
         }
-        
+
         // Save current state to file for persistence across restarts
         $this->saveState();
-        
+
         return $match;
     }
 }

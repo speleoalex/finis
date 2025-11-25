@@ -140,7 +140,7 @@ else
 //dprint_r("qui 0a:" . FN_GetExecuteTimer());  //1 sec
         FNCC_UpdateSections();
 //dprint_r("qui 0b:" . FN_GetExecuteTimer()); //8sec
-        $table=FNCC_XmlForm("fn_sections");
+        $table=FNCC_XMDBForm("fn_sections");
 //($section="", $recursive=false, $onlyreadable = true, $hidden = false, $onlyenabled=true)
         $sections=FN_GetSections("",true,false,true,false,true);
         $sections=FN_ArraySortByKey($sections,"position");
@@ -446,7 +446,7 @@ var syncdiv = function (id)
     if (!$newsection)
     {
         //dprint_r("qui 1:" . FN_GetExecuteTimer());
-        $table=FNCC_XmlForm("fn_sections");
+        $table=FNCC_XMDBForm("fn_sections");
         $table->formvals['id']['frm_show']=1;
         $table->formvals['position']['frm_show']=0;
 
@@ -481,7 +481,7 @@ var syncdiv = function (id)
                         {
                             $sectiontorenameparent['parent']=$id;
                             $nv=$table->UpdateRecord($sectiontorenameparent);
-                            FNCC_UpdateDefaultXML($nv);
+                            FN_UpdateDefaultXML($nv);
                         }
                     }
                     //rename parents -----<
@@ -527,7 +527,7 @@ var syncdiv = function (id)
                     $sectiontype=$currentSectionType;
                 if ($sectiontype!= "" && file_exists($_FN['src_finis'] ."/modules/$sectiontype/config.php") && file_exists($_FN['src_application']."/sections/{$mod}"))
                 {
-                    $t=FNCC_XmlForm("fn_sectionstypes");
+                    $t=FNCC_XMDBForm("fn_sectionstypes");
                     $values=$t->GetRecordTranslatedByPrimarykey("$sectiontype");
                     $title=isset($values['title']) ? $values['title'] : $sectiontype;
                     echo "<h2>$title</h2>";
@@ -570,7 +570,7 @@ var syncdiv = function (id)
         }
         else
         {
-            $forminsert=FNCC_XmlForm("fn_sections");
+            $forminsert=FNCC_XMDBForm("fn_sections");
             $newvalues = isset($_POST['newsection']) ? $forminsert->GetByPost() : array();
             $newvalues =  (!is_array($newvalues)) ? array():$newvalues;
             $errors=array();
@@ -638,12 +638,12 @@ var syncdiv = function (id)
                             {
                                 //dprint_r("update {$newsections[$k]['position']} != {$sections[$k]['position']}");
                                 $nv=$forminsert->UpdateRecord(array("id"=>$newsections[$k]['id'],"position"=>$newsections[$k]['position']));
-                                FNCC_UpdateDefaultXML($nv);
+                                FN_UpdateDefaultXML($nv);
                             }
                         }
                         //fix position ---------<
                         $nv=$forminsert->InsertRecord($newvalues);
-                        FNCC_UpdateDefaultXML($nv);
+                        FN_UpdateDefaultXML($nv);
                         echo FN_i18n("the page has been created");
                         echo "<br />";
                         echo "<br /><a href=\"{$_FN['controlcenter']}?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt\">".FN_Translate("next")."</a> <img style=\"vertical-align:middle\" src=\"images/right.png\" alt=\"\"/>";
@@ -827,7 +827,7 @@ function FNCC_print_section($section,$level)
 function FNCC_UpdateSections()
 {
     global $_FN;
-    $table=FNCC_XmlForm("fn_sections");
+    $table=FNCC_XMDBForm("fn_sections");
     $sectionstring=FN_GetParam("sectionstring",$_POST);
     $i=1;
     $sects=array();
@@ -893,7 +893,7 @@ function FNCC_UpdateSections()
                 }
                 else
                 {
-                    FNCC_UpdateDefaultXML($nv);
+                    FN_UpdateDefaultXML($nv);
                 }
             }
         }
@@ -908,17 +908,10 @@ function FNCC_UpdateSections()
         }
     }
 }
-/**
- * 
- * @param type $newvalues
- */
-function FNCC_UpdateDefaultXML($newvalues)
-{
-    FN_UpdateDefaultXML($newvalues);
-}
+
 
 /**
- * 
+ *
  * @global type $currentSectionType
  * @param type $newvalues
  * @param type $oldvalues
@@ -926,6 +919,10 @@ function FNCC_UpdateDefaultXML($newvalues)
 function FNCC_OnUpdateSection($newvalues,$oldvalues)
 {
     global $currentSectionType;
+
+    // Aggiorna sempre il file default.xml.php quando cambia qualcosa
+    FN_UpdateDefaultXML($newvalues);
+
     if (isset($oldvalues["type"]) && isset($newvalues["type"]))
     {
         $currentSectionType=$newvalues["type"];

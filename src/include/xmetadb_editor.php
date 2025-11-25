@@ -121,6 +121,22 @@ function XMETADB_editor_cleanLink($link)
 function XMETADB_editor($tablename, $params = array())
 {
 
+
+    if (is_array($tablename)) {
+        if (isset($tablename['tablename'])) {
+            $tname = $tablename['tablename'];
+            $tablename = $tname;
+        } else {
+            die("tablename is not set");
+        }
+    } elseif (is_object($tablename)) {
+        $params['table'] = $tablename;
+        $tablename = $tablename->tablename;
+        $tname = $tablename;
+    } else {
+        $tname = $tablename;
+    }
+
     $dbname = isset($params['xmldatabase']) ? $params['xmldatabase'] : "xmldatabase";
     //--parametri ---->
     $bgcolorover = isset($params['bgcolorover']) ? $params['bgcolorover'] : "#ffff00";
@@ -273,6 +289,7 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
     $urlexport = isset($params['urlexport']) ? $params['urlexport'] : "";
 
     $html = "";
+    /*
     $tname = $tablename;
     if (is_array($tablename)) {
         if (isset($tablename['tablename'])) {
@@ -284,6 +301,8 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
         $params['table'] = $tablename;
         $tablename = $tname = $tablename->tablename;
     }
+        */
+
     foreach ($defaultsParams as $key => $param) {
         $params[$key] = isset($params[$key]) ? $params[$key] : $defaultsParams[$key];
     }
@@ -424,17 +443,22 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
             $paramsFRM['charset_storage'] = $params['charset_storage'];
         else
             $paramsFRM['charset_storage'] = "UTF-8";
-
         foreach ($params as $k => $v) {
             if (is_string($v) && !isset($paramsFRM[$k]) /*&& false !== strstr($k, "xmetadb") */) {
                 $paramsFRM[$k] = $v;
             }
         }
-            
         unset($paramsFRM['fields']); // crea problemi
         $table = new FieldFrm("$dbname", $tablename, $path, $lang, $languages, $paramsFRM);
-    
+    } else {
+        foreach ($params as $k => $v) {
+            if (!isset($table->tableparams[$k])) {
+                $table->tableparams[$k] = $params[$k];
+            }
+        }
     }
+
+
     $siteurl = "";
     if (isset($params['siteurl'])) {
         $siteurl = $params['siteurl'];
@@ -551,16 +575,29 @@ set_changed();
     $fields_filters = isset($params['fields_filters']) ? $params['fields_filters'] : array();
     $fields_filters_names = array();
     foreach ($fields_filters as $k => $fields_filter) {
-        $fields_filters_names[$k] = str_replace("%", "", $fields_filter);
+        $fields_filters_names[$k] = str_replace(array("%", "<>", "><"), "", $fields_filter);
     }
     $filters_post_exists = false;
     foreach ($table->formvals as $k => $v) {
         if (in_array($k, $fields_filters_names)) {
-            if (isset($_POST["search{$postgetkey}_" . $k])) {
+            // Check if this is a range filter with _min and _max fields
+            $min_field = "search{$postgetkey}_{$k}_min";
+            $max_field = "search{$postgetkey}_{$k}_max";
+
+            if (isset($_POST[$min_field]) || isset($_POST[$max_field])) {
                 $filters_post_exists = true;
-            }
-            if (!empty($_POST["search{$postgetkey}_" . $k])) {
-                $filters_by_post[$k] = FN_GetParam("search{$postgetkey}_" . $k, $_POST, "flat");
+                $min_val = FN_GetParam($min_field, $_POST, "flat");
+                $max_val = FN_GetParam($max_field, $_POST, "flat");
+
+                // Combine min and max into min|max format
+                if (!empty($min_val) || !empty($max_val)) {
+                    $filters_by_post[$k] = $min_val . "|" . $max_val;
+                }
+            } elseif (isset($_POST["search{$postgetkey}_" . $k])) {
+                $filters_post_exists = true;
+                if (!empty($_POST["search{$postgetkey}_" . $k])) {
+                    $filters_by_post[$k] = FN_GetParam("search{$postgetkey}_" . $k, $_POST, "flat");
+                }
             }
         }
     }
@@ -899,12 +936,13 @@ set_changed();
                 }
                 //---------------------template grid--------------------------------------->
                 //----filters by get and post---------------------------------------------->
-                $table->tableparams['html_template_grid'] = isset($table->tableparams['html_template_grid'])?$table->tableparams['html_template_grid']:"";
+                $table->tableparams['html_template_grid'] = isset($table->tableparams['html_template_grid']) ? $table->tableparams['html_template_grid'] : "";
                 if (isset($params['html_template_grid'])) {
                     if (strlen($params['html_template_grid']) < 255 && file_exists($params['html_template_grid'])) {
                         if (empty($params['template_path']))
                             $params['template_path'] = dirname($params['html_template_grid']);
                         $params['html_template_grid'] = file_get_contents($params['html_template_grid']);
+                        $table->tableparams['html_template_grid'] = $params['html_template_grid'];
                     }
                 }
 
@@ -928,6 +966,18 @@ set_changed();
                 foreach ($table->formvals as $k => $v) {
                     $itemfilter = array();
                     if (in_array($k, $fields_filters_names)) {
+                        // Check if this field is a range filter
+                        $is_range_filter = false;
+                        $original_filter = "";
+                        foreach ($fields_filters as $filter_def) {
+                            $clean_name = str_replace(array("%", "<>", "><"), "", $filter_def);
+                            if ($clean_name == $k && (strpos($filter_def, "<>") !== false || strpos($filter_def, "><") !== false)) {
+                                $is_range_filter = true;
+                                $original_filter = $filter_def;
+                                break;
+                            }
+                        }
+
                         $itemfilter['title'] = $table->formvals[$k]['title'];
                         $itemfilter['name'] = "search{$postgetkey}_$k";
                         $itemfilter['value'] = isset($array_filters[$k]) ? ($array_filters[$k]) : "";
@@ -935,19 +985,81 @@ set_changed();
                         $itemfilter['type_select'] = false;
                         $itemfilter['type_datetime'] = false;
                         $itemfilter['frm_type'] = $table->formvals[$k]['frm_type'];
-                        
-                        if (method_exists($table->formclass[$k],"htmlfilter")) {
-                            $itemfilter['htmlattributes'] = $htmlattributes;
-                            $Classfield = new xmetadbfrm_field_datetime();
-                            $Classfield = $table->formclass[$k];
-                            $itemfilter['frm_help'] = "";
-                            $itemfilter = array_merge($table->formvals[$k],$itemfilter);
-                            $itemfilter['input'] = $Classfield->htmlfilter($itemfilter);
-                            if ($itemfilter['value'])
-                            {
-                                $restr_formtovalue[$k] = $Classfield->formtovalue($itemfilter['value'],$itemfilter);
+
+                        if ($is_range_filter) {
+                            // Parse existing value if in min|max format
+                            $min_value = "";
+                            $max_value = "";
+                            if ($itemfilter['value'] && strpos($itemfilter['value'], '|') !== false) {
+                                $parts = explode('|', $itemfilter['value'], 2);
+                                $min_value = $parts[0];
+                                $max_value = $parts[1];
+                            }
+
+                            // Create two separate filter items: one for min and one for max
+
+                            // Min field
+                            $itemfilter_min = array();
+                            $itemfilter_min['title'] =  $table->formvals[$k]['title'] . " " . FN_Translate("greater than");
+                            $itemfilter_min['name'] = "search{$postgetkey}_{$k}_min";
+                            $itemfilter_min['value'] = $min_value;
+                            $itemfilter_min['type_text'] = true;
+                            $itemfilter_min['type_select'] = false;
+                            $itemfilter_min['type_datetime'] = false;
+                            $itemfilter_min['frm_type'] = $table->formvals[$k]['frm_type'];
+
+                            if (method_exists($table->formclass[$k], "htmlfilter")) {
+                                $itemfilter_min['htmlattributes'] = $htmlattributes;
+                                $Classfield = $table->formclass[$k];
+                                $itemfilter_min['frm_help'] = "";
+                                $itemfilter_min_merged = array_merge($table->formvals[$k], $itemfilter_min);
+                                $itemfilter_min['input'] = $Classfield->htmlfilter($itemfilter_min_merged);
+                            } else {
+                                $itemfilter_min['input'] = "<input type=\"text\" name=\"search{$postgetkey}_{$k}_min\" value=\"" . htmlspecialchars($min_value) . "\" />";
+                            }
+
+                            // Max field
+                            $itemfilter_max = array();
+                            $itemfilter_max['title'] =  $table->formvals[$k]['title'] . " " . FN_Translate("less than");
+                            $itemfilter_max['name'] = "search{$postgetkey}_{$k}_max";
+                            $itemfilter_max['value'] = $max_value;
+                            $itemfilter_max['type_text'] = true;
+                            $itemfilter_max['type_select'] = false;
+                            $itemfilter_max['type_datetime'] = false;
+                            $itemfilter_max['frm_type'] = $table->formvals[$k]['frm_type'];
+
+                            if (method_exists($table->formclass[$k], "htmlfilter")) {
+                                $itemfilter_max['htmlattributes'] = $htmlattributes;
+                                $Classfield = $table->formclass[$k];
+                                $itemfilter_max['frm_help'] = "";
+                                $itemfilter_max_merged = array_merge($table->formvals[$k], $itemfilter_max);
+                                $itemfilter_max['input'] = $Classfield->htmlfilter($itemfilter_max_merged);
+                            } else {
+                                $itemfilter_max['input'] = "<input type=\"text\" name=\"search{$postgetkey}_{$k}_max\" value=\"" . htmlspecialchars($max_value) . "\" />";
+                            }
+
+                            // Add both filters to the array
+                            $tplvars['filters'][] = $itemfilter_min;
+                            $tplvars['filters'][] = $itemfilter_max;
+
+                            // Skip adding itemfilter at the end since we already added both
+                            continue;
+                        } else {
+                            // Normal single field filter
+                            if (method_exists($table->formclass[$k], "htmlfilter")) {
+                                $itemfilter['htmlattributes'] = $htmlattributes;
+                                $Classfield = $table->formclass[$k];
+                                $itemfilter['frm_help'] = "";
+                                $itemfilter = array_merge($table->formvals[$k], $itemfilter);
+                                $itemfilter['input'] = $Classfield->htmlfilter($itemfilter);
+                                if ($itemfilter['value']) {
+                                    if (method_exists($Classfield, 'formtovalue')) {
+                                        $restr_formtovalue[$k] = $Classfield->formtovalue($itemfilter['value'], $itemfilter);
+                                    } 
+                                }
                             }
                         }
+
                         if (is_array($v['options'])) {
 
                             foreach ($v['options'] as $ko => $vo) {
@@ -961,6 +1073,9 @@ set_changed();
                         $tplvars['filters'][] = $itemfilter;
                     }
                 }
+                // Build SQL conditions for range filters
+                $range_conditions = array();
+
                 if (is_array($array_filters)) {
                     foreach ($array_filters as $filter_name => $v) {
                         foreach ($fields_filters_names as $keyid => $val) {
@@ -968,30 +1083,100 @@ set_changed();
                             if ($val == $filter_name) {
                                 $v = $fields_filters[$keyid];
                                 $tosearch = $array_filters[$filter_name];
-                                if ($v[0] == "%" && $v[strlen($v) - 1] == "%") {
-                                    $array_filters[$filter_name] = "%{$tosearch}%";
-                                } elseif ($v[0] != "%" && $v[strlen($v) - 1] == "%") {
-                                    $array_filters[$filter_name] = "{$tosearch}%";
-                                } elseif ($v[0] == "%" && $v[strlen($v) - 1] != "%") {
-                                    $array_filters[$filter_name] = "%{$tosearch}";
+
+                                // Check if this is a range filter (ends with >< or <>)
+                                if (substr($v, -2) == "><" || substr($v, -2) == "<>") {
+                                    // Remove >< or <> from field name
+                                    $field_name = str_replace("><", "", $v);
+                                    $field_name = str_replace("<>", "", $field_name);
+                                    $field_name = str_replace("%", "", $field_name);
+
+                                    // Parse min|max format
+                                    if (strpos($tosearch, '|') !== false) {
+                                        $range_parts = explode('|', $tosearch, 2);
+                                        $range_min = trim($range_parts[0]);
+                                        $range_max = trim($range_parts[1]);
+
+                                        // Convert values using the field's formtovalue method if available
+                                        if (isset($table->formclass[$filter_name]) && method_exists($table->formclass[$filter_name], 'formtovalue')) {
+                                            $field_params = isset($table->formvals[$filter_name]) ? $table->formvals[$filter_name] : array();
+                                            if ($range_min !== '') {
+                                                $range_min = $table->formclass[$filter_name]->formtovalue($range_min, $field_params);
+                                            }
+                                            if ($range_max !== '') {
+                                                $range_max = $table->formclass[$filter_name]->formtovalue($range_max, $field_params);
+                                            }
+                                        }
+
+                                        if ($range_min !== '' && $range_max !== '') {
+                                            $range_conditions[] = "(`$field_name` >= '" . addslashes($range_min) . "' AND `$field_name` <= '" . addslashes($range_max) . "')";
+                                        } elseif ($range_min !== '') {
+                                            $range_conditions[] = "`$field_name` >= '" . addslashes($range_min) . "'";
+                                        } elseif ($range_max !== '') {
+                                            $range_conditions[] = "`$field_name` <= '" . addslashes($range_max) . "'";
+                                        }
+                                    }
+
+                                    // Remove this filter from array_filters as we handled it
+                                    unset($array_filters[$filter_name]);
                                 } else {
-                                    $array_filters[$filter_name] = $tosearch;
+                                    // Normal filter with % patterns
+                                    if ($v[0] == "%" && $v[strlen($v) - 1] == "%") {
+                                        $array_filters[$filter_name] = "%{$tosearch}%";
+                                    } elseif ($v[0] != "%" && $v[strlen($v) - 1] == "%") {
+                                        $array_filters[$filter_name] = "{$tosearch}%";
+                                    } elseif ($v[0] == "%" && $v[strlen($v) - 1] != "%") {
+                                        $array_filters[$filter_name] = "%{$tosearch}";
+                                    } else {
+                                        $array_filters[$filter_name] = $tosearch;
+                                    }
                                 }
                             }
                         }
                     }
+
+                    // Merge normal filters
                     if (is_array($restr)) {
                         $restr = array_merge($restr, $array_filters);
                     } else {
                         $restr = $array_filters;
                     }
+
+                    // Add range conditions if any
+                    if (!empty($range_conditions)) {
+                        // Convert existing array filters to SQL conditions
+                        $sql_conditions = array();
+                        if (is_array($restr) && !empty($restr)) {
+                            foreach ($restr as $field => $value) {
+                                $sql_conditions[] = "`$field` LIKE '" . addslashes($value) . "'";
+                            }
+                        }
+
+                        // Add restr_formtovalue to SQL conditions
+                        if (is_array($restr_formtovalue) && !empty($restr_formtovalue)) {
+                            foreach ($restr_formtovalue as $field => $value) {
+                                $sql_conditions[] = "`$field` LIKE '" . addslashes($value) . "'";
+                            }
+                        }
+
+                        // Combine all conditions
+                        $all_conditions = array_merge($sql_conditions, $range_conditions);
+                        $restr = implode(' AND ', $all_conditions);
+                    } else {
+                        // No range conditions, use normal array merge
+                        $restr = array_merge($restr, $restr_formtovalue);
+                    }
+                } else {
+                    // No filters, just use restr_formtovalue
+                    if (is_array($restr)) {
+                        $restr = array_merge($restr, $restr_formtovalue);
+                    }
                 }
-                $restr = array_merge($restr,$restr_formtovalue);
                 $tplvars['urlreset'] = XMETADB_editor_mergelink($mlink, "?page_$postgetkey=$page&amp;order_$postgetkey=$order&amp;desc_$postgetkey=$reverse&amp;filter{$postgetkey}=");
                 $tplvars['actionfilters'] = XMETADB_editor_mergelink($mlink, "?page_$postgetkey=$page&amp;order_$postgetkey=$order&amp;desc_$postgetkey=$reverse&amp;filter{$postgetkey}=");
 
                 //----filters by get and post----------------------------------------------<
-
+                //dprint_r($restr);
 
 
 
@@ -1136,6 +1321,7 @@ set_changed();
                     $link_prevpage = "";
                     $link_nextpage = "";
                     $cp = false;
+
                     if ($recordsperpage && $numPages > 1) {
                         $page_display_first = 1;
                         if ($numPages > $maxpages && $page > 1) {
@@ -1145,7 +1331,8 @@ set_changed();
                             }
                         }
                         $cp = 1;
-                        if ($page_display_first > 1) {
+                        // Always show first page link if not on first page
+                        if ($page > 1) {
                             //first page --->
                             $s = array("{pagelink}", "{pagetitle}");
                             $r = array();
@@ -1156,6 +1343,9 @@ set_changed();
                             $htmlpages .= str_replace($s, $r, $template_page);
                             $tplvars['nav_page_first'] = array("title" => $r['pagetitle'], "link" => $r['pagelink']);
                             //end first page ---<
+                        }
+                        // Always show prev page link if not on first page
+                        if ($page > 1) {
                             //prev page --->
                             $s = array("{pagelink}", "{pagetitle}");
                             $r = array();
@@ -1191,7 +1381,8 @@ set_changed();
                         }
                     }
                     $tplvars['nav_pages'] = $tmp_nav_pages;
-                    if ($numPages > $maxpages && $page < $numPages) {
+                    // Always show next page link if not on last page
+                    if ($page < $numPages) {
                         //next page --->
                         $s = array("{pagelink}", "{pagetitle}");
                         $r = array();
@@ -1200,6 +1391,9 @@ set_changed();
                         $htmlpages .= str_replace($s, $r, $template_page);
                         $tplvars['nav_page_next'] = array("title" => $r['pagetitle'], "link" => $r['pagelink']);
                         //end next page ---<
+                    }
+                    // Always show last page link if not on last page
+                    if ($page < $numPages) {
                         //last page --->
                         $s = array("{pagelink}", "{pagetitle}");
                         $r = array();
@@ -1267,10 +1461,10 @@ set_changed();
                                 if ($order == $key) {
                                     if (false === strstr("<", $value['title'])) {
                                         if ($reverse) {
-                                            $t = "<img style=\"vertical-align:middle;float:right\" src=\"{$siteurl}images/fn_up.png\" alt=\"\" />";
+                                            $t = "&#9650;";
                                             $desclink = "";
                                         } else {
-                                            $t = "<img style=\"vertical-align:middle;float:right\" src=\"{$siteurl}images/fn_down.png\" alt=\"\" />";
+                                            $t = "&#9660;";
                                             $desclink = "&amp;desc_{$postgetkey}=$key";
                                         }
                                     }

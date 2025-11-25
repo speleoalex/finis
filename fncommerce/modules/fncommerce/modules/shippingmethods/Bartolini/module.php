@@ -21,12 +21,23 @@ class fnc_shippingmethods_Bartolini
 	{
 		return "(consegna in 24/48 ore)";
 	}
+	/**
+	 * Returns option data for display (new style)
+	 * Returns array with: id, title, description, cost
+	 */
 	function show_option($order)
 	{
-		$ck="";
-		if (isset($order['shippingmethods']) && $order['shippingmethods']=="Bartolini")
-			$ck="checked=\"checked\"";
-		echo "<input $ck  name=\"shippingmethods\" value=\"Bartolini\" type=\"radio\" />".$this->title()."<br>";
+		$config = FN_LoadConfig("modules/fncommerce/modules/shippingmethods/Bartolini/config.php");
+		$costvalue = isset($config['cost']) ? $config['cost'] : 0;
+
+		$option = array(
+			'id' => 'Bartolini',
+			'title' => $this->title(),
+			'description' => $this->description(),
+			'cost' => ($costvalue > 0) ? fnc_format_price($costvalue) : ''
+		);
+
+		return $option;
 	}
 	
 	function get_total ()

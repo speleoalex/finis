@@ -21,13 +21,23 @@ class fnc_payments_Bank_transfert
 	}
 
 
+	/**
+	 * Returns option data for display (new style)
+	 * Returns array with: id, title, description, cost
+	 */
 	function show_option($order)
 	{
+		$config = FN_LoadConfig("modules/fncommerce/modules/payments/Bank_transfert/config.php");
+		$costvalue = isset($config['cost']) ? $config['cost'] : 0;
 
-		$ck = "";
-		if (isset($order['payments']) && $order['payments'] == "Bank_transfert")
-			$ck = "checked=\"checked\"";
-		echo "<input $ck name=\"payments\" value=\"Bank_transfert\" type=\"radio\">" . FN_Translate("Bank_transfert") . "<br>";
+		$option = array(
+			'id' => 'Bank_transfert',
+			'title' => FN_Translate("Bank transfer"),
+			'description' => '', // Optional description
+			'cost' => ($costvalue > 0) ? fnc_format_price($costvalue) : ''
+		);
+
+		return $option;
 	}
 
 	/**

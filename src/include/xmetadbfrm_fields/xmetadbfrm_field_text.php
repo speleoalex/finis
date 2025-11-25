@@ -6,7 +6,10 @@ class xmetadbfrm_field_text
     {
         
     }
-
+    function htmlfilter($params)
+    {
+        return $this->show($params);
+    }
     function show($params)
     {
         $html = "";

@@ -70,7 +70,7 @@
 "search","Cerca"
 "password recovery","Recupero password"
 "Billing_Data","Dati per la fatturazione"
-"Delivery_address","Indirizzo per la spedizione"
+"Delivery address","Indirizzo per la spedizione"
 "from","da"
 "pcs","pz"
 "continue shopping","continua con gli acquisti"
@@ -93,4 +93,7 @@
 "surcharge of","sovrapprezzo di"
 "Order tracking","Tracciamento ordine"
 "Tracking number","Numero di tracciamento"
+"Billing address","Indirizzo fatturazione"
+"payment","Pagamento"
+"shipping status","Stato spedizione"
 

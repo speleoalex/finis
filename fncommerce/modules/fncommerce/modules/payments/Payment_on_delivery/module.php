@@ -27,21 +27,22 @@ class fnc_payments_Payment_on_delivery
 	
 	
 	/**
-	 * ricava costo transazione e ritorna l' ordine aggiornato
-	 * 
+	 * Returns option data for display (new style)
+	 * Returns array with: id, title, description, cost
+	 *
 	 */
 	function show_option($order)
 	{
+		$cost = $this->get_cost();
 
-		$ck="";
-		if (isset($order['payments']) && $order['payments']=="Payment_on_delivery")
-			$ck="checked=\"checked\"";
-		echo "<input $ck name=\"payments\" value=\"Payment_on_delivery\" type=\"radio\">".Payment_on_delivery;
-		if (($c=$this->get_cost())>0)
-			echo "&nbsp;(".Payment_on_delivery_price. " ".
-			fnc_format_price($c).
-			")";
-		echo "<br />";
+		$option = array(
+			'id' => 'Payment_on_delivery',
+			'title' => Payment_on_delivery,
+			'description' => '', // Optional description
+			'cost' => ($cost > 0) ? fnc_format_price($cost) : ''
+		);
+
+		return $option;
 	}
 	function get_cost()
 	{

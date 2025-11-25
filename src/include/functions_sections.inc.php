@@ -853,7 +853,6 @@ function FN_HtmlBlock($block)
 function FN_UpdateDefaultXML($newvalues)
 {
     global $_FN;
-
     if (is_writable("{$_FN['src_application']}/sections/{$newvalues['id']}"))
     {
         $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<?php exit(0);?>\n<fn_sections>\n";

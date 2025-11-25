@@ -262,6 +262,7 @@ class XMETATable_mysql extends stdClass
                             break;
                         case "datetime":
                             $query .= " DATETIME";
+                            $default = "NULL";
                             break;
 
                         case "int":

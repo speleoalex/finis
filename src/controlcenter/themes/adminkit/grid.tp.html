@@ -57,24 +57,47 @@
         </div>
     </div>
     <div class="card-body">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <div>
+            <small class="text-muted">{txt_num_records}</small>
+        </div>
         <nav aria-label="">
-            <ul class="pagination">
+            <ul class="pagination" style="margin-bottom: 0;">
+                <!-- if {nav_page_first} -->
+                <li class="page-item"><a class="page-link" href="{link}" title="Prima pagina">&laquo;</a></li>
+                <!-- end if {nav_page_first} -->
+                <!-- if not {nav_page_first} -->
+                <li class="page-item disabled"><a class="page-link" href="#" title="Prima pagina">&laquo;</a></li>
+                <!-- end if not {nav_page_first} -->
                 <!-- if {nav_page_prev} -->
-                <li class="page-item"><a class="page-link"  href="{link}">{title}</a></li>
+                <li class="page-item"><a class="page-link" href="{link}" title="Pagina precedente">&lsaquo;</a></li>
                 <!-- end if {nav_page_prev} -->
+                <!-- if not {nav_page_prev} -->
+                <li class="page-item disabled"><a class="page-link" href="#" title="Pagina precedente">&lsaquo;</a></li>
+                <!-- end if not {nav_page_prev} -->
                 <!-- foreach {nav_pages} -->
                 <!-- if {current} -->
-                <li class="page-item active"><a class="page-link"  href="{link}">{title}</a></li> 
+                <li style="display:none" class="page-item active"><a class="page-link" href="{link}">{title}</a></li>
                 <!-- end if {current} -->
                 <!-- if not {current} -->
-                <li class="page-item"><a class="page-link"  href="{link}">{title}</a></li> 
+                <li style="display:none" class="page-item"><a class="page-link" href="{link}">{title}</a></li>
                 <!-- end if not {current} -->
                 <!-- end foreach {nav_pages} -->
                 <!-- if {nav_page_next} -->
-                <li class="page-item"><a class="page-link"  href="{link}">{title}</a></li>
+                <li class="page-item"><a class="page-link" href="{link}" title="Pagina successiva">&rsaquo;</a></li>
                 <!-- end if {nav_page_next} -->
+                <!-- if not {nav_page_next} -->
+                <li class="page-item disabled"><a class="page-link" href="#" title="Pagina successiva">&rsaquo;</a></li>
+                <!-- end if not {nav_page_next} -->
+                <!-- if {nav_page_last} -->
+                <li class="page-item"><a class="page-link" href="{link}" title="Ultima pagina">&raquo;</a></li>
+                <!-- end if {nav_page_last} -->
+                <!-- if not {nav_page_last} -->
+                <li class="page-item disabled"><a class="page-link" href="#" title="Ultima pagina">&raquo;</a></li>
+                <!-- end if not {nav_page_last} -->
             </ul>
         </nav>
+    </div>
         <div class="no-more-tables  table-responsive" >
             <table id="keywords"  class="table col-sm-12 table-bordered table-striped table-hover table-condensed">
                 <thead class="bg-primary">

@@ -1579,8 +1579,19 @@ class FNDBVIEW
             if ($page > 1) {
                 $linkpage = $this->MakeLink(array("page" => $page - 1, "addtocart" => null), "&amp;");
                 $tplvars['linkpreviouspage'] = $linkpage;
+                // Nuove variabili per compatibilità con il tema
+                $tplvars['nav_page_prev'] = array('link' => $linkpage);
             } else {
                 $tplvars['linkpreviouspage'] = false;
+                $tplvars['nav_page_prev'] = false;
+            }
+
+            // Prima pagina
+            if ($page > 1) {
+                $linkfirstpage = $this->MakeLink(array("page" => 1, "addtocart" => null), "&amp;");
+                $tplvars['nav_page_first'] = array('link' => $linkfirstpage);
+            } else {
+                $tplvars['nav_page_first'] = false;
             }
 
             $max_pages = 8;
@@ -1613,14 +1624,38 @@ class FNDBVIEW
                 $tplvars['pages'][] = $tpPage;
                 $ii++;
             }
+
+            // Mappatura array pages per compatibilità con il nuovo tema
+            $tplvars['nav_pages'] = array();
+            foreach ($tplvars['pages'] as $page_item) {
+                $nav_page = array(
+                    'link' => $page_item['link'],
+                    'title' => $page_item['txt_page'],
+                    'current' => $page_item['active']
+                );
+                $tplvars['nav_pages'][] = $nav_page;
+            }
+
             if ($page < $numPages) {
                 $linkpage = $this->MakeLink(array("page" => $page + 1, "addtocart" => null), "&amp;");
                 $tplvars['linknextpage'] = $linkpage;
+                // Nuove variabili per compatibilità con il tema
+                $tplvars['nav_page_next'] = array('link' => $linkpage);
             } else {
                 $tplvars['linknextpage'] = false;
+                $tplvars['nav_page_next'] = false;
+            }
+
+            // Ultima pagina
+            if ($page < $numPages) {
+                $linklastpage = $this->MakeLink(array("page" => $numPages, "addtocart" => null), "&amp;");
+                $tplvars['nav_page_last'] = array('link' => $linklastpage);
+            } else {
+                $tplvars['nav_page_last'] = false;
             }
 
             $tplvars['txt_rsults'] = FN_Translate("search results", "Aa") . "  $start - $end  " . FN_i18n("of") . " $num_records" . "";
+            $tplvars['txt_num_records'] = FN_Translate("search results", "Aa") . "  $start - $end  " . FN_i18n("of") . " $num_records" . "";
             //---------------------tabella paginazione --------------------<
 
             for ($c = $start - 1; $c <= $end - 1 && isset($results[$c]); $c++) {
@@ -2141,12 +2176,21 @@ select_allcke = function(el){
 
 
         $vars['txt_rsults'] = ($k + 1) . "/" . count($results);
+        $vars['txt_num_records'] = ($k + 1) . "/" . count($results);
         $vars['linkusermodify'] = $linkusermodify;
         $vars['linkmodify'] = $linkmodify;
         $vars['linklist'] = $linklist;
         $vars['linkpreviouspage'] = $linkprev;
         $vars['linknextpage'] = $linknext;
         $vars['linkhistory'] = $linkhistory;
+
+        // Nuove variabili per compatibilità con il tema
+        $vars['nav_page_prev'] = $linkprev ? array('link' => $linkprev) : false;
+        $vars['nav_page_next'] = $linknext ? array('link' => $linknext) : false;
+        // Per la vista singola non ci sono first/last page e nav_pages
+        $vars['nav_page_first'] = false;
+        $vars['nav_page_last'] = false;
+        $vars['nav_pages'] = array();
 
         $ret = $vars;
 

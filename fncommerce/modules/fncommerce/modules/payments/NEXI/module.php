@@ -94,15 +94,22 @@ class fnc_payments_NEXI
         return "";
     }
 
+    /**
+     * Returns option data for display (new style)
+     * Returns array with: id, title, description, cost
+     */
     function show_option($order)
     {
-        global $_FN;
-        $ck = "";
-        if (isset($order['payments']) && $order['payments'] == "Paypal")
-            $ck = "checked=\"checked\"";
+        $cost = $this->get_cost();
 
-        echo "<input $ck name=\"payments\" value=\"NEXI\" type=\"radio\">" . $this->title() . "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-        echo "<br />";
+        $option = array(
+            'id' => 'NEXI',
+            'title' => $this->title(),
+            'description' => '', // Optional description
+            'cost' => ($cost > 0) ? fnc_format_price($cost) : ''
+        );
+
+        return $option;
     }
 
     function get_cost()

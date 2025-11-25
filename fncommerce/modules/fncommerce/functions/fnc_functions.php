@@ -1280,10 +1280,13 @@ function fnc_calculate_order_cost($orderstatus)
 function fnc_get_ordercost_details($orderstatus)
 {
     global $_FN;
-    $total = 0;
     $cart = $orderstatus['cart'];
-    //dprint_r($cart);
-    $str = "<table border=\"1\" cellspacing=\"1\" cellpadding=\"4\">";
+
+    // Prepare template variables
+    $vars = array();
+
+    // Prepare cart items for template
+    $vars['cart_items'] = array();
     foreach ($cart as $item) {
         if (!isset($item['name']) || !isset($item['price'])) {
             $tmp = fnc_getproduct($item['pid']);
@@ -1292,26 +1295,35 @@ function fnc_get_ordercost_details($orderstatus)
             $unit_price = fnc_get_price_by_quantity($tmp['price'], intval($item['qta']));
             $item['price'] = $unit_price * intval($item['qta']);
         }
-        $str .= "<tr>";
-        $str .= "<td>{$item['name']} x {$item['qta']}</td><td style=\"text-align:right\">" . fnc_format_price($item['price']) . "</td>";
-        $str .= "</tr>";
+
+        $cart_item = array();
+        $cart_item['item_name'] = $item['name'];
+        $cart_item['item_quantity'] = $item['qta'];
+        $cart_item['item_price'] = fnc_format_price($item['price']);
+        $vars['cart_items'][] = $cart_item;
     }
-    //-------costi aggiuntivi dichiarati dai moduli ------>
-    if (isset($orderstatus['costs']) && is_array($orderstatus['costs']))
+
+    // Prepare additional costs (shipping, payment, etc.)
+    $vars['has_additional_costs'] = isset($orderstatus['costs']) && is_array($orderstatus['costs']) && count($orderstatus['costs']) > 0;
+    $vars['additional_costs'] = array();
+    if ($vars['has_additional_costs']) {
         foreach ($orderstatus['costs'] as $itemcost) {
-            $total += $itemcost['total'];
-            $str .= "<tr>";
-            $str .= "<td>{$itemcost['title']}</td><td style=\"text-align:right\">" . fnc_format_price($itemcost['total']) . "</td>";
-            $str .= "</tr>";
+            $cost_item = array();
+            $cost_item['cost_title'] = $itemcost['title'];
+            $cost_item['cost_price'] = fnc_format_price($itemcost['total']);
+            $vars['additional_costs'][] = $cost_item;
         }
-    //-------costi aggiuntivi dichiarati dai moduli ------<
-    //-------totale ------>
-    $str .= "<tr>";
-    $str .= "<td><b>" . FN_i18n("total order") . "</b></td><td style=\"text-align:right;font-weight:bold\">" . fnc_format_price($orderstatus['total']) . "</td>";
-    $str .= "</tr>";
-    //-------totale ------<
-    $str .= "</table>";
-    return $str;
+    }
+
+    // Total
+    $vars['txt_total_order'] = FN_i18n("total order");
+    $vars['total_price'] = fnc_format_price($orderstatus['total']);
+
+    // Load and apply template
+    $filetpl = FN_FromTheme("modules/fncommerce/pages/order_cost_details.tp.html", false);
+    $strtpl = file_get_contents($filetpl);
+
+    return FN_TPL_ApplyTplString($strtpl, $vars);
 }
 
 /**

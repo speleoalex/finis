@@ -1223,7 +1223,7 @@ function FNCC_XMETATableEditor($tablename, $params = array())
  * @param array $params
  * @return object
  */
-function FNCC_XmlForm($tablename, $params = array())
+function FNCC_XMDBForm($tablename, $params = array())
 {
     global $_FN;
     foreach ($_FN as $k => $v)
