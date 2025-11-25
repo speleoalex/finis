@@ -21,6 +21,35 @@ class FNDBVIEW
         $this->config = $config;
     }
 
+    /**
+     * Pulisce i file di cache dei risultati più vecchi dell'ultimo aggiornamento
+     * @param int $update_time timestamp dell'ultimo aggiornamento
+     * @param int $max_age età massima in secondi (default 86400 = 24 ore)
+     */
+    function ClearOldResultsCache($update_time = null, $max_age = 86400)
+    {
+        global $_FN;
+        $cachedir = "{$_FN['datadir']}/_cache/";
+        if (!is_dir($cachedir)) {
+            return;
+        }
+        $files = glob($cachedir . "*.cache");
+        if (!is_array($files)) {
+            return;
+        }
+        $now = time();
+        foreach ($files as $file) {
+            $filetime = filemtime($file);
+            // Rimuovi file se:
+            // 1. Più vecchi dell'ultimo update (se specificato)
+            // 2. O più vecchi di max_age secondi
+            if (($update_time !== null && $filetime < $update_time) ||
+                ($now - $filetime > $max_age)) {
+                @unlink($file);
+            }
+        }
+    }
+
     function Init()
     {
         global $_FN;
@@ -917,7 +946,9 @@ class FNDBVIEW
                 }
                 //--------------history--------------------------------------------<
                 $Table->UpdateRecord($newvalues, $pkold);
-                FN_SetGlobalVarValue($tablename . "updated", time());
+                $update_time = time();
+                FN_SetGlobalVarValue($tablename . "updated", $update_time);
+                $this->ClearOldResultsCache($update_time);
                 FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename modified.");
                 FN_Alert(FN_Translate("record updated"));
             }
@@ -998,7 +1029,9 @@ class FNDBVIEW
                 }
             }
             $record = $Table->xmltable->InsertRecord($newvalues);
-            FN_SetGlobalVarValue($tablename . "updated", time());
+            $update_time = time();
+            FN_SetGlobalVarValue($tablename . "updated", $update_time);
+            $this->ClearOldResultsCache($update_time);
             $nrec = array();
             // se esistono i campi "visualizzato volte"
             if (isset($record['view'])) {
@@ -2293,7 +2326,9 @@ select_allcke = function(el){
                 addxmltablefield($Table->databasename, $Table->tablename, $tfield, $Table->path);
             }
             $newvalues = array("id" => $id_record, "recorddeleted" => 1);
-            FN_SetGlobalVarValue($tablename . "updated", time());
+            $update_time = time();
+            FN_SetGlobalVarValue($tablename . "updated", $update_time);
+            $this->ClearOldResultsCache($update_time);
             $Table->UpdateRecord($newvalues);
         }
         //delete record
@@ -2319,7 +2354,9 @@ select_allcke = function(el){
                 }
             }
         }
-        FN_SetGlobalVarValue($tablename . "updated", time());
+        $update_time = time();
+        FN_SetGlobalVarValue($tablename . "updated", $update_time);
+        $this->ClearOldResultsCache($update_time);
         $this->WriteSitemap();
         $html .= "<br />" . FN_Translate("record was deleted");
         $html .= "";
