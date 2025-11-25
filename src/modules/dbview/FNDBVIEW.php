@@ -8,6 +8,7 @@
  */
 #<fnmodule>dbview</fnmodule>
 global $_FN;
+define("FNDBVIEW_CACHE",false);
 
 //ini_set('max_input_vars', 30000);
 //------------------- tabella permessi tabelle -------------------------
@@ -19,35 +20,6 @@ class FNDBVIEW
     function __construct($config)
     {
         $this->config = $config;
-    }
-
-    /**
-     * Pulisce i file di cache dei risultati più vecchi dell'ultimo aggiornamento
-     * @param int $update_time timestamp dell'ultimo aggiornamento
-     * @param int $max_age età massima in secondi (default 86400 = 24 ore)
-     */
-    function ClearOldResultsCache($update_time = null, $max_age = 86400)
-    {
-        global $_FN;
-        $cachedir = "{$_FN['datadir']}/_cache/";
-        if (!is_dir($cachedir)) {
-            return;
-        }
-        $files = glob($cachedir . "*.cache");
-        if (!is_array($files)) {
-            return;
-        }
-        $now = time();
-        foreach ($files as $file) {
-            $filetime = filemtime($file);
-            // Rimuovi file se:
-            // 1. Più vecchi dell'ultimo update (se specificato)
-            // 2. O più vecchi di max_age secondi
-            if (($update_time !== null && $filetime < $update_time) ||
-                ($now - $filetime > $max_age)) {
-                @unlink($file);
-            }
-        }
     }
 
     function Init()
@@ -469,8 +441,9 @@ class FNDBVIEW
         $query = str_replace("\n", "", $query);
         $query = str_replace("\r", "", $query);
         $idresult = md5($query . $t->xmltable->GetLastUpdateTime());
-        $cache = false;
-        if (empty($_GET['clearcache']))
+        $cache = false ;
+
+        if (empty($_GET['clearcache']) && FNDBVIEW_CACHE)
             $cache = FN_GetGlobalVarValue("results" . $idresult);
         if (!empty($cache) && empty($_GET['export'])) {
             $cache_time = FN_GetGlobalVarValue("results_updated" . $idresult);
@@ -494,8 +467,11 @@ class FNDBVIEW
         } else {
             $res = FN_XMETADBQuery($query);
         }
-        FN_SetGlobalVarValue("results" . $idresult, $res);
-        FN_SetGlobalVarValue("results_updated" . $idresult, time());
+        if (FNDBVIEW_CACHE)
+        {
+            FN_SetGlobalVarValue("results" . $idresult, $res);
+            FN_SetGlobalVarValue("results_updated" . $idresult, time());
+        }
 
 
         //dprint_r($query);
@@ -946,9 +922,7 @@ class FNDBVIEW
                 }
                 //--------------history--------------------------------------------<
                 $Table->UpdateRecord($newvalues, $pkold);
-                $update_time = time();
-                FN_SetGlobalVarValue($tablename . "updated", $update_time);
-                $this->ClearOldResultsCache($update_time);
+                FN_SetGlobalVarValue($tablename . "updated", time());
                 FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename modified.");
                 FN_Alert(FN_Translate("record updated"));
             }
@@ -1029,9 +1003,7 @@ class FNDBVIEW
                 }
             }
             $record = $Table->xmltable->InsertRecord($newvalues);
-            $update_time = time();
-            FN_SetGlobalVarValue($tablename . "updated", $update_time);
-            $this->ClearOldResultsCache($update_time);
+            FN_SetGlobalVarValue($tablename . "updated", time());
             $nrec = array();
             // se esistono i campi "visualizzato volte"
             if (isset($record['view'])) {
@@ -2326,9 +2298,7 @@ select_allcke = function(el){
                 addxmltablefield($Table->databasename, $Table->tablename, $tfield, $Table->path);
             }
             $newvalues = array("id" => $id_record, "recorddeleted" => 1);
-            $update_time = time();
-            FN_SetGlobalVarValue($tablename . "updated", $update_time);
-            $this->ClearOldResultsCache($update_time);
+            FN_SetGlobalVarValue($tablename . "updated", time());
             $Table->UpdateRecord($newvalues);
         }
         //delete record
@@ -2354,9 +2324,7 @@ select_allcke = function(el){
                 }
             }
         }
-        $update_time = time();
-        FN_SetGlobalVarValue($tablename . "updated", $update_time);
-        $this->ClearOldResultsCache($update_time);
+        FN_SetGlobalVarValue($tablename . "updated", time());
         $this->WriteSitemap();
         $html .= "<br />" . FN_Translate("record was deleted");
         $html .= "";
