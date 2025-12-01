@@ -13,14 +13,20 @@ F.I.N.I.S.: Flatnux Is Now Infinitely Scalable
 
 FINIS includes comprehensive documentation in the `/doc` folder:
 
-- [Installation Manual](doc/manuale_installazione.md) - Detailed installation instructions
-- [Developer Guide](doc/manuale_sviluppatore.md) - Guide for developing with FINIS
-- [Theme Guide](doc/guida_temi.md) - How to create and customize themes
-- [Administration Manual](doc/manuale_amministrazione.md) - Managing a FINIS website
-- [Module Guide](doc/guida_moduli.md) - Creating custom modules
-- [Database Guide](doc/guida_database.md) - Working with the database abstraction layer
-- [Migration Guide](doc/guida_migrazione.md) - Migrating between versions
-- [API Documentation](doc/documentazione_api.md) - Complete API reference
+- [Manual](doc/en_manual.md) - General documentation
+- [Migration from Flatnux](doc/en_migrate_from_flatnux.md) - Guide to migrate from Flatnux
+- [LLM Guide](doc/Finis_Framework_LLM_Guide.md) - Guide for LLM integration
+
+### Italian Documentation
+
+- [Manuale di Installazione](doc/it_manuale_installazione.md) - Detailed installation instructions
+- [Manuale Sviluppatore](doc/it_manuale_sviluppatore.md) - Developer guide
+- [Guida Temi](doc/it_guida_temi.md) - Theme customization guide
+- [Manuale Amministrazione](doc/it_manuale_amministrazione.md) - Administration manual
+- [Guida Database](doc/it_guida_database.md) - Database abstraction layer guide
+- [Guida Migrazione](doc/it_guida_migrazione.md) - Migration guide
+- [Documentazione API](doc/it_documentazione_api.md) - API reference
+- [Manuale Generale](doc/it_manuale.md) - Complete manual
 
 ## Creating PHP applications in framework mode
 `./sections/home/section.en.html`
