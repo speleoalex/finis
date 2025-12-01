@@ -101,7 +101,7 @@ function FN_ClearOldSessions()
 
 
 /**
- * 
+ *
  * @global array $_FN
  * @param type $varname
  * @param type $maxtime
@@ -110,55 +110,99 @@ function FN_ClearOldSessions()
 function FN_GetGlobalVarValue($varname, $maxtime = false)
 {
     global $_FN;
-    $filename = "{$_FN['datadir']}/_cache/" . md5($varname) . ".cache";
-    //$filename= sys_get_temp_dir()."/".md5($varname).".cache";
 
-    if (file_exists($filename) && !FN_FileIsLocked($filename))
-    {
-        if ($maxtime && $maxtime > filectime($filename))
-        {
-            unlink($filename);
-            return null;
+    // APCu support - much faster if available
+    if (function_exists('apcu_fetch')) {
+        $cacheKey = 'FN_' . md5($varname);
+        $success = false;
+        $value = apcu_fetch($cacheKey, $success);
+        if ($success) {
+            if ($maxtime && isset($value['_time']) && $value['_time'] < $maxtime) {
+                apcu_delete($cacheKey);
+                return null;
+            }
+            return isset($value['_data']) ? $value['_data'] : $value;
         }
-        $var = unserialize(file_get_contents($filename));
-        if (!$var)
-        {
-            @unlink($filename);
-            return null;
-        }
-        return $var;
+        return null;
     }
+
+    // Fallback to file-based cache
+    $filename = "{$_FN['datadir']}/_cache/" . md5($varname) . ".cache";
+
+    if (!file_exists($filename)) {
+        return null;
+    }
+
+    if ($maxtime && filemtime($filename) < $maxtime) {
+        @unlink($filename);
+        return null;
+    }
+
+    $fp = @fopen($filename, 'r');
+    if (!$fp) {
+        return null;
+    }
+
+    if (flock($fp, LOCK_SH)) {
+        $content = stream_get_contents($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+
+        $var = @unserialize($content);
+        return $var !== false ? $var : null;
+    }
+
+    fclose($fp);
     return null;
 }
 
 /**
- * 
+ *
  * @global array $_FN
- * @param type $varname
- * @param type $value
+ * @param string $varname
+ * @param mixed $value
+ * @param int $ttl Time to live in seconds (only for APCu, 0 = no expiration)
+ * @return bool
  */
-function FN_SetGlobalVarValue($varname, $value)
+function FN_SetGlobalVarValue($varname, $value, $ttl = 0)
 {
     global $_FN;
-    //---------------get sid--------------------------------------------------->
-    $filename = "{$_FN['datadir']}/_cache/" . md5($varname) . ".cache";
-    //$filename= sys_get_temp_dir()."/".md5($varname).".cache";
-    //---------------get sid---------------------------------------------------<
-    if (!file_exists("{$_FN['datadir']}/_cache/"))
-    {
-        FN_MkDir("{$_FN['datadir']}/_cache");
+
+    // APCu support - much faster if available
+    if (function_exists('apcu_store')) {
+        $cacheKey = 'FN_' . md5($varname);
+        $storeValue = array('_data' => $value, '_time' => time());
+        return apcu_store($cacheKey, $storeValue, $ttl);
     }
-    if (!FN_FileIsLocked($filename))
-    {
-        FN_LockFile($filename);
-        FN_Write($res = serialize($value), $filename);
-        FN_UNLockFile($filename);
-        if (!$res)
-        {
-            unlink($filename);
+
+    // Fallback to file-based cache
+    static $cacheDir = null;
+
+    if ($cacheDir === null) {
+        $cacheDir = "{$_FN['datadir']}/_cache";
+        if (!is_dir($cacheDir)) {
+            FN_MkDir($cacheDir);
         }
+    }
+
+    $filename = "$cacheDir/" . md5($varname) . ".cache";
+    $content = serialize($value);
+
+    $fp = @fopen($filename, 'c');
+    if (!$fp) {
+        return false;
+    }
+
+    if (flock($fp, LOCK_EX)) {
+        ftruncate($fp, 0);
+        fwrite($fp, $content);
+        fflush($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
         return true;
     }
+
+    fclose($fp);
     return false;
 }
 
