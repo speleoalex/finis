@@ -185,7 +185,13 @@
 .nav-link, .bg-light .nav-link, .bg-light a {
     color: var(--bs-dark);
 }
-
+a.active  {
+    background-color:  var(--bs-dark);
+    color:var(--bs-light);
+}
+a.active:hover  {
+    color:var(--bs-warning);
+}
 .bg-dark .nav-link, .bg-dark a {
     color: var(--bs-light);
 }
@@ -193,3 +199,10 @@
 .bg-dark .dropdown-item {
     color: var(--bs-dark);
 }
+
+
+.table>:not(caption)>*>* { 
+/*    color: var(--bs-table-color-state, var(--bs-table-color-type, var(--bs-table-color))); */
+    background-color: inherit;
+}
+

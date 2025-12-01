@@ -135,14 +135,4 @@
     </field>    
     <filename>sections</filename>
 
-<field>
-		<name>title_it</name>
-		<type>varchar</type>
-		<frm_multilanguage>1</frm_multilanguage>
-	</field>
-<field>
-		<name>description_it</name>
-		<type>varchar</type>
-		<frm_multilanguage>1</frm_multilanguage>
-	</field>
 </tables>

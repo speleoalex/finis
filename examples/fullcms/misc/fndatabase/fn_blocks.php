@@ -107,9 +107,5 @@
         <frm_endgroup></frm_endgroup>
     </field>  
     <filename>blocks</filename>
-<field>
-		<name>title_it</name>
-		<type>varchar</type>
-		<frm_multilanguage>1</frm_multilanguage>
-	</field>
 </tables>
+
