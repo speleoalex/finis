@@ -14,6 +14,13 @@ F.I.N.I.S.: Flatnux Is Now Infinitely Scalable
 FINIS includes comprehensive documentation in the `/doc` folder:
 
 - [Manual](doc/en_manual.md) - General documentation
+- [Installation Manual](doc/en_installation_manual.md) - Detailed installation instructions
+- [Developer Guide](doc/en_developer_guide.md) - Guide for developing with FINIS
+- [Theme Guide](doc/en_theme_guide.md) - How to create and customize themes
+- [Administration Manual](doc/en_administration_manual.md) - Managing a FINIS website
+- [Database Guide](doc/en_database_guide.md) - Working with the database abstraction layer
+- [Migration Guide](doc/en_migration_guide.md) - Migrating between versions
+- [API Documentation](doc/en_api_documentation.md) - Complete API reference
 - [Migration from Flatnux](doc/en_migrate_from_flatnux.md) - Guide to migrate from Flatnux
 - [LLM Guide](doc/Finis_Framework_LLM_Guide.md) - Guide for LLM integration
 
