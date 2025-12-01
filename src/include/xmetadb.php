@@ -11,7 +11,6 @@ include_once __DIR__ . "/xmetadb/XMETATable.php";
 //-----PARSER XML -----
 // TODO:
 // LA PRIMARYKEY DEVE ESSERE SEMPRE IL PRIMO CAMPO DEL DESCRITTORE
-@ini_set("memory_limit", "512M");
 define("_MAX_FILE_ACCESS_ATTEMPTS", "1000");
 define("_MAX_FILES_PER_FOLDER", "10000");
 define("_MAX_LOCK_TIME", "30"); // seconds

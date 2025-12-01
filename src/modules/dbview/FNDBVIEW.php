@@ -8,7 +8,6 @@
  */
 #<fnmodule>dbview</fnmodule>
 global $_FN;
-define("FNDBVIEW_CACHE",false);
 
 //ini_set('max_input_vars', 30000);
 //------------------- tabella permessi tabelle -------------------------
@@ -20,6 +19,197 @@ class FNDBVIEW
     function __construct($config)
     {
         $this->config = $config;
+    }
+
+    /**
+     * Invalidate table cache
+     * @param string $tablename
+     */
+    function InvalidateCache($tablename)
+    {
+        global $_FN;
+        $cache_id = "dbview_table_" . $tablename;
+        $filename = "{$_FN['datadir']}/_cache/" . md5($cache_id) . ".cache";
+        if (file_exists($filename)) {
+            @unlink($filename);
+        }
+        $filename_time = "{$_FN['datadir']}/_cache/" . md5($cache_id . "_time") . ".cache";
+        if (file_exists($filename_time)) {
+            @unlink($filename_time);
+        }
+    }
+
+    /**
+     * Filter records in memory based on user permissions and search criteria
+     * @param array $all_records All records from cache or database
+     * @param array $config Module configuration
+     * @param array $params Request parameters
+     * @param string $q Search query
+     * @param array $listfind Search terms
+     * @param string $query_filter Filter query
+     * @param string $rulequery Rule query
+     * @param array $groups Navigation groups
+     * @param array $_navifatefilters Navigation filters
+     * @param object $t Table form object
+     * @param string $order Order field
+     * @param string $desc Descending flag
+     * @return array Filtered records
+     */
+    function FilterResultsInMemory($all_records, $config, $params, $q, $listfind, $query_filter, $rulequery, $groups, $_navifatefilters, $t, $order, $desc)
+    {
+        global $_FN;
+
+        if (!is_array($all_records)) {
+            return array();
+        }
+
+        $tablename = $config['tables'];
+        $search_options = $config['search_options'] != "" ? explode(",", $config['search_options']) : array();
+        $search_min = $config['search_min'] != "" ? explode(",", $config['search_min']) : array();
+        $search_partfields = $config['search_partfields'] != "" ? explode(",", $config['search_partfields']) : array();
+        $search_fields = $config['search_fields'] != "" ? explode(",", $config['search_fields']) : array();
+
+        $filtered = array();
+
+        // Get user groups for permission filtering
+        $usergroups = array("");
+        if (!empty($_FN['user'])) {
+            $userdata = FN_GetUser($_FN['user']);
+            $usergroups = isset($userdata['group']) ? explode(",", $userdata['group']) : array("");
+        }
+
+        foreach ($all_records as $record) {
+            $include = true;
+
+            // Filter: permissions per record (groupview)
+            if ($config['enable_permissions_each_records'] && isset($record['groupview']) && !$this->IsAdmin()) {
+                $groupview = $record['groupview'];
+                if ($groupview != "") {
+                    $has_permission = false;
+                    foreach ($usergroups as $usergroup) {
+                        if ($usergroup != "" && (
+                            $groupview == $usergroup ||
+                            strpos($groupview, $usergroup . ",") !== false ||
+                            strpos($groupview, "," . $usergroup) !== false
+                        )) {
+                            $has_permission = true;
+                            break;
+                        }
+                    }
+                    if (!$has_permission) {
+                        $include = false;
+                    }
+                }
+            }
+
+            // Filter: view only creator
+            if ($include && $config['viewonlycreator'] == 1 && !$this->IsAdmin()) {
+                if (!empty($_FN['user']) && isset($record['username'])) {
+                    $username = $record['username'];
+                    if (strpos($username, $_FN['user']) === false) {
+                        // Check fieldusers table
+                        $include = false;
+                    }
+                } else {
+                    $include = false;
+                }
+            }
+
+            // Filter: text search
+            if ($include && $q != "") {
+                $found = false;
+                foreach ($listfind as $term) {
+                    if ($term != "") {
+                        foreach ($record as $field => $value) {
+                            if (stripos($value, $term) !== false) {
+                                $found = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+                if (!$found) {
+                    $include = false;
+                }
+            }
+
+            // Filter: navigation groups
+            foreach ($groups as $group) {
+                if ($include && isset($_navifatefilters["nv_{$group}"])) {
+                    $navigate = FN_GetParam("nv_{$group}", $_navifatefilters);
+                    if ($navigate != "" && isset($record[$group]) && $record[$group] != $navigate) {
+                        $include = false;
+                    }
+                }
+            }
+
+            // Filter: search_fields (exact match)
+            foreach ($search_fields as $sfield) {
+                if ($include && $sfield != "") {
+                    $get_sfield = FN_GetParam("sfield_$sfield", $params, "html");
+                    if ($get_sfield != "" && isset($record[$sfield]) && $record[$sfield] != $get_sfield) {
+                        $include = false;
+                    }
+                }
+            }
+
+            // Filter: search_partfields (partial match)
+            foreach ($search_partfields as $sfield) {
+                if ($include && $sfield != "") {
+                    $get_sfield = FN_GetParam("spfield_$sfield", $params, "html");
+                    if ($get_sfield != "" && isset($record[$sfield]) && stripos($record[$sfield], $get_sfield) === false) {
+                        $include = false;
+                    }
+                }
+            }
+
+            // Filter: search_min (minimum value)
+            foreach ($search_min as $min) {
+                if ($include && $min != "") {
+                    $getmin = FN_GetParam("min_$min", $params, "html");
+                    if ($getmin != "" && isset($record[$min]) && intval($record[$min]) <= intval($getmin)) {
+                        $include = false;
+                    }
+                }
+            }
+
+            // Filter: search_options (checkbox options)
+            foreach ($search_options as $option) {
+                if ($include && $option != "" && isset($t->formvals[$option]['options'])) {
+                    $option_selected = false;
+                    $option_checked = false;
+                    foreach ($t->formvals[$option]['options'] as $c) {
+                        $ogetid = "s_opt_{$option}_{$tablename}_{$c['value']}";
+                        $sopt = FN_GetParam($ogetid, $params, "html");
+                        if ($sopt != "") {
+                            $option_selected = true;
+                            if (isset($record[$option]) && $record[$option] == $c['value']) {
+                                $option_checked = true;
+                            }
+                        }
+                    }
+                    if ($option_selected && !$option_checked) {
+                        $include = false;
+                    }
+                }
+            }
+
+            if ($include) {
+                $filtered[] = $record;
+            }
+        }
+
+        // Sort results
+        if ($order != "" && count($filtered) > 0) {
+            usort($filtered, function($a, $b) use ($order, $desc) {
+                $va = isset($a[$order]) ? $a[$order] : "";
+                $vb = isset($b[$order]) ? $b[$order] : "";
+                $cmp = strcasecmp($va, $vb);
+                return $desc ? -$cmp : $cmp;
+            });
+        }
+
+        return $filtered;
     }
 
     function Init()
@@ -440,38 +630,51 @@ class FNDBVIEW
         }
         $query = str_replace("\n", "", $query);
         $query = str_replace("\r", "", $query);
-        $idresult = md5($query . $t->xmltable->GetLastUpdateTime());
-        $cache = false ;
 
-        if (empty($_GET['clearcache']) && FNDBVIEW_CACHE)
-            $cache = FN_GetGlobalVarValue("results" . $idresult);
-        if (!empty($cache) && empty($_GET['export'])) {
-            $cache_time = FN_GetGlobalVarValue("results_updated" . $idresult);
-            $update_time = FN_GetGlobalVarValue($tablename . "updated");
-            if ($cache && $cache_time != "" && $update_time <= $cache_time) {
+        // Cache: save all records and filter in memory
+        $enable_cache = !empty($config['enable_cache']);
+        $cache_id = "dbview_table_" . $tablename;
+        $all_records = false;
+
+        if ($enable_cache && empty($_GET['clearcache'])) {
+            $cache_time = FN_GetGlobalVarValue($cache_id . "_time");
+            $update_time = $t->xmltable->GetLastUpdateTime();
+            if ($cache_time && $cache_time >= $update_time) {
+                $all_records = FN_GetGlobalVarValue($cache_id);
                 if (isset($_GET['debug'])) {
-                    dprint_r(__FILE__ . " " . __LINE__ . " : CACHE in\n $query\n" . FN_GetExecuteTimer());
+                    dprint_r(__FILE__ . " " . __LINE__ . " : CACHE HIT for $tablename");
                 }
-                return $cache;
-            } elseif (isset($_GET['debug'])) {
-                dprint_r("nocache");
             }
-        } elseif (!$cache && isset($_GET['debug'])) {
-            //dprint_r(__FILE__ . " " . __LINE__ . " : EMPTY CACHE in\n $query\n" . FN_GetExecuteTimer());
         }
-        //$query = "SELECT * FROM $tablename";
-        if (!empty($config['search_query_native_mysql'])) {
-            $xmltable = FN_XMDBTable($tablename);
-            $query = str_replace("FROM $tablename WHERE", "FROM {$xmltable->driverclass->sqltable} WHERE", $query);
-            $res = $xmltable->driverclass->dbQuery($query);
-        } else {
-            $res = FN_XMETADBQuery($query);
+
+        // If no cache, get all records from database
+        if (!$all_records) {
+            // Simple query to get all records (no user filters)
+            $base_query = "SELECT $ftoread FROM $tablename WHERE 1";
+            if (isset($t->xmltable->fields['recorddeleted'])) {
+                $base_query .= " AND recorddeleted <> '1'";
+            }
+            if ($config['appendquery'] != "") {
+                $base_query .= " AND {$config['appendquery']}";
+            }
+
+            if (!empty($config['search_query_native_mysql'])) {
+                $xmltable = FN_XMDBTable($tablename);
+                $base_query = str_replace("FROM $tablename WHERE", "FROM {$xmltable->driverclass->sqltable} WHERE", $base_query);
+                $all_records = $xmltable->driverclass->dbQuery($base_query);
+            } else {
+                $all_records = FN_XMETADBQuery($base_query);
+            }
+
+            // Save all records to cache
+            if ($enable_cache && is_array($all_records)) {
+                FN_SetGlobalVarValue($cache_id, $all_records);
+                FN_SetGlobalVarValue($cache_id . "_time", time());
+            }
         }
-        if (FNDBVIEW_CACHE)
-        {
-            FN_SetGlobalVarValue("results" . $idresult, $res);
-            FN_SetGlobalVarValue("results_updated" . $idresult, time());
-        }
+
+        // Now filter results in memory based on user permissions and search
+        $res = $this->FilterResultsInMemory($all_records, $config, $params, $q, $listfind, $query_filter, $rulequery, $groups, $_navifatefilters, $t, $order, $desc);
 
 
         //dprint_r($query);
@@ -922,7 +1125,7 @@ class FNDBVIEW
                 }
                 //--------------history--------------------------------------------<
                 $Table->UpdateRecord($newvalues, $pkold);
-                FN_SetGlobalVarValue($tablename . "updated", time());
+                $this->InvalidateCache($tablename);
                 FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename modified.");
                 FN_Alert(FN_Translate("record updated"));
             }
@@ -1003,7 +1206,7 @@ class FNDBVIEW
                 }
             }
             $record = $Table->xmltable->InsertRecord($newvalues);
-            FN_SetGlobalVarValue($tablename . "updated", time());
+            $this->InvalidateCache($tablename);
             $nrec = array();
             // se esistono i campi "visualizzato volte"
             if (isset($record['view'])) {
@@ -2298,7 +2501,7 @@ select_allcke = function(el){
                 addxmltablefield($Table->databasename, $Table->tablename, $tfield, $Table->path);
             }
             $newvalues = array("id" => $id_record, "recorddeleted" => 1);
-            FN_SetGlobalVarValue($tablename . "updated", time());
+            $this->InvalidateCache($tablename);
             $Table->UpdateRecord($newvalues);
         }
         //delete record
@@ -2324,7 +2527,7 @@ select_allcke = function(el){
                 }
             }
         }
-        FN_SetGlobalVarValue($tablename . "updated", time());
+        $this->InvalidateCache($tablename);
         $this->WriteSitemap();
         $html .= "<br />" . FN_Translate("record was deleted");
         $html .= "";

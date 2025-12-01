@@ -45,6 +45,14 @@ if (file_exists(FN_FinisPathToApplicationPath("{$_FN['src_application']}/section
     $str = str_replace("</body>", $strfooter . "</body>", $str);
 }
 $str .= "<!-- Page generated in " . FN_GetExecuteTimer() . " seconds. -->";
+
+$mem = memory_get_usage(true);
+$peak = memory_get_peak_usage(true);
+
+$str .= "<!-- Page memory: " . round($mem / 1024 / 1024, 2) . " MB | Peak: " . round($peak / 1024 / 1024, 2) . " MB -->";
+ 
+
+
 if ($tmp = @ob_get_clean())
 {
     if ($_FN['display_errors'] !== "on")

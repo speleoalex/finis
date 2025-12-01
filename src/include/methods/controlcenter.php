@@ -341,7 +341,7 @@ function FNCC_GetSectionsConfigs()
 {
     global $_FN;
     $sections = FN_GetSections("", true, true, true);
-    $blocks = $_FN['blocks'];
+    $blocks = &$_FN['blocks'];
     $configs = array();
     foreach ($sections as $section)
     {
@@ -399,7 +399,7 @@ function FNCC_GetSectionsSettings()
 {
     global $_FN;
     $sections = FN_GetSections(false, true, true, true);
-    $blocks = $_FN['blocks'];
+    $blocks = &$_FN['blocks'];
     $configs = array();
     foreach ($sections as $section)
     {

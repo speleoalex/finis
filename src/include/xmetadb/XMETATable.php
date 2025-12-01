@@ -382,7 +382,7 @@ class XMETATable extends stdClass
         $databasename = $this->databasename;
         $tablename = $this->tablename;
         $path = realpath($this->path);
-        $unirecid = $recordvalues[$this->primarykey];
+        $unirecid = is_array($recordvalues) ? ($recordvalues[$this->primarykey] ?? null) : null;
         if (!isset($recordvalues[$recordkey]))
         {
             $recordvalues = $this->GetRecord($recordvalues);

@@ -91,6 +91,8 @@ $config['search_query_native_mysql'] = 0;
 $config['enable_offlineform'] = 1;
 //[i18n]folder containing documents
 $config['documents_folder']="";
+//[i18n]enable cache for table records list {1=yes,0=no}
+$config['enable_cache'] = 0;
 
 
 ?>

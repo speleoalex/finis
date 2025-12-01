@@ -28,7 +28,7 @@
 	</fn_settings>
 	<fn_settings>
 		<varname>languages</varname>
-		<varvalue>en</varvalue>
+		<varvalue>it</varvalue>
 		<defaultvalue>en</defaultvalue>
 	</fn_settings>
 	<fn_settings>

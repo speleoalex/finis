@@ -25,7 +25,7 @@ function FN_GetSections($section = "", $recursive = false, $onlyreadable = true,
             $_FN['sections'] = FN_GetAllSections();
         }
         $cache = array();
-        $allsections = $_FN['sections'];
+        $allsections = &$_FN['sections'];
     }
     if ($section === false)
         $section = "";
@@ -142,8 +142,7 @@ function FN_GetSectionValues($section, $usecache = true)
     }
     if (!$cachesections)
     {
-        $cachesections = array();
-        $cachesections = $_FN['sections'];
+        $cachesections = &$_FN['sections'];
     }
     if (!isset($cachesections[$section]))
     {
@@ -242,7 +241,7 @@ function FN_InitSections()
 {
     global $_FN;
 //sections in database -------------------------------------------------------->
-    $sections = $_FN['sections'];
+    $sections = &$_FN['sections'];
     $flag_mod = false;
     $flag_mod_st = false;
     $sect_db = array();
@@ -377,7 +376,7 @@ function FN_InitSections()
             }
         }
     }   
-    $sectionstypes = $_FN['sectionstypes'];
+    $sectionstypes = &$_FN['sectionstypes'];
     foreach ($sectionstypes as $sectiontype)
     {
         if (!is_dir("{$_FN['src_finis']}/modules/" . $sectiontype['name']) && !is_dir("{$_FN['src_application']}/modules/" . $sectiontype['name']))
@@ -887,7 +886,7 @@ function FN_UpdateDefaultXML($newvalues)
 function FN_FixSections()
 {
     global $_FN;
-    $sections = $_FN['sections'];
+    $sections = &$_FN['sections'];
     $flag_mod = false;
     foreach ($sections as $section)
     {
@@ -918,7 +917,7 @@ function FN_InitBlocks()
 {
     global $_FN;
 //sections in database
-    $sect_db = $_FN['blocks'];
+    $sect_db = &$_FN['blocks'];
     $blocksdirs = glob("{$_FN['src_application']}/blocks/*");
     $blocks = array();
     $flag_mod = false;
@@ -1023,7 +1022,7 @@ function FN_GetAllBlocks()
 function FN_GetBlocks($where, $onlyreadable = true, $onlyenabled = true)
 {
     global $_FN;
-    $blocks = $_FN['blocks'];
+    $blocks = &$_FN['blocks'];
     $ret_blocks = array();
     foreach ($blocks as $blockvalues)
     {
@@ -1084,7 +1083,7 @@ function FN_GetBlockValues($section, $usecache = true)
     }
     if (!$cachesections)
     {
-        $cachesections = $_FN['blocks'];
+        $cachesections = &$_FN['blocks'];
     }
     if (!isset($cachesections[$section]))
     {

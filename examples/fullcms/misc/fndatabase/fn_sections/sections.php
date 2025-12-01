@@ -5,7 +5,7 @@
 		<id>home</id>
 		<type></type>
 		<parent></parent>
-		<position>1</position>
+		<position>0</position>
 		<title>Home</title>
 		<description></description>
 		<startdate></startdate>

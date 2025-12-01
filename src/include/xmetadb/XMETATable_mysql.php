@@ -367,7 +367,6 @@ class XMETATable_mysql extends stdClass
                 if (!isset($mysql_fields[$fieldname]) && $fieldvalues->type != "innertable")
                 {
                     $field = get_object_vars($fieldvalues);
-                    echo "add field $fieldname";
                     $query = "ALTER TABLE `" . $this->sqltable . "` ADD `$fieldname` ";
                     $field['size'] = isset($field['size']) ? $field['size'] : "";
                     $default = "";
@@ -377,9 +376,23 @@ class XMETATable_mysql extends stdClass
                         case "html":
                             $query .= " TEXT";
                             break;
+                        case "longtext":
+                            $query .= " LONGTEXT";
+                            break;
+                        case "datetime":
+                            $query .= " DATETIME";
+                            break;
                         case "int":
+                        case "number":
                             $query .= " INT";
                             $default = 0;
+                            break;
+                        case "float":
+                            $query .= " FLOAT";
+                            $default = 0;
+                            break;
+                        case "json":
+                            $query .= " JSON";
                             break;
                         default: //forzo tutto a varchar
                             $query .= " VARCHAR";
@@ -388,7 +401,7 @@ class XMETATable_mysql extends stdClass
                     }
                     if ($field['size'] != "")
                         $query .= "(" . $field['size'] . ")";
-                    if ($field['type'] != "int")
+                    if (!in_array($field['type'], array('int', 'number', 'float', 'datetime', 'json')))
                         $query .= " CHARACTER SET utf8 COLLATE utf8_bin";
                     $query .= " ";
                     if (isset($field['extra']) && $field['extra'] == "autoincrement")
@@ -397,13 +410,21 @@ class XMETATable_mysql extends stdClass
                             $query .= " AUTO_INCREMENT ";
                     }
 
-                    if ($default != "")
+                    if (!empty($field["mysql_default"]))
+                    {
+                        $query .= " DEFAULT {$field["mysql_default"]}";
+                    }
+                    elseif ($default !== "")
                     {
                         $query .= " NOT NULL DEFAULT '$default'";
                     }
                     else
                     {
-                        $query .= "  NULL";
+                        $query .= " NULL";
+                    }
+                    if (!empty($field["mysql_on_update"]))
+                    {
+                        $query .= " ON UPDATE {$field["mysql_on_update"]}";
                     }
                     if (!$this->dbQuery($query))
                     {
@@ -414,8 +435,18 @@ class XMETATable_mysql extends stdClass
                 }
             }
             if ($flag_tablechanged)
+            {
                 $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $this->dbQuery("DESCRIBE " . $this->sqltable);
-
+                // Update mysql_fields with newly added fields
+                foreach ($dbcache[$this->mysqldatabasename][$sqltable]['describe'] as $tmp)
+                {
+                    $mysql_fields[$tmp['Field']] = $tmp;
+                    if ($tmp['Null'] == "YES")
+                    {
+                        $this->nullfields[$tmp['Field']] = $tmp['Field'];
+                    }
+                }
+            }
             $this->mysqlfields = $mysql_fields;
             //--sincronizzo i campi ---<
         }
@@ -632,7 +663,6 @@ class XMETATable_mysql extends stdClass
      */
     function fix_null($res)
     {
-        //print_r($this->nullfields);
         if (is_array($this->nullfields) && is_array($res))
         {
             foreach ($res as $k => $v)

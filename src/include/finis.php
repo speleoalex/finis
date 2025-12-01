@@ -15,7 +15,7 @@ global $_FN;
 $FN_IsSet = array();
 if ($_FN)
 {
-    $FN_IsSet = $_FN;
+    $FN_IsSet = &$_FN;
 }
 $_FN['src_finis'] = !empty($_FN['src_finis']) ? $_FN['src_finis'] : realpath(__DIR__ . "/..");
 
@@ -47,7 +47,7 @@ if (empty($_FN))
 }
 else
 {
-    $_FN_TMP = $_FN; //save $_FN values
+    $_FN_TMP = &$_FN; //reference to $_FN values
 }
 if (!isset($_FN['return']))
 {

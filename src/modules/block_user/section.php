@@ -20,10 +20,10 @@ else
     $template = file_exists("themes/{$_FN['theme']}/modules/{$block}/profile.tp.html") ? file_get_contents("themes/{$_FN['theme']}/modules/{$block}/profile.tp.html") : "";
     if ($template)
     {
-        $vars = $_FN;
-        $vars['username']=$_FN['user'];
-        $vars['urlimage']=FN_GetUserImage($_FN['user']);
-        
+        $vars = &$_FN;
+        $_FN['username']=$_FN['user'];
+        $_FN['urlimage']=FN_GetUserImage($_FN['user']);
+
         echo FN_TPL_ApplyTplString($template, $vars, "themes/{$_FN['theme']}/modules/{$_FN['block']}/");
     }
     else
