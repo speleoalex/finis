@@ -6,6 +6,46 @@
  * @copyright Copyright (c) 1011
  * @license http://opensource.org/licenses/gpl-license.php GNU General Public License
  */
+
+/**
+ * Get controlcenter section path searching in application, finis core, and extensions paths
+ *
+ * @global array $_FN
+ * @param string $section_path The section path (e.g., "fnEcommerce/products")
+ * @return string|false The full path to the section directory or false if not found
+ */
+function FNCC_GetSectionPath($section_path)
+{
+    global $_FN;
+
+    // First check in application controlcenter sections
+    if (file_exists("{$_FN['src_application']}/controlcenter/sections/{$section_path}"))
+    {
+        return "{$_FN['src_application']}/controlcenter/sections/{$section_path}";
+    }
+
+    // Then check in FINIS core controlcenter sections
+    if (file_exists("{$_FN['src_finis']}/controlcenter/sections/{$section_path}"))
+    {
+        return "{$_FN['src_finis']}/controlcenter/sections/{$section_path}";
+    }
+
+    // Finally check in extensions paths
+    if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+    {
+        foreach ($_FN['path_extensions'] as $extension_path)
+        {
+            $extension_section = rtrim($extension_path, '/') . "/controlcenter/sections/{$section_path}";
+            if (file_exists($extension_section))
+            {
+                return $extension_section;
+            }
+        }
+    }
+
+    return false;
+}
+
 ini_set("display_errors", "on");
 error_reporting(E_ALL);
 ob_start();
@@ -328,6 +368,22 @@ function FN_TPL_tp_create_ccsection()
     elseif (!empty($opt) && file_exists("{$_FN['src_finis']}/controlcenter/sections/$opt/section.php"))
     {
         include "{$_FN['src_finis']}/controlcenter/sections/$opt/section.php";
+    }
+    else
+    {
+        // Check extensions paths for controlcenter sections
+        if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+        {
+            foreach ($_FN['path_extensions'] as $extension_path)
+            {
+                $extension_section = rtrim($extension_path, '/') . "/controlcenter/sections/$opt/section.php";
+                if (file_exists($extension_section))
+                {
+                    include $extension_section;
+                    break;
+                }
+            }
+        }
     }
     $html = ob_get_clean();
     return $html;
@@ -664,6 +720,16 @@ function FNCC_GetMenuItems()
     $dirs = FN_ListDir("{$_FN['src_finis']}/controlcenter/sections/", false);
     $dirs2 = FN_ListDir("{$_FN['src_application']}/controlcenter/sections/", false);
     $dirs = array_merge($dirs,$dirs2);
+    // Add controlcenter sections from features
+    if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+    {
+        foreach ($_FN['path_extensions'] as $extension_path)
+        {
+            $extension_cc_sections = FN_ListDir(rtrim($extension_path, '/') . "/controlcenter/sections/", false);
+            $dirs = array_merge($dirs, $extension_cc_sections);
+        }
+    }
+    $dirs = array_unique($dirs);
     FN_NatSort($dirs);
     $sectionsIngroup = array();
     foreach ($dirs as $sectiongroup)
@@ -672,6 +738,15 @@ function FNCC_GetMenuItems()
         $sections = FN_ListDir("{$_FN['src_finis']}/controlcenter/sections/$sectiongroup");
         $sections2 = FN_ListDir("{$_FN['src_application']}/controlcenter/sections/$sectiongroup");
         $sections = array_unique(array_merge($sections,$sections2));
+        // Add subsections from features
+        if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+        {
+            foreach ($_FN['path_extensions'] as $extension_path)
+            {
+                $extension_subsections = FN_ListDir(rtrim($extension_path, '/') . "/controlcenter/sections/$sectiongroup");
+                $sections = array_unique(array_merge($sections, $extension_subsections));
+            }
+        }
         FN_NatSort($sections);
         $sectionsIngroup = array();
         foreach ($sections as $i => $section)
@@ -687,11 +762,12 @@ function FNCC_GetMenuItems()
             else
             {
                 $item['link'] = "?fnapp=controlcenter&opt={$item['opt']}";
-                $item['title'] = "" . FN_GetFolderTitle("{$_FN['src_finis']}/controlcenter/sections/$sectiongroup/$section");
+                $section_path = FNCC_GetSectionPath("$sectiongroup/$section");
+                $item['title'] = $section_path ? FN_GetFolderTitle($section_path) : $section;
                 $item['description'] = $item['title'];
                 $icon = FN_FromTheme("{$_FN['src_application']}/controlcenter/images/configure.png");
-                if (file_exists("{$_FN['src_finis']}/controlcenter/sections/$sectiongroup/$section/icon.png"))
-                    $icon = FN_PathSite("{$_FN['src_finis']}/controlcenter/sections/$sectiongroup/$section/icon.png");
+                if ($section_path && file_exists("$section_path/icon.png"))
+                    $icon = FN_PathSite("$section_path/icon.png");
                 $item['image'] = $icon;
                 if ($opt == $item['opt'])
                 {

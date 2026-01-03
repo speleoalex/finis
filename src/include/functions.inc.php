@@ -281,20 +281,36 @@ function FN_FromTheme($file, $absolute = true)
     global $_FN;
 
     // Check if the file path is already absolute
-    $isAbsolute = $file[0] === $_FN['slash'] || $file[0] === '/';
+    $isAbsolute = !empty($file) && ($file[0] === $_FN['slash'] || $file[0] === '/');
+
+    // Determine the source path
     $applicationPath = $isAbsolute ? $file : "{$_FN['src_finis']}/$file";
+
+    // If file doesn't exist in src_finis, check extensions paths
+    if (!$isAbsolute && !file_exists($applicationPath) && !empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+    {
+        foreach ($_FN['path_extensions'] as $extension_path)
+        {
+            $ext_file = rtrim($extension_path, '/') . "/$file";
+            if (file_exists($ext_file))
+            {
+                $applicationPath = $ext_file;
+                break;
+            }
+        }
+    }
 
     // Construct theme path
     $themePath = "{$_FN['src_application']}/themes/{$_FN['theme']}/" .
         ltrim(str_replace("{$_FN['src_finis']}/", "", $applicationPath), '/');
 
     // Check if the file exists in the theme directory
-    if (file_exists(FN_PathSite($themePath))) {
+    if (file_exists($themePath)) {
         return $absolute ? $_FN['siteurl'] . $themePath : $themePath;
     }
 
-    // If not found in theme, use FN_PathSite
-    return FN_PathSite($file, $absolute);
+    // If not found in theme, use FN_PathSite with the resolved path
+    return FN_PathSite($applicationPath, $absolute);
 }
 
 /**
@@ -1133,26 +1149,38 @@ function FN_LoadConfig($fileconfig = "", $sectionid = "", $usecache = true)
     $tablename = "";
     //---------------------------- empty fileconfig --------------------------->
     $fileconfig_fullpath = $fileconfig;
-    if ($fileconfig != "" && !file_exists("$fileconfig") && file_exists("{$_FN['src_finis']}/$fileconfig")) {
-        $fileconfig_fullpath = "{$_FN['src_finis']}/$fileconfig";
+    if ($fileconfig != "" && !file_exists("$fileconfig")) {
+        if (file_exists("{$_FN['src_finis']}/$fileconfig")) {
+            $fileconfig_fullpath = "{$_FN['src_finis']}/$fileconfig";
+        } elseif (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions'])) {
+            // Search in extensions paths
+            foreach ($_FN['path_extensions'] as $extension_path) {
+                $ext_config = rtrim($extension_path, '/') . "/$fileconfig";
+                if (file_exists($ext_config)) {
+                    $fileconfig_fullpath = $ext_config;
+                    break;
+                }
+            }
+        }
     }
-    //dprint_r($fileconfig_fullpath);
     $fileconfig = str_replace($_FN['src_finis'] . "/", "", $fileconfig);
     if ($fileconfig == "") {
         if ($_FN['block'] != "") {
             $blockvalues = FN_GetBlockValues($_FN['block']);
             $module = $blockvalues['type'];
-            if (file_exists("{$_FN['src_finis']}/modules/$module/config.php")) {
+            $module_path = FN_GetModulePath($module);
+            if ($module_path && file_exists("$module_path/config.php")) {
                 $fileconfig = "modules/{$module}/config.php";
-                $fileconfig_fullpath = "{$_FN['src_finis']}/modules/{$module}/config.php";
+                $fileconfig_fullpath = "$module_path/config.php";
             } else {
                 $fileconfig = "blocks/{$_FN['block']}/config.php";
                 $fileconfig_fullpath = "{$_FN['src_application']}/blocks/{$_FN['block']}/config.php";
             }
         } else {
             if (!empty($_FN['sectionvalues']['type'])) {
+                $module_path = FN_GetModulePath($_FN['sectionvalues']['type']);
                 $fileconfig = "modules/{$_FN['sectionvalues']['type']}/config.php";
-                $fileconfig_fullpath = "{$_FN['src_finis']}/modules/{$_FN['sectionvalues']['type']}/config.php";
+                $fileconfig_fullpath = $module_path ? "$module_path/config.php" : "{$_FN['src_finis']}/modules/{$_FN['sectionvalues']['type']}/config.php";
             } else {
                 if ($sectionid == "") {
                     $sectionid = $_FN['mod'];
@@ -1163,7 +1191,8 @@ function FN_LoadConfig($fileconfig = "", $sectionid = "", $usecache = true)
     }
     //---------------------------- empty fileconfig ---------------------------<
 
-    if (preg_match("/^blocks/is", $fileconfig) || preg_match("/^sections/is", $fileconfig) || preg_match("/^modules/is", $fileconfig)) {
+    // match: blocks/nome/config.php, modules/nome/config.php, sections/nome/config.php (exclude nested configs)
+    if (preg_match("/^(blocks|modules|sections)\/[^\/]+\/[^\/]+$/", $fileconfig)) {
         if ($_FN['block'] != "") {
             $sectionid = $_FN['block'];
             $tablename = "fncf_block_{$sectionid}";
@@ -1656,11 +1685,24 @@ function FN_Install($path, $force = false)
     global $_FN;
     $path_site = str_replace("/fndatabase/", "/{$_FN['database']}/", $path);
     $path_site = preg_replace('/^misc\//', "{$_FN['datadir']}/", $path_site);
-    if (!file_exists("{$_FN['src_application']}/$path") || $force == true) {
+    if (!file_exists("{$_FN['src_application']}/$path_site") || $force == true) {
+        // First try FINIS core install path
         if (file_exists("{$_FN['src_finis']}/include/install/$path")) {
-           
             FN_Copy("{$_FN['src_finis']}/include/install/$path", "{$_FN['src_application']}/$path_site");
-            //die("{$_FN['src_application']}/$path_site");
+            return;
+        }
+        // Then try extensions paths
+        if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+        {
+            foreach ($_FN['path_extensions'] as $extension_path)
+            {
+                $extension_install_path = rtrim($extension_path, '/') . "/$path";
+                if (file_exists($extension_install_path))
+                {
+                    FN_Copy($extension_install_path, "{$_FN['src_application']}/$path_site");
+                    return;
+                }
+            }
         }
     }
 }

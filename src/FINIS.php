@@ -4,10 +4,11 @@ $_FN['src_application'] = empty($_FN['src_application']) ? "." : $_FN['src_appli
 
 class FINIS
 {
-
+    var $path_extensions;
     function __construct($config = array())
     {
         global $_FN;
+        $this->path_extensions = [];
         foreach ($config as $k => $_item)
         {
             $_FN[$k] = $_item;
@@ -79,5 +80,22 @@ class FINIS
     {
         global $_FN;
         return $_FN['consolemode'] ;
+    }
+
+    function addExtension($path_src)
+    {
+        global $_FN;
+        if (is_dir($path_src))
+        {
+            $this->path_extensions[] = $path_src;
+            if (!isset($_FN['path_extensions']))
+            {
+                $_FN['path_extensions'] = [];
+            }
+            $_FN['path_extensions'][] = $path_src;
+        }
+        else{
+            die ($path_src. " not exists");
+        }
     }
 }

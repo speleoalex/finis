@@ -9,7 +9,7 @@
  */
 defined('_FNEXEC') or die('Restricted access');
 global $_FN;
-require_once("modules/fncommerce/functions/fncommerce.php");
+require_once(__DIR__ . "/../../../../modules/fncommerce/functions/fncommerce.php");
 $opt = FN_GetParam("opt", $_GET, "html");
 $opmod = FN_GetParam("opmod", $_GET, "html");
 if ($opmod == "")

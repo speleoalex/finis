@@ -8,8 +8,8 @@
 
 
 global $_FN;
-require_once ("modules/fncommerce/functions/fncommerce.php");
-require_once ("modules/fncommerce/functions/fnc_pages.php");
+require_once (__DIR__ . "/../../../../modules/fncommerce/functions/fncommerce.php");
+require_once (__DIR__ . "/../../../../modules/fncommerce/functions/fnc_pages.php");
 $params['fields']="title|text";
 FNCC_XMETATableEditor("fnc_contents",$params);
 

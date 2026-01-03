@@ -8,8 +8,8 @@
  */
 defined('_FNEXEC') or die('Restricted access');
 global $_FN;
-require_once ("modules/fncommerce/functions/fncommerce.php");
-require_once ("modules/fncommerce/functions/fnc_pages.php");
+require_once (__DIR__ . "/../../../../modules/fncommerce/functions/fncommerce.php");
+require_once (__DIR__ . "/../../../../modules/fncommerce/functions/fnc_pages.php");
 
 FNCC_XMETATableEditor("fnc_offers");
  

@@ -7,7 +7,7 @@
  *
  */
 defined('_FNEXEC') or die('Restricted access');
-require_once ("modules/fncommerce/functions/fncommerce.php");
+require_once (__DIR__ . "/../../../../modules/fncommerce/functions/fncommerce.php");
 /**
  * 10_Google_sitemap.php created on 10/dic/2008
  *
@@ -21,29 +21,29 @@ $outputfile="trovaprezzi.txt";
 
 if (!file_exists("$outputfile") && !is_writable("."))
 {
-	echo "<b>" . _ERROR_PERM . "</b><br /><br />" . _ERROR_PERM_FIX1;
+	echo "<b>" . FN_Translate("permissions error") . "</b><br /><br />" . FN_Translate("folder is not wrietable");
 	echo "<br /><pre>" . dirname($_SERVER['SCRIPT_FILENAME']) . "</pre>";
 }
 else
 	if ( file_exists($outputfile) && !is_writable($outputfile))
 	{
-		echo "$outputfile : " . _READONLY."<br />";
+		echo "$outputfile : " . FN_Translate("is read-only") . "<br />";
 	}
 	else
 	{
 		if ($opmod == "update")
 		{
 			fn_create_trovaprezzi_sitemap("$outputfile");
-			 FN_Alert("$outputfile updated");
+			FN_Alert(FN_Translate("file updated"));
 		}
-		echo "<a href=\"?opt=$op&amp;opmod=update\">Update ecommerce $outputfile</a><br />";
+		echo "<a class=\"btn btn-primary\" href=\"?fnapp=controlcenter&amp;opt=$op&amp;opmod=update\">" . FN_Translate("update") . " $outputfile</a><br />";
 	}
 $imghelp="<img style=\"vertical-align:middle\" alt=\"\" src=\"".FN_FromTheme("images/help.png")."\"/>";
 echo "<div style=\"text-align:right\">$imghelp&nbsp;<a href=\"https://www.google.com/webmasters/tools/docs/{$_FN['lang']}/about.html\">" . FN_i18n("help") . "</a></div>";
 if (file_exists("$outputfile"))
 	echo "<pre style=\"border:1px inset;height:300px;overflow:auto;\">" . htmlspecialchars(file_get_contents("$outputfile")) . "</pre>";
 
-echo "<br /><b>URL sitemep:</b> ".$_FN['siteurl']."$outputfile<br/>";
+echo "<br /><b>URL sitemap:</b> ".$_FN['siteurl']."$outputfile<br/>";
 
 /**
  * Crea la sitemap

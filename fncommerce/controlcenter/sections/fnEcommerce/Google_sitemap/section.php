@@ -1,7 +1,7 @@
 <?php
 if (!file_exists("./index.php") || !file_exists("./sections"))
 	die();
-require_once ("modules/fncommerce/functions/fncommerce.php");
+require_once (__DIR__ . "/../../../../modules/fncommerce/functions/fncommerce.php");
 /**
  * 10_Google_sitemap.php created on 10/dic/2008
  *

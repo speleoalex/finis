@@ -55,8 +55,37 @@ function FN_HtmlEditConfFile($file, $formaction = "", $exit = "", $allow = false
     global $_FN;
 
     $opt = FN_GetParam("opt", $_GET);
-    $filecontents = file_get_contents($file);
-    $dirfile = dirname($file);
+
+    // Resolve file path - check all possible locations
+    $resolved_file = $file;
+    if (!file_exists($resolved_file))
+    {
+        // Check in src_application
+        if (file_exists("{$_FN['src_application']}/$file"))
+        {
+            $resolved_file = "{$_FN['src_application']}/$file";
+        }
+        // Check in src_finis (for native modules)
+        elseif (file_exists("{$_FN['src_finis']}/$file"))
+        {
+            $resolved_file = "{$_FN['src_finis']}/$file";
+        }
+        // Check in extensions
+        elseif (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+        {
+            foreach ($_FN['path_extensions'] as $extension_path)
+            {
+                $ext_file = rtrim($extension_path, '/') . "/$file";
+                if (file_exists($ext_file))
+                {
+                    $resolved_file = $ext_file;
+                    break;
+                }
+            }
+        }
+    }    
+    $filecontents = file_exists($resolved_file) ? file_get_contents($resolved_file) : "";
+    $dirfile = dirname($resolved_file);
     $htmlsaved = "";
     if ($mod == "")
         $mod = $_FN['mod'];
@@ -70,7 +99,7 @@ function FN_HtmlEditConfFile($file, $formaction = "", $exit = "", $allow = false
         $write_to_file = true;
     }
     $html = "";
-    $filepath = $file;
+    $filepath = $resolved_file;
     $file = str_replace("{$_FN['src_finis']}/", "", $file);
 
     if ($file == "config.php")
@@ -82,15 +111,21 @@ function FN_HtmlEditConfFile($file, $formaction = "", $exit = "", $allow = false
         $path = dirname($file);
         $thispath = realpath(".") . $_FN['slash'];
         $file = str_replace($thispath, "", $path . $_FN['slash'] . basename($file));
-        if (FN_erg("^modules/", $file))
+
+        if (FN_erg("^modules/[^/]+/[^/]+$", $file)) // match: modules/modulename/config.php, exclude: modules/modulename or modules/aaa/bbb/config.php
         {
-            if (file_exists($file))
+            // $filepath is already resolved from extensions, only fallback if not found
+            if (!file_exists($filepath))
             {
-                $filepath = $file;
-            }
-            else{
-                $file = "{$_FN['src_finis']}/$file";
-                $filepath = $file;
+                if (file_exists($file))
+                {
+                    $filepath = $file;
+                }
+                else
+                {
+                    $file = "{$_FN['src_finis']}/$file";
+                    $filepath = $file;
+                }
             }
             if ($block != "")
                 $tableconf = "fncf_block_{$block}";
@@ -109,6 +144,10 @@ function FN_HtmlEditConfFile($file, $formaction = "", $exit = "", $allow = false
             $tableconf = str_replace(".", "_d_", $tableconf);
         }
     }
+if ($tableconf == "fncf_")
+{
+    die("Error: Tableconf empty");
+}
 
 //dprint_r($file);
 //dprint_r($filepath);
@@ -505,10 +544,10 @@ var movedown = function (node)
             }
             else
             {
+                
                 //---------checkbox----------------------->
                 if ($options[0][0] == "+")
                 {
-
                     $htmlcheckbox = "<div>";
                     $allopt = array();
                     $dirtoopen = $dirfile . "/" . $options[0];

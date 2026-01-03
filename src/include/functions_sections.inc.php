@@ -1,6 +1,86 @@
 <?php
 
 /**
+ * Get module path searching in application, finis core, and extensions paths
+ *
+ * @global array $_FN
+ * @param string $module_name The module name to search for
+ * @return string|false The full path to the module directory or false if not found
+ */
+function FN_GetModulePath($module_name)
+{
+    global $_FN;
+
+    // First check in application modules
+    if (file_exists("{$_FN['src_application']}/modules/{$module_name}/section.php"))
+    {
+        return "{$_FN['src_application']}/modules/{$module_name}";
+    }
+
+    // Then check in FINIS core modules
+    if (file_exists("{$_FN['src_finis']}/modules/{$module_name}"))
+    {
+        return "{$_FN['src_finis']}/modules/{$module_name}";
+    }
+
+    // Finally check in extensions paths
+    if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+    {
+        foreach ($_FN['path_extensions'] as $extension_path)
+        {
+            $module_path = rtrim($extension_path, '/') . "/modules/{$module_name}";
+            if (file_exists($module_path))
+            {
+                return $module_path;
+            }
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Get all module paths from all sources (application, finis core, features)
+ *
+ * @global array $_FN
+ * @return array Array of module paths
+ */
+function FN_GetAllModulePaths()
+{
+    global $_FN;
+    $paths = array();
+
+    // Application modules
+    $app_modules = glob("{$_FN['src_application']}/modules/*", GLOB_ONLYDIR);
+    if ($app_modules)
+    {
+        $paths = array_merge($paths, $app_modules);
+    }
+
+    // FINIS core modules
+    $core_modules = glob("{$_FN['src_finis']}/modules/*", GLOB_ONLYDIR);
+    if ($core_modules)
+    {
+        $paths = array_merge($paths, $core_modules);
+    }
+
+    // Extensions modules
+    if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+    {
+        foreach ($_FN['path_extensions'] as $extension_path)
+        {
+            $extension_modules = glob(rtrim($extension_path, '/') . "/modules/*", GLOB_ONLYDIR);
+            if ($extension_modules)
+            {
+                $paths = array_merge($paths, $extension_modules);
+            }
+        }
+    }
+
+    return $paths;
+}
+
+/**
  * Get Sections
  *
  * @global array $_FN
@@ -10,7 +90,7 @@
  * @param bool $hidden
  * @param bool $onlyenabled
  * @param type $nocache
- * @return array 
+ * @return array
  */
 function FN_GetSections($section = "", $recursive = false, $onlyreadable = true, $hidden = false, $onlyenabled = true, $nocache = false)
 {
@@ -349,7 +429,7 @@ function FN_InitSections()
             }
         }
     }
-    $sectionstypes_local = glob("{$_FN['src_application']}/modules/*");        
+    $sectionstypes_local = glob("{$_FN['src_application']}/modules/*");
     foreach ($sectionstypes_local as $sectiontype)
     {
         if (is_dir($sectiontype))
@@ -375,11 +455,46 @@ function FN_InitSections()
                 $table->InsertRecord($tmp);
             }
         }
-    }   
+    }
+    // Scan modules from extensions
+    if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+    {
+        foreach ($_FN['path_extensions'] as $extension_path)
+        {
+            $extension_modules = glob(rtrim($extension_path, '/') . "/modules/*", GLOB_ONLYDIR);
+            if ($extension_modules)
+            {
+                foreach ($extension_modules as $sectiontype_path)
+                {
+                    $sectiontype = basename($sectiontype_path);
+                    if (!isset($_FN['sectionstypes'][$sectiontype]))
+                    {
+                        $tmp = array();
+                        $defaultxmlfile = file_exists("{$sectiontype_path}/default.xml.php") ? "{$sectiontype_path}/default.xml.php" : "{$sectiontype_path}/default.xml";
+                        if (file_exists("$defaultxmlfile"))
+                        {
+                            $default = xmetadb_xml2array(file_get_contents("$defaultxmlfile"), "fncf_$sectiontype");
+                            if (isset($default[0]) && is_array($default[0]))
+                            {
+                                $tmp = $default[0];
+                            }
+                        }
+                        $tmp['name'] = $sectiontype;
+                        if (empty($tmp['title']))
+                            $tmp['title'] = str_replace("_", " ", $tmp['name']);
+                        $flag_mod_st = true;
+                        $table = FN_XMDBTable("fn_sectionstypes");
+                        $table->InsertRecord($tmp);
+                    }
+                }
+            }
+        }
+    }
     $sectionstypes = &$_FN['sectionstypes'];
     foreach ($sectionstypes as $sectiontype)
     {
-        if (!is_dir("{$_FN['src_finis']}/modules/" . $sectiontype['name']) && !is_dir("{$_FN['src_application']}/modules/" . $sectiontype['name']))
+        // Use FN_GetModulePath to check if module exists in any path
+        if (!FN_GetModulePath($sectiontype['name']))
         {
             $flag_mod_st = true;
             $table = FN_XMDBTable("fn_sectionstypes");
@@ -423,7 +538,11 @@ function FN_GetSectionValuesAndLoadConfig($section = "")
     // If a type is specified, load messages from the corresponding module type directory
     if (!empty($sectionValues['type']))
     {
-        FN_LoadMessagesFolder("{$_FN['src_finis']}/modules/{$sectionValues['type']}");
+        $modulePath = FN_GetModulePath($sectionValues['type']);
+        if ($modulePath)
+        {
+            FN_LoadMessagesFolder($modulePath);
+        }
     }
 
     // Return the retrieved section values
@@ -541,15 +660,12 @@ function FN_RunSection($section, $return_html)
     global $_FN;
     $sectionvalues = FN_GetSectionValuesAndLoadConfig($section);
     // Determine the folder path for the section or module
-    if (!empty($sectionvalues['type']) && file_exists("{$_FN['src_application']}/modules/{$sectionvalues['type']}/section.php"))
+    $folder = false;
+    if (!empty($sectionvalues['type']))
     {
-        $folder = "{$_FN['src_application']}/modules/{$sectionvalues['type']}";
+        $folder = FN_GetModulePath($sectionvalues['type']);
     }
-    elseif (!empty($sectionvalues['type']) && file_exists("{$_FN['src_finis']}/modules/{$sectionvalues['type']}"))
-    {
-        $folder = "{$_FN['src_finis']}/modules/{$sectionvalues['type']}";
-    }
-    else
+    if (!$folder)
     {
         $folder = "{$_FN['src_application']}/sections/{$sectionvalues['id']}";
     }

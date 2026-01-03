@@ -7,7 +7,7 @@
  *
  */
 defined('_FNEXEC') or die('Restricted access');
-FN_LoadMessagesFolder("modules/fncommerce/modules/vouchers/voucher_code/");
+FN_LoadMessagesFolder(__DIR__ . "/../../../../modules/fncommerce/modules/vouchers/voucher_code/");
 $params['fields'] = "code|discount|minprice|startdate|enddate|enabled|max_uses|NumberUsed()";
 FNCC_XMETATableEditor("fnc_vouchercodes",$params);
 function NumberUsed($id,$Table)

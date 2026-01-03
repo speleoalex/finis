@@ -28,6 +28,61 @@ if (file_exists("{$_FN['datadir']}/firstinstall"))
         FN_CopyDir("{$_FN['src_finis']}/sections", "{$_FN['src_application']}/sections");
     }
 
+    // Copy sections from extensions
+    if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+    {
+        foreach ($_FN['path_extensions'] as $extension_path)
+        {
+            $extension_sections = rtrim($extension_path, '/') . '/sections';
+            if (is_dir($extension_sections))
+            {
+                $sections_dirs = glob("{$extension_sections}/*", GLOB_ONLYDIR);
+                foreach ($sections_dirs as $section_dir)
+                {
+                    $section_name = basename($section_dir);
+                    $dest_section = "{$_FN['src_application']}/sections/{$section_name}";
+                    if (!file_exists($dest_section))
+                    {
+                        FN_CopyDir($section_dir, $dest_section);
+                    }
+                }
+            }
+        }
+    }
+
+    // Copy misc/fndatabase from extensions
+    if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+    {
+        foreach ($_FN['path_extensions'] as $extension_path)
+        {
+            $extension_misc = rtrim($extension_path, '/') . '/misc/fndatabase';
+            if (is_dir($extension_misc))
+            {
+                $misc_files = glob("{$extension_misc}/*.php");
+                foreach ($misc_files as $misc_file)
+                {
+                    $file_name = basename($misc_file);
+                    $dest_file = "{$_FN['src_application']}/misc/{$_FN['database']}/{$file_name}";
+                    if (!file_exists($dest_file))
+                    {
+                        FN_Copy($misc_file, $dest_file);
+                    }
+                }
+                // Also copy subdirectories (data folders)
+                $misc_dirs = glob("{$extension_misc}/*", GLOB_ONLYDIR);
+                foreach ($misc_dirs as $misc_dir)
+                {
+                    $dir_name = basename($misc_dir);
+                    $dest_dir = "{$_FN['src_application']}/misc/{$_FN['database']}/{$dir_name}";
+                    if (!file_exists($dest_dir))
+                    {
+                        FN_CopyDir($misc_dir, $dest_dir);
+                    }
+                }
+            }
+        }
+    }
+
     $lang = FN_SaveGetPostParam("lang");
     if ($lang == "" || !file_exists("{$_FN['src_finis']}/languages/$lang"))
         $lang = "en";

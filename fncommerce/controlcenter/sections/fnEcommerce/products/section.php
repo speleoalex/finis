@@ -8,7 +8,7 @@
  *
  */
 defined('_FNEXEC') or die('Restricted access');
-include ("modules/fncommerce/functions/fncommerce.php");
+include (__DIR__ . "/../../../../modules/fncommerce/functions/fncommerce.php");
 FN_LoadMessagesFolder("fncommerce/");
 
 // FN_XmltableEditor($tablename, $dbname = "fndatabase", $path = "", $functioninsert = "", $restr = false,$table=false,$fields=false)

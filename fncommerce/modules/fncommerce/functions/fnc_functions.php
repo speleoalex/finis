@@ -19,7 +19,7 @@ if (!isset($_FNC['categories'])) {
 
 $_FNC['errors'] = false;
 include(__DIR__ . "/fncommerce.php");
-FN_LoadMessagesFolder("modules/fncommerce/");
+FN_LoadMessagesFolder(__DIR__ . "/../");
 
 if (!isset($_FNC['allproducts'])) {
     $tableproduct = FN_XMDBForm("fnc_products"); //new FieldFrm("fndatabase","fnc_products",$_FN['datadir'],$_FN['lang'],$_FN['languages']);
@@ -198,8 +198,8 @@ function fnc_get_order_summary($ordervalues)
     $message .= "<br />";
     $message .= "<br />";
     //note sul pagamento dell' ordine
-    if (isset($ordervalues['payments']) && file_exists("modules/fncommerce/modules/payments/{$ordervalues['payments']}/module.php")) {
-        require_once("modules/fncommerce/modules/payments/{$ordervalues['payments']}/module.php");
+    if (isset($ordervalues['payments']) && file_exists(__DIR__ . "/../modules/payments/{$ordervalues['payments']}/module.php")) {
+        require_once(__DIR__ . "/../modules/payments/{$ordervalues['payments']}/module.php");
         $classname = "fnc_payments_{$ordervalues['payments']}";
         $payment = new $classname($ordervalues);
         $message .= $payment->do_payment();
@@ -1327,23 +1327,6 @@ function fnc_get_ordercost_details($orderstatus)
 }
 
 /**
- * query sql
- * 
- */
-function fnc_sql_query($sqltext, $connection, $databasename)
-{
-    if (!$connessione = mysql_connect($connection['host'] . ":" . $connection['port'], $connection['user'], $connection['password']))
-        die(mysql_error());
-    mysql_select_db($databasename);
-    $result = mysql_query($sqltext);
-    $res = array();
-    if ($result)
-        while ($tmp = mysql_fetch_assoc($result))
-            $res[] = $tmp;
-    return $res;
-}
-
-/**
  * 
  * 
  */
@@ -1363,7 +1346,7 @@ function fnc_get_order_steps()
 {
     $steps = array();
     $steps_modules = "";
-    include("modules/fncommerce/modules/config.php");
+    require(__DIR__."/../config.php");
     $steps = explode(",", $steps_modules);
     return $steps;
 }
@@ -1386,8 +1369,8 @@ function fnc_get_next_order_step($step = "")
     }
     $orderstatus = fnc_get_order_temp();
     //se per l' ordine corrente lo step non e' abilitato vado direttamente al prossimo
-    if (file_exists("modules/fncommerce/modules/$next/module.php")) {
-        require_once("modules/fncommerce/modules/$next/module.php");
+    if (file_exists(__DIR__ . "/../modules/$next/module.php")) {
+        require_once(__DIR__ . "/../modules/$next/module.php");
         $classname = "fnc_$next";
         $stepclass = new $classname($orderstatus);
         if ($stepclass->is_enabled() == false) {
@@ -1415,8 +1398,8 @@ function fnc_get_prev_order_step($step = "")
             if (isset($steps[$i - 1])) {
                 $prev = $steps[$i - 1];
                 $orderstatus = fnc_get_order_temp();
-                if (file_exists("modules/fncommerce/modules/$prev/module.php")) {
-                    require_once("modules/fncommerce/modules/$prev/module.php");
+                if (file_exists(__DIR__ . "/../modules/$prev/module.php")) {
+                    require_once(__DIR__ . "/../modules/$prev/module.php");
                     $classname = "fnc_$prev";
                     $stepclass = new $classname($orderstatus);
                     if ($stepclass->is_enabled() == false) {
@@ -1436,7 +1419,7 @@ function fnc_get_prev_order_step($step = "")
 function fnc_get_modules_in_step($step)
 {
     $list_enabled_modules = "";
-    include("modules/fncommerce/modules/$step/config.php");
+    include(__DIR__ . "/../modules/$step/config.php");
     return explode(",", $list_enabled_modules);
 }
 

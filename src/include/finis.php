@@ -15,14 +15,14 @@ global $_FN;
 $FN_IsSet = array();
 if ($_FN)
 {
-    $FN_IsSet = &$_FN;
+    $FN_IsSet = $_FN;
 }
 $_FN['src_finis'] = !empty($_FN['src_finis']) ? $_FN['src_finis'] : realpath(__DIR__ . "/..");
 
 
 $_FN['src_application'] = !empty($_FN['src_application']) ? $_FN['src_application'] : ".";
 $_FN['oauth_providers'] = !empty($_FN['oauth_providers']) ? $_FN['oauth_providers'] : array();
-$_FN['display_errors'] = !empty($_FN['display_errors']) ? $_FN['oauth_providers'] : "off";
+$_FN['display_errors'] = !empty($_FN['display_errors']) ? $_FN['display_errors'] : "off";
 $_FN['datadir'] = !empty($_FN['datadir']) ? $_FN['datadir'] :"{$_FN['src_application']}/misc";
 
 
@@ -47,7 +47,7 @@ if (empty($_FN))
 }
 else
 {
-    $_FN_TMP = &$_FN; //reference to $_FN values
+    $_FN_TMP = $_FN; //copy of $_FN values (not reference, to preserve original values)
 }
 if (!isset($_FN['return']))
 {
@@ -415,7 +415,11 @@ if (!$_FN['consolemode'] && !empty($_FN['maintenance']) && $fnapp != "controlcen
 //--language from module
 if (!empty($_FN['sectionvalues']['type']))
 {
-    FN_LoadMessagesFolder("{$_FN['src_finis']}/modules/{$_FN['sectionvalues']['type']}");
+    $modulePath = FN_GetModulePath($_FN['sectionvalues']['type']);
+    if ($modulePath)
+    {
+        FN_LoadMessagesFolder($modulePath);
+    }
 }
 //--language from section
 FN_LoadMessagesFolder("{$_FN['src_finis']}/sections/{$_FN['mod']}");
@@ -452,7 +456,6 @@ if (!empty($_FN['include']))
 ////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////   debug functions  //////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-
 /**
  *
  * @param type $var
@@ -544,6 +547,7 @@ function FN_IncludeScript($file_to_Include)
     }
     $_FN['include'][] = $file_to_Include;
 }
+
 
 
 

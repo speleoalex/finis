@@ -204,8 +204,8 @@ function html_orderstatus($idorder)
     $vars['show_payment_module'] = false;
     $vars['payment_html'] = "";
     if ($ordervalues['orderstatus'] == "opened") {
-        if (isset($ordervalues['payments']) && $ordervalues['payments'] != "" && file_exists("modules/fncommerce/modules/payments/{$ordervalues['payments']}/module.php")) {
-            require_once("modules/fncommerce/modules/payments/{$ordervalues['payments']}/module.php");
+        if (isset($ordervalues['payments']) && $ordervalues['payments'] != "" && file_exists(__DIR__ . "/../modules/payments/{$ordervalues['payments']}/module.php")) {
+            require_once(__DIR__ . "/../modules/payments/{$ordervalues['payments']}/module.php");
             $classname = "fnc_payments_{$ordervalues['payments']}";
             $payment = new $classname($ordervalues);
             $vars['payment_html'] = $payment->do_payment();
@@ -216,8 +216,8 @@ function html_orderstatus($idorder)
     // Shipping status
     $vars['show_shipping_status'] = false;
     $vars['shipping_status_html'] = "";
-    if (isset($ordervalues['shippingmethods']) && $ordervalues['shippingmethods'] != "" && file_exists("modules/fncommerce/modules/shippingmethods/{$ordervalues['shippingmethods']}/module.php")) {
-        require_once("modules/fncommerce/modules/shippingmethods/{$ordervalues['shippingmethods']}/module.php");
+    if (isset($ordervalues['shippingmethods']) && $ordervalues['shippingmethods'] != "" && file_exists(__DIR__ . "/../modules/shippingmethods/{$ordervalues['shippingmethods']}/module.php")) {
+        require_once(__DIR__ . "/../modules/shippingmethods/{$ordervalues['shippingmethods']}/module.php");
         $classname = "fnc_shippingmethods_{$ordervalues['shippingmethods']}";
         $shippingmethod = new $classname($ordervalues);
         $vars['shipping_status_html'] = $shippingmethod->get_orderstatus();
@@ -348,7 +348,7 @@ function print_saveorder()
                 foreach ($newstate['costs'] as $key => $v) {
                     if (isset($newstate[$key])) {
                         $classname = "fnc_$key" . "_{$newstate[$key]}";
-                        require_once("modules/fncommerce/modules/$key/{$newstate[$key]}/module.php");
+                        require_once(__DIR__ . "/../modules/$key/{$newstate[$key]}/module.php");
                         $class = new $classname($newstate);
                         if (method_exists($class, "on_order_confirm"))
                             $class->on_order_confirm($newstate);
@@ -412,10 +412,10 @@ function print_confirm()
     foreach ($steps as $step) {
         if (isset($orderstatus[$step])) {
             $step_data = array();
-            $title = FN_GetFolderTitle("modules/fncommerce/modules/$step/");
+            $title = FN_GetFolderTitle(__DIR__ . "/../modules/$step/");
             $step_data['step_title'] = $title;
 
-            require_once("modules/fncommerce/modules/$step/{$orderstatus[$step]}/module.php");
+            require_once(__DIR__ . "/../modules/$step/{$orderstatus[$step]}/module.php");
             $classname = "fnc_{$step}_{$orderstatus[$step]}";
             $stepclass = new $classname($orderstatus);
 
@@ -552,13 +552,13 @@ function print_current_order_step($step)
     $list_modules_in_this_step = fnc_get_modules_in_step($step);
     $op = FN_GetParam("op", $_GET, "flat");
     $step_option_selected = FN_GetParam("$step", $_POST, "flat");
-    FN_LoadMessagesFolder("modules/fncommerce/modules/$step");
+    FN_LoadMessagesFolder(__DIR__ . "/../modules/$step");
     $orderstatus = fnc_get_order_temp();
-    if ($step == "" || !file_exists("modules/fncommerce/modules/$step"))
+    if ($step == "" || !file_exists(__DIR__ . "/../modules/$step"))
         return print_navigation();
     //---------titolo step------------->
     $tmp = str_replace("_", " ", $step);
-    $title = FN_GetFolderTitle("modules/fncommerce/modules/$step/");
+    $title = FN_GetFolderTitle(__DIR__ . "/../modules/$step/");
     //---------titolo step-------------<
 
 
@@ -570,8 +570,8 @@ function print_current_order_step($step)
             $orderstatus['costs'] = array();
 
 
-        FN_LoadMessagesFolder("modules/fncommerce/modules/$step/$step_option_selected");
-        require_once("modules/fncommerce/modules/$step/$step_option_selected/module.php");
+        FN_LoadMessagesFolder(__DIR__ . "/../modules/$step/$step_option_selected");
+        require_once(__DIR__ . "/../modules/$step/$step_option_selected/module.php");
         $classname = "fnc_$step" . "_" . $step_option_selected;
         $stepclass = new $classname($orderstatus);
         $orderstatus = $stepclass->get_total();
@@ -602,8 +602,8 @@ function print_current_order_step($step)
     foreach ($list_modules_in_this_step as $payment) {
         $sid = $payment;
         if ($sid != "") {
-            FN_LoadMessagesFolder("modules/fncommerce/modules/$step/$sid");
-            require_once("modules/fncommerce/modules/$step/$sid/module.php");
+            FN_LoadMessagesFolder(__DIR__ . "/../modules/$step/$sid");
+            require_once(__DIR__ . "/../modules/$step/$sid/module.php");
             $classname = "fnc_$step" . "_$sid";
             $stepclass = new $classname($orderstatus);
 
@@ -665,7 +665,7 @@ function print_current_order_step($step)
 function print_payments()
 {
     global $_FN;
-    $listpayments = list_sections_translated("modules/fncommerce/modules/payments");
+    $listpayments = list_sections_translated(__DIR__ . "/../modules/payments");
     $op = FN_GetParam("op", $_GET, "flat");
     $payment = FN_GetParam("payment", $_POST, "flat");
     echo _ADMIN_PAYMODE;

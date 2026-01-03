@@ -8,8 +8,8 @@
  */
 defined('_FNEXEC') or die('Restricted access');
 global $_FN;
-require_once ("modules/fncommerce/functions/fncommerce.php");
-require_once ("modules/fncommerce/functions/fnc_pages.php");
+require_once (__DIR__ . "/../../../../modules/fncommerce/functions/fncommerce.php");
+require_once (__DIR__ . "/../../../../modules/fncommerce/functions/fnc_pages.php");
 $opmod = FN_GetParam("opmod", $_GET, "html");
 $op = FN_GetParam("opt", $_GET, "html");
 $name = FN_GetParam("name", $_POST, "html");
@@ -18,7 +18,7 @@ $name = FN_GetParam("name", $_POST, "html");
 if ($opmod == "")
 {
 	echo "<div>";
-	echo "Qui è possibile definire le tabelle che associano le zone ai costi di spedizione";
+	echo FN_Translate("Here you can define tables that associate zones to shipping costs");
 	echo "</div>";
 }
 
@@ -27,7 +27,7 @@ if($opmod=="newtable" &&  $name!="")
 {
 	if (!is_alphanumeric($name))
 	{
-		echo _FNNOTVALIDFIED;	
+		echo FN_Translate("not valid field");	
 	}
 	else
 	{
@@ -112,7 +112,7 @@ foreach($tables as $table)
 
 if ($opmod == "")
 {	echo "<form method=\"post\" action=\"?mod={$_FN['mod']}&amp;opt=$op&amp;opmod=newtable\" >";
-	echo "<b>"._FNC_NEWSHIPPINGTABLEZONES.":</b><br />";
+	echo "<b>".FN_Translate("new shipping zones table").":</b><br />";
 	echo FN_i18n("name").":&nbsp;<input type=\"text\" name=\"name\" value=\"\" />";
 	echo "&nbsp;<input type=\"submit\"  value=\"".FN_i18n("execute")."\" />";
 	echo "</form>";
