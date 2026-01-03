@@ -267,43 +267,6 @@ Template syntax:
 <!-- foreach {array} -->...<!-- end foreach --> <!-- Loop -->
 ```
 
-## Key Functions
-
-### Product Functions
-```php
-fnc_getproduct($pid)                    // Get single product
-fnc_getproducts($filters)               // Get products with filters
-fnc_getproductsbycategory($cat_id)      // Get products in category
-```
-
-### Cart Functions
-```php
-fnc_add_to_cart($pid, $qty)             // Add to cart
-fnc_get_cart()                          // Get current cart
-fnc_empty_cart()                        // Clear cart
-fnc_rem_from_cart($pid)                 // Remove item
-```
-
-### Order Functions
-```php
-fnc_get_order($order_id)                // Get order details
-fnc_save_order_status($order_id, $status) // Update status
-fnc_send_confirm($order)                // Send confirmation email
-```
-
-### Price Functions
-```php
-fnc_format_price($price)                // Format with currency
-fnc_get_price_by_quantity($product, $qty) // Tiered pricing
-fnc_get_shipping_values($order)         // Calculate shipping
-```
-
-## Security
-
-- All files check `defined('_FNEXEC')` to prevent direct access
-- Input sanitization via `FN_GetParam()`
-- Session-based authentication integration
-- Fiscal code/VAT validation for Italian customers
 
 ## License
 
