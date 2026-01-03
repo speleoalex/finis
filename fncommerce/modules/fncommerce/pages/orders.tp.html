@@ -1,0 +1,40 @@
+<div class="container-fluid">
+    <h2 class="mb-4">{txt_orders_status}</h2>
+
+    <!-- if {has_orders} -->
+    <div class="table-responsive mb-4">
+        <table class="table table-striped table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>{txt_order_number}</th>
+                    <th>{txt_date}</th>
+                    <th>{txt_status}</th>
+                    <th class="text-end">{txt_total}</th>
+                    <th>{txt_actions}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- foreach {orders} -->
+                <tr>
+                    <td>{order_id}</td>
+                    <td>{order_date}</td>
+                    <td>{order_status}</td>
+                    <td class="text-end">{order_total}</td>
+                    <td><a href="{order_url}" class="btn btn-sm btn-primary">{txt_view_status}</a></td>
+                </tr>
+                <!-- end foreach {orders} -->
+            </tbody>
+        </table>
+    </div>
+    <!-- end if {has_orders} -->
+
+    <!-- if {no_orders} -->
+    <div class="alert alert-info">{txt_no_order}</div>
+    <!-- end if {no_orders} -->
+
+    <div class="mt-5">
+        <a href="{url_continue_shopping}" class="btn btn-success">
+            <img style="vertical-align:middle" src="{img_continue}" alt="" /> {txt_continue_shopping}
+        </a>
+    </div>
+</div>

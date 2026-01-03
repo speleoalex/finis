@@ -1,0 +1,12 @@
+<div class="form-check mb-3">
+    <input class="form-check-input" type="radio" name="{step_name}" value="{option_id}" id="{option_id}" {checked}>
+    <label class="form-check-label" for="{option_id}">
+        <strong>{option_title}</strong>
+        <!-- if {has_cost} -->
+        <span class="text-muted">({txt_cost}: {option_cost})</span>
+        <!-- end if {has_cost} -->
+        <!-- if {has_description} -->
+        <div class="text-muted small">{option_description}</div>
+        <!-- end if {has_description} -->
+    </label>
+</div>

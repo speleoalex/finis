@@ -1,0 +1,77 @@
+<div class="container-fluid">
+    <form method="post" action="{form_action}">
+
+        <div class="mb-4 text-center">
+            <button type="submit" class="btn btn-success btn-lg">{txt_confirm_order} &gt;&gt;</button>
+        </div>
+
+        <div class="row">
+            <!-- Order Details Column -->
+            <div class="col-md-4 mb-3">
+                <h4>{txt_my_orders}</h4>
+                <div class="border p-3 bg-light">
+                    {order_details}
+                </div>
+                <div class="mt-2">
+                    <a href="{url_modify_cart}">[{txt_modify}]</a>
+                </div>
+            </div>
+
+            <!-- Order Steps Column -->
+            <div class="col-md-4 mb-3">
+                <h4>{txt_order_options}</h4>
+                <div class="border p-3 bg-light">
+                    <!-- foreach {order_steps} -->
+                    <div class="mb-3">
+                        <strong>{step_title}:</strong><br>
+                        {step_option_title}
+                        <!-- if {has_step_description} -->
+                        <br><em>{step_option_description}</em>
+                        <!-- end if {has_step_description} -->
+                        <br><a href="{step_modify_url}">[{txt_modify}]</a>
+                    </div>
+                    <!-- end foreach {order_steps} -->
+                </div>
+            </div>
+
+            <!-- Customer Data Column -->
+            <div class="col-md-4 mb-3">
+                <h4>{txt_customer_data}</h4>
+                <div class="border p-3 bg-light">
+                    {customer_data_html}
+                </div>
+                <div class="mt-2">
+                    <a href="{url_modify_shipping}">[{txt_modify}]</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terms and Conditions -->
+        <!-- if {has_conditions} -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <!-- foreach {conditions} -->
+                <div class="mb-3">
+                    <h5>{condition_title}</h5>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="conditions{condition_id}" id="cond_{condition_id}">
+                        <label class="form-check-label" for="cond_{condition_id}">
+                            {txt_accept}
+                        </label>
+                    </div>
+                    <div class="border p-3" style="height: 150px; overflow-y: auto;">
+                        {condition_text}
+                    </div>
+                </div>
+                <!-- end foreach {conditions} -->
+            </div>
+        </div>
+        <!-- end if {has_conditions} -->
+
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <button type="submit" class="btn btn-success btn-lg">{txt_confirm_order} &gt;&gt;</button>
+            </div>
+        </div>
+    </form>
+</div>

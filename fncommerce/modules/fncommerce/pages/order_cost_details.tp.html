@@ -1,0 +1,26 @@
+<div class="table-responsive">
+    <table class="table table-bordered">
+        <tbody>
+            <!-- foreach {cart_items} -->
+            <tr>
+                <td>{item_name} x {item_quantity}</td>
+                <td class="text-end">{item_price}</td>
+            </tr>
+            <!-- end foreach {cart_items} -->
+
+            <!-- if {has_additional_costs} -->
+                <!-- foreach {additional_costs} -->
+                <tr>
+                    <td>{cost_title}</td>
+                    <td class="text-end">{cost_price}</td>
+                </tr>
+                <!-- end foreach {additional_costs} -->
+            <!-- end if {has_additional_costs} -->
+
+            <tr class="table-active">
+                <td><strong>{txt_total_order}</strong></td>
+                <td class="text-end"><strong>{total_price}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+</div>

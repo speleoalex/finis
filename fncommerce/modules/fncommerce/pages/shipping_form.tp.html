@@ -1,0 +1,31 @@
+<div class="container-fluid">
+    <h3>{txt_shipping_title}</h3>
+    <p class="text-muted"><em>{txt_required_fields}</em></p>
+    <hr />
+
+    <!-- if {has_errors} -->
+    <div class="alert alert-danger mb-3">
+        {error_text}
+    </div>
+    <!-- end if {has_errors} -->
+
+    <form method="post" action="{form_action}">
+        <!-- if {is_update} -->
+        <input type="hidden" name="unirecid" value="{edit_id}" />
+        <!-- end if {is_update} -->
+        <input type="hidden" name="save" value="1" />
+
+        {form_html}
+
+        <fieldset class="mt-3">
+            <legend>{txt_notes}</legend>
+            <textarea class="form-control" rows="3" name="notes">{notes_value}</textarea>
+        </fieldset>
+
+        <div class="mt-4">
+            <button type="button" class="btn btn-secondary" onclick="window.location='{url_back}'">{txt_back}</button>
+            <button type="submit" class="btn btn-primary">{txt_next} &gt;&gt;</button>
+        </div>
+    </form>
+</div>
+<br /><br />

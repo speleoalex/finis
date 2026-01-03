@@ -1,0 +1,26 @@
+<div class="container-fluid">
+    <!-- if {is_error} -->
+    <div class="alert alert-danger mb-4">
+        <h4>{error_message}</h4>
+        <p><a href="{error_back_url}" class="btn btn-warning">{txt_back}</a></p>
+    </div>
+    <!-- end if {is_error} -->
+
+    <!-- if {is_success} -->
+    <div class="alert alert-success mb-4">
+        <h4>{txt_order_forwarded}</h4>
+    </div>
+
+    <div class="mb-4">
+        {order_status_html}
+    </div>
+
+    <div class="alert alert-info mb-4">
+        <strong>{txt_thanks_order}</strong>
+    </div>
+
+    <div class="text-center">
+        <button type="button" class="btn btn-primary" onclick="window.location='{url_view_orders}'">{txt_view_orders}</button>
+    </div>
+    <!-- end if {is_success} -->
+</div>

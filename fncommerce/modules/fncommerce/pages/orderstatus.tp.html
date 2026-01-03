@@ -1,0 +1,37 @@
+<div class="container-fluid">
+    <h2 class="mb-3">{txt_order_number}: {order_id}</h2>
+
+    <div class="alert alert-info mb-4">
+        <strong>{txt_order_status}:</strong> {order_status}
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6 mb-3">
+            <h4>{txt_billing_address}</h4>
+            <div class="border p-3 bg-light">{billing_address}</div>
+        </div>
+        <div class="col-md-6 mb-3">
+            <h4>{txt_shipping_address}</h4>
+            <div class="border p-3 bg-light">{shipping_address}</div>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <h4>{txt_order_details}</h4>
+        <div class="border p-3">{order_cost_details}</div>
+    </div>
+
+    <!-- if {show_payment_module} -->
+    <div class="mb-4">
+        <h4>{txt_payment}</h4>
+        <div class="alert alert-warning">{payment_html}</div>
+    </div>
+    <!-- end if {show_payment_module} -->
+
+    <!-- if {show_shipping_status} -->
+    <div class="mb-4">
+        <h4>{txt_shipping_status}</h4>
+        <div class="border p-3">{shipping_status_html}</div>
+    </div>
+    <!-- end if {show_shipping_status} -->
+</div>
