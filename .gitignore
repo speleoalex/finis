@@ -16,6 +16,8 @@
 /src/.htaccess
 /fncommerce/nbproject/private/
 CLAUDE.md
+LOCAL_DEV.md
+.opencode/
 /examples/fullcms/.htaccess
 /examples/fullcms/controlcenter/images/
 /examples/fullcms/controlcenter/sections/

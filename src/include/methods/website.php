@@ -1,8 +1,8 @@
 <?php
+global $_FN;
 $str = "";
 FN_InitSections();
 ob_start();
-global $_FN;
 //if ($_FN['enable_mod_rewrite'] > 0)
 {
     header("Cache-Control: no-cache");
@@ -51,16 +51,14 @@ $peak = memory_get_peak_usage(true);
 
 $str .= "<!-- Page memory: " . round($mem / 1024 / 1024, 2) . " MB | Peak: " . round($peak / 1024 / 1024, 2) . " MB -->";
  
-
-
 if ($tmp = @ob_get_clean())
 {
-    if ($_FN['display_errors'] !== "on")
+    if (($_FN['display_errors'] ?? 'off') !== "on")
     {
         $tmp = "";
     }
-    header("Content-Type: text/html; charset={$_FN['charset_page']}");
-    if ($_FN['enable_compress_gzip'])
+    header("Content-Type: text/html; charset=" . ($_FN['charset_page'] ?? 'UTF-8'));
+    if (!empty($_FN['enable_compress_gzip']))
     {
         header("Content-Encoding: gzip");
         print gzencode($tmp . $str);

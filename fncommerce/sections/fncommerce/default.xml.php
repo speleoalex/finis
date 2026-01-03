@@ -3,8 +3,8 @@
 <fn_sections>
 	<type>fncommerce</type>
 	<parent></parent>
-	<position>30</position>
-	<title>Shopping</title>
+	<position>10</position>
+	<title>Acquista online</title>
 	<description></description>
 	<startdate></startdate>
 	<enddate></enddate>
@@ -18,10 +18,10 @@
 	<group_edit></group_edit>
 	<blocksmode></blocksmode>
 	<blocks></blocks>
-	<title_en></title_en>
 	<title_it></title_it>
-	<description_en></description_en>
+	<title_en></title_en>
 	<description_it></description_it>
+	<description_en></description_en>
 </fn_sections>
 
 <fncf_fncommerce>

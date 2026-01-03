@@ -38,10 +38,14 @@ if ($config['fnc_only_catalog']) {
 } else
     switch ($op) {
         case "orderstatus":
-            if ($orderid == "") {
+            if (empty($_FN['user'])) {
+                // User not logged in - show login link
+                echo "<h3>" . FN_Translate("orders status") . "</h3>";
+                echo "<p>" . FN_Translate("please login to view your orders") . "</p>";
+                echo "<p><a href=\"" . FN_RewriteLink("index.php?mod=login") . "\">" . FN_Translate("login") . "</a></p>";
+            } elseif ($orderid == "") {
                 print_orders($_FN['user']);
             } else {
-
                 if (empty($_GET['pdf'])) {
                     echo "<h3>" . FN_Translate("my orders") . ":</h3>";
                     echo html_orderstatus($orderid);

@@ -4,7 +4,7 @@
 		<name>unirecid</name>
 		<primarykey>1</primarykey>
 		<extra>autoincrement</extra>
-		<frm_show>1</frm_show>
+		<frm_show>0</frm_show>
 	</field>
 	<field>
 		<name>name</name>

@@ -8,6 +8,7 @@
 "view my orders","voir mes commandes"
 "order status","état de la commande"
 "orders status","état des commandes"
+"please login to view your orders","veuillez vous connecter pour voir vos commandes"
 "notes","notes"
 "{sitename} - Order confirmation N.{ordernumber}","{sitename} - Confirmation de commande N.{ordernumber}"
 "order summary","récapitulatif de la commande"

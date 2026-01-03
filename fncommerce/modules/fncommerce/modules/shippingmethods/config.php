@@ -5,7 +5,8 @@
  * 
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  */
-//[it]lista metodi di spedizione  {+}
-$list_enabled_modules = "DHL,STOREPICKUP";
+//[it]lista dei metodi di spedizione {+}
+//[i18n]list of shipping methods {+}
+$list_enabled_modules = "STOREPICKUP,SHIPPING";
 
 ?>

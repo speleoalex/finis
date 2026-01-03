@@ -716,7 +716,10 @@ class XMETATable extends stdClass
             {
                 if (file_exists("$path/$databasename/$dirtable/" . $oldvalues[$this->primarykey]))
                 {
-                    rename("$path/$databasename/$dirtable/" . $oldvalues[$this->primarykey], "$path/$databasename/$dirtable/" . $values[$this->primarykey]);
+                    if (!empty($values[$this->primarykey]))
+                    {
+                        rename("$path/$databasename/$dirtable/" . $oldvalues[$this->primarykey], "$path/$databasename/$dirtable/" . $values[$this->primarykey]);
+                    }
                     $dirtable_new = $this->FindFolderTable($oldvalues);
                 }
             }

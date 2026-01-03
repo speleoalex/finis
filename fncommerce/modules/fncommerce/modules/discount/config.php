@@ -5,8 +5,8 @@
  * 
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  */
-//[it]lista moduli di sconto abilitati {+modules/fncommerce/modules/discount}
-//[en]list enabled discounts modules {+modules/fncommerce/modules/discount}
-$list_enabled_modules = "Discount_total";
+//[it]lista moduli di sconto abilitati {+}
+//[en]list enabled discounts modules {+}
+$list_enabled_modules = "";
 
 ?>
