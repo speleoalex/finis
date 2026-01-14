@@ -1,0 +1,23 @@
+<?php exit(0);?>
+		<tables>
+			<field>
+				<name>unirecid</name>
+				<primarykey>1</primarykey>
+				<extra>autoincrement</extra>
+				<frm_show>0</frm_show>
+			</field>
+		<field>
+			<name>product</name>
+			<frm_it>Prodotto</frm_it>
+			<frm_en>Sconto</frm_en>
+			<foreignkey>fnc_products</foreignkey>
+			<fk_link_field>unirecid</fk_link_field>
+			<fk_show_field>model,name</fk_show_field>
+			<frm_show_image>photo1</frm_show_image>
+		</field>
+		<field>
+			<name>discount</name>
+			<frm_it>Sconto</frm_it>
+			<frm_en>Discount</frm_en>
+		</field>
+</tables>

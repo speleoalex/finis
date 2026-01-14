@@ -1,0 +1,26 @@
+<?exit(0);?>
+<tables>
+	<field>
+		<name>unirecid</name>
+		<primarykey>1</primarykey>
+		<frm_show>0</frm_show>
+		<extra>autoincrement</extra>		
+	</field>
+	<field>
+		<name>iso_code_2</name>
+		<type>string</type>
+	</field>
+	<field>
+		<name>iso_code_3</name>
+		<type>string</type>
+	</field>
+	<field>
+		<name>name</name>
+		<type>string</type>
+	</field>
+	<field>
+		<name>tax</name>
+		<type>int</type>
+	</field>
+	<filename>countries</filename>
+</tables>

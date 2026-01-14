@@ -1,0 +1,69 @@
+<?php exit(0)?><fndatabase>
+	<fnc_orderstatus>
+		<unirecid>opened</unirecid>
+		<name>Aperto</name>
+		<name_en>Open</name_en>
+		<name_es></name_es>
+		<name_de></name_de>
+		<name_fr></name_fr>
+		<notes></notes>
+		<subject_notify></subject_notify>
+		<body_notify></body_notify>
+		<subject_notify_en></subject_notify_en>
+		<subject_notify_es></subject_notify_es>
+		<subject_notify_de></subject_notify_de>
+		<subject_notify_fr></subject_notify_fr>
+		<body_notify_en></body_notify_en>
+		<body_notify_es></body_notify_es>
+		<body_notify_de></body_notify_de>
+		<body_notify_fr></body_notify_fr>
+	</fnc_orderstatus>
+	<fnc_orderstatus>
+		<unirecid>working</unirecid>
+		<name>In lavorazione</name>
+		<name_en></name_en>
+		<name_es></name_es>
+		<name_de></name_de>
+		<name_fr></name_fr>
+		<notes></notes>
+		<subject_notify>Notifica ordine n. {ordernumber}</subject_notify>
+		<body_notify>&lt;p&gt;Il tuo ordine &amp;egrave; ora in lavorazione&lt;/p&gt;</body_notify>
+		<subject_notify_en></subject_notify_en>
+		<subject_notify_es></subject_notify_es>
+		<subject_notify_de></subject_notify_de>
+		<subject_notify_fr></subject_notify_fr>
+		<body_notify_en></body_notify_en>
+		<body_notify_es></body_notify_es>
+		<body_notify_de></body_notify_de>
+		<body_notify_fr></body_notify_fr>
+	</fnc_orderstatus>
+	<fnc_orderstatus>
+		<unirecid>delivered</unirecid>
+		<name>Evaso</name>
+		<name_en>Delivered</name_en>
+	</fnc_orderstatus>
+	<fnc_orderstatus>
+		<unirecid>deleted</unirecid>
+		<name>Cancellato</name>
+		<name_en>Deleted</name_en>
+	</fnc_orderstatus>
+	<fnc_orderstatus>
+		<unirecid>sent</unirecid>
+		<name>Spedito</name>
+		<name_en></name_en>
+		<name_es></name_es>
+		<name_de></name_de>
+		<name_fr></name_fr>
+		<notes></notes>
+		<subject_notify>Il tuo ordine &egrave; stato spedito</subject_notify>
+		<body_notify>&lt;p&gt;Il tuo ordine &amp;egrave; stato spedito&lt;/p&gt;</body_notify>
+		<subject_notify_en></subject_notify_en>
+		<subject_notify_es></subject_notify_es>
+		<subject_notify_de></subject_notify_de>
+		<subject_notify_fr></subject_notify_fr>
+		<body_notify_en></body_notify_en>
+		<body_notify_es></body_notify_es>
+		<body_notify_de></body_notify_de>
+		<body_notify_fr></body_notify_fr>
+	</fnc_orderstatus>
+</fndatabase>

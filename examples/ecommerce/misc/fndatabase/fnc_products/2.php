@@ -1,0 +1,39 @@
+<?php exit(0)?>
+<fndatabase>
+	<fnc_products>
+		<unirecid>2</unirecid>
+		<name>Matrox G400 32MB</name>
+		<status>1</status>
+		<model>MG400-32MB</model>
+		<sort_order></sort_order>
+		<description>&lt;b&gt;Dramatically Different High Performance Graphics&lt;/b&gt;&lt;br&gt;&lt;br&gt;Introducing the Millennium G400 Series - a dramatically different, high performance graphics experience. Armed with the industry&#039;s fastest graphics chip, the Millennium G400 Series takes explosive acceleration two steps further by adding unprecedented image quality, along with the most versatile display options for all your 3D, 2D and DVD applications. As the most powerful and innovative tools in your PC&#039;s arsenal, the Millennium G400 Series will not only change the way you see graphics, but will revolutionize the way you use your computer.&lt;br&gt;&lt;br&gt;&lt;b&gt;Key features:&lt;/b&gt;&lt;ul&gt;&lt;li&gt;New Matrox G400 256-bit DualBus graphics chip&lt;/li&gt;&lt;li&gt;Explosive 3D, 2D and DVD performance&lt;/li&gt;&lt;li&gt;DualHead Display&lt;/li&gt;&lt;li&gt;Superior DVD and TV output&lt;/li&gt;&lt;li&gt;3D Environment-Mapped Bump Mapping&lt;/li&gt;&lt;li&gt;Vibrant Color Quality rendering &lt;/li&gt;&lt;li&gt;UltraSharp DAC of up to 360 MHz&lt;/li&gt;&lt;li&gt;3D Rendering Array Processor&lt;/li&gt;&lt;li&gt;Support for 16 or 32 MB of memory&lt;/li&gt;&lt;/ul&gt;</description>
+		<photo1>mg400-32mb.gif</photo1>
+		<photo2></photo2>
+		<photo3></photo3>
+		<photo4></photo4>
+		<photo5></photo5>
+		<photo6></photo6>
+		<attachment></attachment>
+		<attachment2></attachment2>
+		<height></height>
+		<width></width>
+		<depth></depth>
+		<year></year>
+		<weight>23.00</weight>
+		<manufacturers>1</manufacturers>
+		<freeshipping></freeshipping>
+		<quantity>32</quantity>
+		<price>499.9900</price>
+		<vat></vat>
+		<name_it></name_it>
+		<description_it></description_it>
+		<name_en></name_en>
+		<description_en></description_en>
+		<name_de></name_de>
+		<name_es></name_es>
+		<description_de></description_de>
+		<description_es></description_es>
+		<name_fr></name_fr>
+		<description_fr></description_fr>
+	</fnc_products>
+</fndatabase>

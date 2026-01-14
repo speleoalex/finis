@@ -1,0 +1,39 @@
+<?php exit(0)?>
+<fndatabase>
+	<fnc_products>
+		<unirecid>26</unirecid>
+		<name>Microsoft IntelliMouse Explorer</name>
+		<status>1</status>
+		<model>MSIMEXP</model>
+		<sort_order></sort_order>
+		<description>Microsoft introduces its most advanced mouse, the IntelliMouse Explorer! IntelliMouse Explorer features a sleek design, an industrial-silver finish, a glowing red underside and taillight, creating a style and look unlike any other mouse. IntelliMouse Explorer combines the accuracy and reliability of Microsoft IntelliEye optical tracking technology, the convenience of two new customizable function buttons, the efficiency of the scrolling wheel and the comfort of expert ergonomic design. All these great features make this the best mouse for the PC!</description>
+		<photo1>imexplorer.gif</photo1>
+		<photo2></photo2>
+		<photo3></photo3>
+		<photo4></photo4>
+		<photo5></photo5>
+		<photo6></photo6>
+		<attachment></attachment>
+		<attachment2></attachment2>
+		<height></height>
+		<width></width>
+		<depth></depth>
+		<year></year>
+		<weight>8.00</weight>
+		<manufacturers>2</manufacturers>
+		<freeshipping></freeshipping>
+		<quantity>10</quantity>
+		<price>64.9500</price>
+		<vat></vat>
+		<name_it></name_it>
+		<description_it></description_it>
+		<name_en></name_en>
+		<description_en></description_en>
+		<name_de></name_de>
+		<name_es></name_es>
+		<description_de></description_de>
+		<description_es></description_es>
+		<name_fr></name_fr>
+		<description_fr></description_fr>
+	</fnc_products>
+</fndatabase>

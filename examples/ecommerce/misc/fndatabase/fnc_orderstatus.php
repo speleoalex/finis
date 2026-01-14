@@ -1,0 +1,128 @@
+<?exit(0);?>
+<tables>
+	<field>
+		<primarykey>1</primarykey>
+		<name>unirecid</name>
+	</field>
+	<field>
+		<type>string</type>
+		<name>name</name>
+		<frm_it>Nome</frm_it>
+		<frm_multilanguages>auto</frm_multilanguages>
+	</field>
+	<field>
+		<name>notes</name>
+		<frm_it>Note sull' ordine</frm_it>
+		<frm_en>Order notes</frm_en>
+		<type>text</type>
+		<frm_rows>3</frm_rows>
+		<frm_cols>80</frm_cols>
+	</field>
+	<field>
+		<name>subject_notify</name>
+		<frm_it>Oggetto mail di notifica</frm_it>
+		<frm_en>Subject mail notify</frm_en>
+		<type>varchar</type>
+		<frm_multilanguages>auto</frm_multilanguages>
+	</field>
+	<field>
+		<name>body_notify</name>
+		<frm_it>Corpo mail di notifica</frm_it>
+		<frm_en>Body mail notify</frm_en>
+		<frm_cols>80</frm_cols>
+		<frm_rows>5</frm_rows>
+		<type>text</type>
+		<frm_type>html</frm_type>
+		<frm_multilanguages>auto</frm_multilanguages>
+	</field>
+	<field>
+		<name>name_en</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>name_es</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>name_de</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>name_fr</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>subject_notify_en</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>subject_notify_es</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>subject_notify_de</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>subject_notify_fr</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>body_notify_en</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>body_notify_es</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>body_notify_de</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>body_notify_fr</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>name_it</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>subject_notify_it</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>body_notify_it</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>name_ru</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>subject_notify_ru</name>
+		<type>varchar</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+<field>
+		<name>body_notify_ru</name>
+		<type>text</type>
+		<frm_multilanguage>1</frm_multilanguage>
+	</field>
+</tables>

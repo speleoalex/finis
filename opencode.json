@@ -1,0 +1,41 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "anthropic/claude-sonnet-4-20250514",
+  "instructions": ["AGENTS.md", "doc/Finis_Framework_LLM_Guide.md"],
+  "agent": {
+    "finis-section": {
+      "description": "Creates new FINIS sections with all required files (default.xml.php, section.php, section.html)",
+      "mode": "subagent",
+      "prompt": "You are a FINIS framework specialist for creating sections.\n\nWhen creating a new section:\n1. Create folder in src/sections/[name]/\n2. Create default.xml.php with proper XML metadata\n3. Create section.php with $SECTION array logic\n4. Create section.html with template syntax {variable}\n\nAlways use:\n- defined('_FNEXEC') or die('Restricted access'); in PHP files\n- FN_GetParam() for user input with type casting\n- FN_XMDBTable() for database operations\n- Template syntax: {var}, {i18n:key}, <!-- if {cond} -->, <!-- foreach {arr} -->\n\nRefer to doc/Finis_Framework_LLM_Guide.md for detailed patterns."
+    },
+    "finis-database": {
+      "description": "Creates and modifies FINIS database table definitions in XML format",
+      "mode": "subagent",
+      "prompt": "You are a FINIS database specialist.\n\nDatabase tables are defined as XML in misc/fndatabase/[tablename].php\n\nKey rules:\n- Use 'autoincrement' (no underscore) for auto-increment fields\n- Primary key field usually named 'id' with <primarykey>1</primarykey>\n- Foreign keys: <foreignkey>, <fk_link_field>, <fk_show_field>\n- Form types: text, select, check, password, datetime, image, file\n- Use <frm_i18n> for translatable labels\n- Use <frm_required>1</frm_required> for required fields\n\nCommon field properties:\n- <type>: int, varchar, text, decimal, datetime, check\n- <frm_type>: text, select, check, password, datetime, html\n- <size>: max length for varchar\n- <defaultvalue>: default value\n- <unique>1</unique>: unique constraint\n\nRefer to doc/Finis_Framework_LLM_Guide.md for complete field specifications."
+    },
+    "finis-module": {
+      "description": "Creates and modifies FINIS modules in src/modules/",
+      "mode": "subagent",
+      "prompt": "You are a FINIS module development specialist.\n\nModules are reusable components in src/modules/[name]/\n\nModule structure:\n- section.php: Main logic\n- section.html: Template\n- functions.php: Helper functions\n- config.php: Module configuration\n\nBest practices:\n- Use define() for module path constants like _PATH_NEWS_\n- Include functions.php and functions_theme.php as needed\n- Use FN_LoadConfig() for module configuration\n- Handle operations via switch($op) pattern\n- Use FN_GetParam() for all user input\n\nExamine src/modules/news/ as reference implementation."
+    },
+    "finis-theme": {
+      "description": "Quick theme modifications and minor styling changes",
+      "mode": "subagent",
+      "prompt": "You are a FINIS theme development specialist for quick modifications.\n\nThemes are in src/themes/[name]/ with:\n- template.tp.html: Main layout template\n- css/: Stylesheets\n- img/: Theme images\n\nFor complete theme creation, use @finis-theme-designer instead."
+    }
+  },
+  "command": {
+    "finis-cache": {
+      "template": "Clear the FINIS cache by running: php utils/clear_cache.php --all --verbose",
+      "description": "Clear FINIS cache"
+    },
+    "finis-server": {
+      "template": "Start LAMPP server with: sudo /opt/lampp/lampp start",
+      "description": "Start LAMPP server"
+    },
+    "finis-test": {
+      "template": "Run the test file: php src/test_cron.php",
+      "description": "Run FINIS tests"
+    }
+  }
+}

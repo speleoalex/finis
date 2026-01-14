@@ -1,0 +1,39 @@
+<?php exit(0)?>
+<fndatabase>
+	<fnc_products>
+		<unirecid>23</unirecid>
+		<name>The Wheel Of Time</name>
+		<status>1</status>
+		<model>PC-TWOF</model>
+		<sort_order></sort_order>
+		<description>The world in which The Wheel of Time takes place is lifted directly out of Jordan&#039;s pages; it&#039;s huge and consists of many different environments. How you navigate the world will depend largely on which game - single player or multipayer - you&#039;re playing. The single player experience, with a few exceptions, will see Elayna traversing the world mainly by foot (with a couple notable exceptions). In the multiplayer experience, your character will have more access to travel via Ter&#039;angreal, Portal Stones, and the Ways. However you move around, though, you&#039;ll quickly discover that means of locomotion can easily become the least of the your worries...&lt;br&gt;&lt;br&gt;During your travels, you quickly discover that four locations are crucial to your success in the game. Not surprisingly, these locations are the homes of The Wheel of Time&#039;s main characters. Some of these places are ripped directly from the pages of Jordan&#039;s books, made flesh with Legend&#039;s unparalleled pixel-pushing ways. Other places are specific to the game, conceived and executed with the intent of expanding this game world even further. Either way, they provide a backdrop for some of the most intense first person action and strategy you&#039;ll have this year.</description>
+		<photo1>wheel_of_time.gif</photo1>
+		<photo2></photo2>
+		<photo3></photo3>
+		<photo4></photo4>
+		<photo5></photo5>
+		<photo6></photo6>
+		<attachment></attachment>
+		<attachment2></attachment2>
+		<height></height>
+		<width></width>
+		<depth></depth>
+		<year></year>
+		<weight>10.00</weight>
+		<manufacturers>8</manufacturers>
+		<freeshipping></freeshipping>
+		<quantity>16</quantity>
+		<price>99.9900</price>
+		<vat></vat>
+		<name_it></name_it>
+		<description_it></description_it>
+		<name_en></name_en>
+		<description_en></description_en>
+		<name_de></name_de>
+		<name_es></name_es>
+		<description_de></description_de>
+		<description_es></description_es>
+		<name_fr></name_fr>
+		<description_fr></description_fr>
+	</fnc_products>
+</fndatabase>

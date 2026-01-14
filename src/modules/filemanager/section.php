@@ -667,7 +667,7 @@ function fm_OpenFile($dir, $file)
         }
         else
         {
-            echo "&nbsp;<button onclick=\"window.location='?opmod=downloadfile&file=" . urlencode($dir) . "/" . urlencode(basename($file)) . "'\"  >" . FN_Translate("download") . "</button>";
+            echo "&nbsp;<button onclick=\"window.location='" . fm_Link(array("opmod" => "downloadfile", "file" => "$dir/" . basename($file)), "&") . "'\"  >" . FN_Translate("download") . "</button>";
             echo "&nbsp;<button onclick=\"window.location='" . fm_Link(array("opmod" => "rename", "dir" => $dir, "ffile" => $file), "&") . "'\" >" . FN_Translate('rename') . " </button>";
             if (preg_match('/^text\\//s', $filetype) == 1 && FN_CanModifyFile($_FN['user'], "$dir{$_FN['slash']}$file"))
             {
@@ -1229,7 +1229,7 @@ function fm_DrawFile($file, $mode)
             echo "<a title=\"" . FN_Translate("delete") . "\" " . fm_StyleA() . "href='#' onclick=\"check('$ldel');\"><img style=\"border:0px\" src=\"" . FN_FromTheme("images/delete.png") . "\" alt=\"" . FN_Translate("delete") . "\" /></a>";
             echo "&nbsp;<a title=\"" . FN_Translate("rename") . "\" " . fm_StyleA() . " href=\"$lmod\" ><img style=\"border:0px\" src=\"" . FN_FromTheme("images/rename.png") . "\" alt=\"" . FN_Translate('rename') . "\" /></a>&nbsp;";
         }
-        echo "<a title=\"" . FN_Translate("download") . "\" " . fm_StyleA() . " href=\"{$_FN['src_finis']}/?opmod=downloadfile&file=$pdir/" . basename($file) . "\" >&dArr;</a>";
+        echo "<a title=\"" . FN_Translate("download") . "\" " . fm_StyleA() . " href=\"" . fm_Link(array("opmod" => "downloadfile", "file" => "$pdir/" . basename($file)), "&amp;") . "\" >&dArr;</a>";
         echo "</div></td>";
     }
     else
