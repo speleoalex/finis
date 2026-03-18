@@ -300,13 +300,19 @@ function FN_FromTheme($file, $absolute = true)
         }
     }
 
-    // Construct theme path
-    $themePath = "{$_FN['src_application']}/themes/{$_FN['theme']}/" .
-        ltrim(str_replace("{$_FN['src_finis']}/", "", $applicationPath), '/');
+    // Construct relative path for theme lookup
+    $relativePath = ltrim(str_replace("{$_FN['src_finis']}/", "", $applicationPath), '/');
 
-    // Check if the file exists in the theme directory
+    // Check in src_application themes first
+    $themePath = "{$_FN['src_application']}/themes/{$_FN['theme']}/" . $relativePath;
     if (file_exists($themePath)) {
         return $absolute ? $_FN['siteurl'] . $themePath : $themePath;
+    }
+
+    // Also check in src_finis themes
+    $finisThemePath = "{$_FN['src_finis']}/themes/{$_FN['theme']}/" . $relativePath;
+    if (file_exists($finisThemePath)) {
+        return $absolute ? $_FN['siteurl'] . $finisThemePath : $finisThemePath;
     }
 
     // If not found in theme, use FN_PathSite with the resolved path

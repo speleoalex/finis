@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?php exit(0);?>
 <fn_sections>
-	<type></type>
+	<type>dbview</type>
 	<startdate></startdate>
 	<enddate></enddate>
 	<status>1</status>
@@ -13,8 +13,8 @@
 	<group_edit></group_edit>
 	<blocksmode></blocksmode>
 	<blocks></blocks>
-	<title_it>Home</title_it>
-	<description_it></description_it>
+	<title_en>Home</title_en>
+	<description_en></description_en>
 	<title>Home</title>
 	<description></description>
 </fn_sections>
