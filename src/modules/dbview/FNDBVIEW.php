@@ -11,7 +11,6 @@ global $_FN;
 
 // Carica i trait
 require_once __DIR__ . '/traits/FNDBVIEWPermissions.php';
-require_once __DIR__ . '/traits/FNDBVIEWComments.php';
 require_once __DIR__ . '/traits/FNDBVIEWCRUD.php';
 require_once __DIR__ . '/traits/FNDBVIEWExport.php';
 require_once __DIR__ . '/traits/FNDBVIEWUtils.php';
@@ -21,7 +20,6 @@ require_once __DIR__ . '/traits/FNDBVIEWUtils.php';
  *
  * Refactored per utilizzare trait separati:
  * - FNDBVIEWPermissions: gestione permessi utente
- * - FNDBVIEWComments: gestione commenti
  * - FNDBVIEWCRUD: operazioni Create, Read, Update, Delete
  * - FNDBVIEWExport: esportazione dati (CSV, Sitemap, RSS)
  * - FNDBVIEWUtils: utility varie (MakeLink, SecureHtml, etc.)
@@ -29,7 +27,6 @@ require_once __DIR__ . '/traits/FNDBVIEWUtils.php';
 class FNDBVIEW
 {
     use FNDBVIEWPermissions;
-    use FNDBVIEWComments;
     use FNDBVIEWCRUD;
     use FNDBVIEWExport;
     use FNDBVIEWUtils;
@@ -118,7 +115,6 @@ class FNDBVIEW
                 FN_CreateGroupIfNotExists($group);
             }
         }
-        //------------------- tabella commenti-------------------------
         //--------------- creazione tabelle -------------------------------<
         
     }
@@ -511,7 +507,6 @@ class FNDBVIEW
 
     // I seguenti metodi sono ora nei trait:
     // - FNDBVIEWUtils: SaveToCSV, MakeLink, SecureHtml, GoDownload, Request, GetRank, SetRank, InvalidateCache
-    // - FNDBVIEWComments: GetUsersComments, WriteComment, DelComment
     // - FNDBVIEWCRUD: UpdateRecord, InsertRecord
     // - FNDBVIEWExport: WriteSitemap, GenerateRSS, GetRecordValues, GenOfflineUpdate, GenOfflineInsert
     // - FNDBVIEWPermissions: IsAdmin, GetFieldUser, GetFieldUserList, IsAdminRecord, CanAddRecord, CanViewRecords, UserCanEditField, CanEditRecord, CanViewRecord
@@ -529,6 +524,7 @@ class FNDBVIEW
         $tplvars['pages'] = array();
         $tplvars['url_offlineforminsert'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=offlineform");
         $tplvars['querystring'] = $this->MakeLink(array("page" => null), "&", true, true);
+        $tplvars['txt_num_records'] = "";
         //--config--<
         $page = FN_GetParam("page", $_GET);
         $recordsperpage = FN_GetParam("rpp", $_GET);

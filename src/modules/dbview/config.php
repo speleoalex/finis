@@ -38,8 +38,6 @@ $config['search_orders'] = "title,recordinsert,recordupdate";
 //[it]Ordine predefinito per la visualizzazione records
 //[i18n]default order to display records
 $config['defaultorder'] = "recordupdate";
-//[i18n]enable notifications on comments {1=yes,0=no}
-$config['enable_comments_notify'] = 0;
 //[i18n]fields to look for higher values of
 $config['search_min'] = "";
 //[i18n]field to be used as the title

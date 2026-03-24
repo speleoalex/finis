@@ -174,9 +174,6 @@ else
                     $shownavigatebar = false;
                 $html .= $dbview->ViewRecordPage($id, false, $shownavigatebar); // visualizza la pagina col record
                 break;
-            case "writecomment" :
-                $html .= $dbview->WriteComment($id);
-                break;
             case "request" :
                 $html .= $dbview->Request($id);
                 break;
@@ -206,9 +203,6 @@ else
                 break;
             case "admingroups" :
                 $html .= $dbview->AdminPerm($id); //  permessi records
-                break;
-            case "delcomment" :
-                $html .= $dbview->DelComment($id); //  form nuovo record
                 break;
             case "del" :
                 $html .= $dbview->DelRecordForm($id); //  form nuovo record

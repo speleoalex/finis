@@ -2,12 +2,17 @@
 <?php exit(0);?>
 <fn_sections>
 	<type>dbview</type>
+	<parent></parent>
+	<position>0</position>
+	<title>Home</title>
+	<description></description>
 	<startdate></startdate>
 	<enddate></enddate>
 	<status>1</status>
 	<hidden></hidden>
 	<accesskey></accesskey>
 	<keywords></keywords>
+	<sectionpath>sections</sectionpath>
 	<level></level>
 	<group_view></group_view>
 	<group_edit></group_edit>
@@ -15,6 +20,46 @@
 	<blocks></blocks>
 	<title_en>Home</title_en>
 	<description_en></description_en>
-	<title>Home</title>
-	<description></description>
+	<link>http://localhost/speleoalex/finis/finis/examples/ecommerce/home.html</link>
 </fn_sections>
+
+<fncf_dbview>
+	<databasename>fndatabase</databasename>
+	<recordsperpage>12</recordsperpage>
+	<groupinsert></groupinsert>
+	<groupadmin></groupadmin>
+	<groupview></groupview>
+	<mailalert></mailalert>
+	<viewonlycreator>0</viewonlycreator>
+	<generate_googlesitemap>1</generate_googlesitemap>
+	<tables>fn_files</tables>
+	<search_orders>title,recordinsert,recordupdate</search_orders>
+	<defaultorder>recordupdate</defaultorder>
+	<enable_comments_notify>1</enable_comments_notify>
+	<search_min></search_min>
+	<titlefield>title</titlefield>
+	<descriptionfield>description</descriptionfield>
+	<search_options></search_options>
+	<navigate_groups>username</navigate_groups>
+	<search_partfields></search_partfields>
+	<search_fields>username</search_fields>
+	<appendquery></appendquery>
+	<image_titlefield>photo1</image_titlefield>
+	<image_size>400</image_size>
+	<image_size_h>300</image_size_h>
+	<table_rules></table_rules>
+	<enable_permissions_each_records>1</enable_permissions_each_records>
+	<enable_permissions_edit_each_records>1</enable_permissions_edit_each_records>
+	<permissions_records_groups>dbview_rw,dbview_ro</permissions_records_groups>
+	<permissions_records_edit_groups>dbview_rw,dbview_ro</permissions_records_edit_groups>
+	<enable_history>1</enable_history>
+	<enable_export>1</enable_export>
+	<enable_delete>1</enable_delete>
+	<hide_on_delete>1</hide_on_delete>
+	<default_show_groups>0</default_show_groups>
+	<enable_statistics>1</enable_statistics>
+	<search_query_native_mysql>0</search_query_native_mysql>
+	<enable_offlineform>1</enable_offlineform>
+	<documents_folder></documents_folder>
+	<enable_cache>0</enable_cache>
+</fncf_dbview>
