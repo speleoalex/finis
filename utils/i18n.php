@@ -140,7 +140,7 @@ function Local_LoadMessages($filename, $exclude = array())
     $first = true;
     $handle = fopen("$filename", "r");
 
-    while (($data = fgetcsv($handle, 5000, ",")) !== false) {
+    while (($data = fgetcsv($handle, 5000, ",", "\"", "\\")) !== false) {
 
         if ($first == true) {
             $first = false;

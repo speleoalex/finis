@@ -546,7 +546,7 @@ class XMETATable_csv
             return array();
         $handle=fopen("$filename","r");
         $ret=array();
-        while(($data=fgetcsv($handle,5000,$this->separator)) !== false)
+        while(($data=fgetcsv($handle,5000,$this->separator,"\"","\\")) !== false)
         {
             if ($row == 1)
             {
