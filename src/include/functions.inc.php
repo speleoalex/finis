@@ -1466,14 +1466,14 @@ function FN_SaveFile($filecontents, $filename, $HeaderContentType = "application
  * @param type $enclosure
  * @return type
  */
-function FN_ReadCsvDatabase($filename, $delimiter, $enclosure = '"')
+function FN_ReadCsvDatabase($filename, $delimiter, $enclosure = '"', $escape= '\\')
 {
     $row = 1;
     if (!file_exists($filename))
         return array();
     $handle = fopen("$filename", "r");
     $ret = array();
-    while (($data = fgetcsv($handle, 0, $delimiter, $enclosure)) !== false) {
+    while (($data = fgetcsv($handle, 0, $delimiter, $enclosure, $escape)) !== false) {
         if ($row === 1) {
             foreach ($data as $k) {
                 while (isset($keys[$k])) {
