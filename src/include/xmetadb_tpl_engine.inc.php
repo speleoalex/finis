@@ -11,7 +11,7 @@
 function TPL_GetHtmlPart($partname, $tp_str, $default = "")
 {
     $out = array();
-    if (preg_match("/<!-- $partname -->.*<!-- $partname -->/s", $tp_str))//se il nome del nodo contiene un elemento con lo stesso nome
+    if (preg_match("/<!-- $partname -->.*?<!-- $partname -->/s", $tp_str))//se il nome del nodo contiene un elemento con lo stesso nome
     {
         $tmp = explode("<!-- $partname -->", $tp_str);
 
@@ -29,7 +29,10 @@ function TPL_GetHtmlPart($partname, $tp_str, $default = "")
             return $tp_str;
         }
     }
-    preg_match("/<!-- $partname -->(.*)<!-- end$partname -->/is", $tp_str, $out) || preg_match("/<!-- $partname -->(.*)<!-- end $partname -->/is", $tp_str, $out) || preg_match("/<!-- $partname -->(.*)<!-- end_$partname -->/is", $tp_str, $out)
+    // Non-greedy `.*?`: greedy `.*` over multi-MB templates hits PCRE
+    // pcre.backtrack_limit (1M) and silently returns false, leaving
+    // <!-- if {var} --> blocks unprocessed in the output.
+    preg_match("/<!-- $partname -->(.*?)<!-- end$partname -->/is", $tp_str, $out) || preg_match("/<!-- $partname -->(.*?)<!-- end $partname -->/is", $tp_str, $out) || preg_match("/<!-- $partname -->(.*?)<!-- end_$partname -->/is", $tp_str, $out)
     ;
     $tp_str = empty($out[0]) ? $default : $out[0];
     return $tp_str;
@@ -53,7 +56,7 @@ function TPL_GetHtmlParts($partname, $tp_str, $default = "")
     }
     $out = array();
     $ret = array();
-    if (preg_match("/<!-- $partname -->.*<!-- $partname -->/s", $tp_str))//se il nome del nodo contiene un elemento con lo stesso nome
+    if (preg_match("/<!-- $partname -->.*?<!-- $partname -->/s", $tp_str))//se il nome del nodo contiene un elemento con lo stesso nome
     {
         $tmp = explode("<!-- $partname -->", $tp_str);
         $i = 1;
@@ -74,7 +77,8 @@ function TPL_GetHtmlParts($partname, $tp_str, $default = "")
         }
         return $ret;
     }
-    preg_match("/<!-- $partname -->(.*)<!-- end$partname -->/is", $tp_str, $out) || preg_match("/<!-- $partname -->(.*)<!-- end $partname -->/is", $tp_str, $out);
+    // Non-greedy: see TPL_GetHtmlPart for rationale
+    preg_match("/<!-- $partname -->(.*?)<!-- end$partname -->/is", $tp_str, $out) || preg_match("/<!-- $partname -->(.*?)<!-- end $partname -->/is", $tp_str, $out);
     $tp_str = empty($out[0]) ? $default : $out[0];
     if ($tp_str)
     {
