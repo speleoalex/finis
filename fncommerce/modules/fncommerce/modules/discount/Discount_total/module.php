@@ -42,9 +42,9 @@ class fnc_discount_Discount_total
 	 */
 	function description()
 	{
-		$minprice=0;
-		include ("modules/fncommerce/modules/discount/Discount_total/config.php");
-		
+		$_config = FN_LoadConfig("modules/fncommerce/modules/discount/Discount_total/config.php");
+		$minprice = isset($_config['minprice']) ? $_config['minprice'] : 0;
+
 		return "per una spesa superiore a ".fnc_format_price($minprice);
 	}
 	/**
@@ -56,9 +56,9 @@ class fnc_discount_Discount_total
 		global $_FN;
 		$nextstep=fnc_get_next_order_step("discount");
 		//dprint_r($this->order);
-		$minprice=0;
-		include ("modules/fncommerce/modules/discount/Discount_total/config.php");
-		
+		$_config = FN_LoadConfig("modules/fncommerce/modules/discount/Discount_total/config.php");
+		$minprice = isset($_config['minprice']) ? $_config['minprice'] : 0;
+
 		$discount=$this->get_discount();
 		if ($discount>0)
 		{
@@ -124,9 +124,9 @@ class fnc_discount_Discount_total
 	 */
 	function get_discount()
 	{
-		$discount=0;
-		$minprice=0;
-		include ("modules/fncommerce/modules/discount/Discount_total/config.php");
+		$_config = FN_LoadConfig("modules/fncommerce/modules/discount/Discount_total/config.php");
+		$discount = isset($_config['discount']) ? $_config['discount'] : 0;
+		$minprice = isset($_config['minprice']) ? $_config['minprice'] : 0;
 		//-----totale sul carrello  --->
 		$totalcart=0;
 		foreach($this->order['cart'] as $cartitem)

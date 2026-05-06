@@ -49,7 +49,6 @@ class fnc_vouchers_voucher_code
 			$discount = $res['discount'];
 			if ($res['res'] !== false)
 			{
-				include ("modules/fncommerce/modules/vouchers/voucher_code/config.php");
 				echo $res['message'].":".$voucher_code;
 				echo "<br />".FN_Translate("discount").":".fnc_format_price($discount);
 				echo "<input type=\"hidden\" name=\"vouchers\" value=\"voucher_code\" />";
@@ -71,7 +70,6 @@ class fnc_vouchers_voucher_code
 		$res = $this->is_valid($voucher_code);
 		if ($res['res'])
 		{
-			include ("modules/fncommerce/modules/vouchers/voucher_code/config.php");
 			$cost = array(
 				'title'=>"Voucher",
 				'total'=>(0.0 - $res['discount']),
@@ -84,13 +82,7 @@ class fnc_vouchers_voucher_code
 
 	function do_payment()
 	{
-		global $_FN;
-
-		$paypal_email = "";
-		$valuta = $_FN['currency'];
-		include ("modules/fncommerce/modules/vouchers/voucher_code/config.php");
-		$ret = "";
-		return $ret;
+		return "";
 	}
 
 	/**

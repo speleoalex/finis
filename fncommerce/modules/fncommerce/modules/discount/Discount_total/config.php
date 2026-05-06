@@ -1,10 +1,10 @@
 <?php
 //[it]Prezzo minimo per avere lo sconto
 //[en]Min price
-$minprice = 100;
+$config['minprice'] = 100;
 
-//[it]Sconto 
-//[en]Discount 
-$discount = 10;
+//[it]Sconto
+//[en]Discount
+$config['discount'] = 10;
 
 ?>

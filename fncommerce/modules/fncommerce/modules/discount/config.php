@@ -7,6 +7,6 @@
  */
 //[it]lista moduli di sconto abilitati {+}
 //[en]list enabled discounts modules {+}
-$list_enabled_modules = "";
+$config['list_enabled_modules'] = "";
 
 ?>

@@ -7,6 +7,6 @@
  */
 //[it]lista dei metodi di spedizione {+}
 //[i18n]list of shipping methods {+}
-$list_enabled_modules = "STOREPICKUP,SHIPPING";
+$config['list_enabled_modules'] = "STOREPICKUP,SHIPPING";
 
 ?>

@@ -17,8 +17,8 @@
  	//verifica se con l' ordine corrente questo step e' abilitato
  	function is_enabled()
  	{
- 		$list_enabled_modules="";
- 		include("modules/fncommerce/modules/vouchers/config.php");
+ 		$_config = FN_LoadConfig("modules/fncommerce/modules/vouchers/config.php");
+ 		$list_enabled_modules = isset($_config['list_enabled_modules']) ? $_config['list_enabled_modules'] : "";
  		if ($list_enabled_modules=="")
  			return false;
  		

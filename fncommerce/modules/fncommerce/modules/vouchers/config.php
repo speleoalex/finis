@@ -6,7 +6,7 @@
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  */
 //[it]lista moduli di sconto abilitati {+}
-$list_enabled_modules = "";
+$config['list_enabled_modules'] = "";
 
 
 ?>

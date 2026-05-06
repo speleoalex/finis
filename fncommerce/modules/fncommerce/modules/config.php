@@ -9,6 +9,6 @@
  
 //[it]sequenza moduli abilitati per il pagamento {+}
 //[en]sequence of modules enabled for payment {+}
-$steps_modules = "shippingmethods,payments";
+$config['steps_modules'] = "shippingmethods,payments";
  
 ?>

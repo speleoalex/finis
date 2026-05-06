@@ -16,8 +16,8 @@
  	function is_enabled()
  	{
  		
- 		$list_enabled_modules="";
- 		include("modules/fncommerce/modules/discount/config.php");
+ 		$_config = FN_LoadConfig("modules/fncommerce/modules/discount/config.php");
+ 		$list_enabled_modules = isset($_config['list_enabled_modules']) ? $_config['list_enabled_modules'] : "";
  		if ($list_enabled_modules=="")
  			return false;
  		$list_enabled_modules=explode(",",$list_enabled_modules);

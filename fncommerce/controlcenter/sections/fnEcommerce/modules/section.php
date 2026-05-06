@@ -16,8 +16,8 @@ $edit = FN_GetParam("edit", $_GET, "flat");
 $fncommerce_path = FN_GetModulePath("fncommerce");
 
 //-------------------------steps list----------------------------------------->
-$steps_modules = "";
-require("{$fncommerce_path}/modules/config.php");
+$config_steps = FN_LoadConfig("modules/fncommerce/modules/config.php");
+$steps_modules = isset($config_steps['steps_modules']) ? $config_steps['steps_modules'] : "";
 $liststeps = $steps_modules = explode(",", $steps_modules);
 $liststeps_tmp = FN_ListDir("{$fncommerce_path}/modules/");
 foreach ($liststeps_tmp as $step) {
@@ -50,7 +50,8 @@ if ($edit == "") {
 
 		//--------------------list modules------------------------------------->
 		$listitems_tmp = FN_ListDir("{$fncommerce_path}/modules/$itemstep");
-		require("{$fncommerce_path}/modules/$itemstep/config.php");
+		$config_step = FN_LoadConfig("modules/fncommerce/modules/$itemstep/config.php");
+		$list_enabled_modules = isset($config_step['list_enabled_modules']) ? $config_step['list_enabled_modules'] : "";
 		$listitems = $list_enabled_modules = explode(",", $list_enabled_modules);
 		if ($list_enabled_modules) {
 			foreach ($listitems_tmp as $itemdir) {
@@ -91,5 +92,5 @@ if ($edit == "") {
 } else {
 
 	echo "<br />$edit";
-	fn_editconffile("$edit/config.php", "?fnapp=controlcenter&opt=$opt&amp;edit=$edit", "?fnapp=controlcenter&opt=$opt");
+	FN_EditConfFile("$edit/config.php", "?fnapp=controlcenter&opt=$opt&amp;edit=$edit", "?fnapp=controlcenter&opt=$opt");
 }

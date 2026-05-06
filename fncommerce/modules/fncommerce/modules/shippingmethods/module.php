@@ -23,8 +23,8 @@ class fnc_shippingmethods
             $prod = fnc_getproduct($item['pid']);
             if ($prod['freeshipping'] != 1)
             {
-                $list_enabled_modules = "";
-                include ("modules/fncommerce/modules/shippingmethods/config.php");
+                $_config = FN_LoadConfig("modules/fncommerce/modules/shippingmethods/config.php");
+                $list_enabled_modules = isset($_config['list_enabled_modules']) ? $_config['list_enabled_modules'] : "";
                 $list_enabled_modules = explode(",", $list_enabled_modules);
                 //se ho solo un opzione non la visualizzo ---->
                 if (count($list_enabled_modules) == 1 && $list_enabled_modules != "")

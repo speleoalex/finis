@@ -1136,6 +1136,9 @@ function print_shipping()
     $op = FN_GetParam("op", $_REQUEST, "flat");
     //$edit = FN_GetParam("edit", $_GET, "flat");
     $save = FN_GetParam("save", $_POST, "flat");
+    //solo refresh form (es. cambio nazione), non e' un vero submit
+    if (FN_GetParam("__NOSAVE", $_POST, "flat") != "")
+        $save = "";
     $update = FN_GetParam("update", $_GET, "flat");
     $Table = FN_XMDBForm("fnc_users"); //new FieldFrm("fndatabase","fnc_users",$_FN['datadir'],$_FN['lang']);
     $newvalues = $Table->getbypost();

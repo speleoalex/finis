@@ -7,6 +7,6 @@
  */
 //[it]lista dei metodi di pagamento {+}
 //[i18n]list of payment methods {+}
-$list_enabled_modules = "Bank_transfert";
+$config['list_enabled_modules'] = "Bank_transfert";
 
 ?>

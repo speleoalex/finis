@@ -6,9 +6,9 @@
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  */
  
-//[it]Sconto 
-//[en]Discount 
-$discount = 10;
+//[it]Sconto
+//[en]Discount
+$config['discount'] = 10;
 
 
 ?>
