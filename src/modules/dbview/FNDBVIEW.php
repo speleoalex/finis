@@ -502,6 +502,8 @@ class FNDBVIEW
         //----------------export------------------------------------------------------->
         //dprint_r(__LINE__." : ".FN_GetExecuteTimer());
 
+        $idresult = md5($query . serialize(array_column($res, $t->xmltable->primarykey)));
+
         return $res;
     }
 
