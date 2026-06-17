@@ -18,6 +18,7 @@
 CLAUDE.md
 LOCAL_DEV.md
 .opencode/
+.claude/
 /examples/fullcms/.htaccess
 /examples/fullcms/controlcenter/images/
 /examples/fullcms/controlcenter/sections/

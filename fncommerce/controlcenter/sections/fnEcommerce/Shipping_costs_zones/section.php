@@ -38,30 +38,21 @@ if($opmod=="newtable" &&  $name!="")
 		$fields[1]['primarykey'] = "1";
 
 		$fields[2]['name'] = "country";
-		$fields[2]['frm_it'] = "Nazione";
-		$fields[2]['frm_en'] = "Country";
-		$fields[2]['frm_es'] = "Country";
-		$fields[2]['frm_de'] = "Country";
+		$fields[2]['frm_i18n'] = "country";
 		$fields[2]['foreignkey'] = "fnc_countries";
 		$fields[2]['fk_link_field'] = "unirecid";
 		$fields[2]['fk_show_field'] = "name";
 
 
 		$fields[3]['name'] = "zone";
-		$fields[3]['frm_it'] = "Zona";
-		$fields[3]['frm_en'] = "Max height";
-		$fields[3]['frm_es'] = "Max height";
-		$fields[3]['frm_de'] = "Max height";
+		$fields[3]['frm_i18n'] = "zone";
 		$fields[3]['foreignkey'] = "fnc_zones";
 		$fields[3]['fk_link_field'] = "unirecid";
 		$fields[3]['fk_show_field'] = "name";
 
 
 		$fields[4]['name'] = "tablename";
-		$fields[4]['frm_it'] = "Tabella";
-		$fields[4]['frm_en'] = "Tablename";
-		$fields[4]['frm_es'] = "Tablename";
-		$fields[4]['frm_de'] = "Tablename";
+		$fields[4]['frm_i18n'] = "table";
 		$fields[4]['frm_type'] = "select";
 
 
@@ -97,7 +88,7 @@ foreach($tableshippingcosts as $table)
 foreach($tables as $table)
 {
 	$tablename=basename(fn_erg_replace('.php$','',$table));
-	if ($opmod == "" || $opmod == "insnew_$tablename" || ereg("^del_",$opmod)|| $opmod == "newtable" )
+	if ($opmod == "" || $opmod == "insnew_$tablename" || preg_match('/^del_/',$opmod)|| $opmod == "newtable" )
 	{
 		$tabletitle=fn_erg_replace('^fnc_shippingzones_','',$tablename);
 		echo "<h1>$tabletitle</h1>";
@@ -111,7 +102,7 @@ foreach($tables as $table)
 
 
 if ($opmod == "")
-{	echo "<form method=\"post\" action=\"?mod={$_FN['mod']}&amp;opt=$op&amp;opmod=newtable\" >";
+{	echo "<form method=\"post\" action=\"?fnapp=controlcenter&amp;mod={$_FN['mod']}&amp;opt=$op&amp;opmod=newtable\" >";
 	echo "<b>".FN_Translate("new shipping zones table").":</b><br />";
 	echo FN_i18n("name").":&nbsp;<input type=\"text\" name=\"name\" value=\"\" />";
 	echo "&nbsp;<input type=\"submit\"  value=\"".FN_i18n("execute")."\" />";

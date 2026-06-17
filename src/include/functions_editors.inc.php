@@ -204,7 +204,11 @@ if ($tableconf == "fncf_")
 //---------------------------------write to file ------------------------------>
         if ($write_to_file)
         {
-            $fd = file("$filepath");
+            $fd = @file("$filepath");
+            if ($fd === false)
+            {
+                $fd = array();
+            }
             $new_file = "";
             for ($i = 0; $i < count($fd); $i++)
             {

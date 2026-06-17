@@ -15,7 +15,7 @@ if (isset($_GET['debug']))
 {
     dprint_r(__FILE__ . " " . __LINE__ . " : " . FN_GetExecuteTimer());    
 }
-require_once "{$_FN['src_finis']}/modules/dbview/FNDBVIEW.php";
+require_once __DIR__ . "/FNDBVIEW.php";
 if (isset($_GET['debug']))
 {
     dprint_r(__FILE__ . " " . __LINE__ . " : " . FN_GetExecuteTimer());
@@ -49,7 +49,7 @@ else
     $config['navigate_groups'] = explode(",", $config['navigate_groups']);
     $config['search_fields'] = explode(",", $config['search_fields']);
     $config['search_partfields'] = explode(",", $config['search_partfields']);
-    FN_PathSite("{$_FN['src_finis']}/modules/dbview/loading.gif");
+    FN_PathSite(__DIR__ . "/loading.gif");
 //-------------------------------config----------------------------------------<
     if ($id != "" && $op == "")
     {
@@ -384,7 +384,7 @@ else
         } catch (e)
         {
         }
-        div.innerHTML = "<div style=\"color:#ffffff;margin-top:" + getScrollY() + "px\" ><br />loading...<br /><br /><img  src='<?php echo FN_PathSite( "modules/dbview/loading.gif") ?>' /><br /><br /></div>";
+        div.innerHTML = "<div style=\"color:#ffffff;margin-top:" + getScrollY() + "px\" ><br />loading...<br /><br /><img  src='<?php echo FN_PathSite( __DIR__ . "/loading.gif") ?>' /><br /><br /></div>";
         document.getElementsByTagName('body')[0].appendChild(div);
     }
 </script>

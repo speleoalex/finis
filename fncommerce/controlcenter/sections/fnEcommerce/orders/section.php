@@ -18,14 +18,19 @@ if ($opmod == "")
 $mode = FN_GetParam("mode", $_GET, "html");
 
 $order_id = FN_GetParam("unirecid", $_POST, "flat");
-$status = FN_GetParam("orderstatus", $_GET, "html");
+// Default to "opened" on first load (no param yet); keep user choice once set (including "" for all)
+if (!isset($_GET['orderstatus'])) {
+	$status = "opened";
+} else {
+	$status = FN_GetParam("orderstatus", $_GET, "html");
+}
 $restr = false;
 if ($status != "")
 	$restr = array("orderstatus" => $status);
 $status_items = fnc_get_orderstatus();
 if ($opmod == "") {
 	echo "<form method=\"get\"  action=\"\" name=\"ord\">";
-	echo FN_Translate("order status") . ":<select  name=\"orderstatus\" onchange=\"window.location='?opt=$opt&orderstatus='+ document.ord.orderstatus.options[document.ord.orderstatus.selectedIndex].value + '&amp;mod={$_FN['mod']}&amp;mode=$mode&amp;opt=$opt'\">";
+	echo FN_Translate("order status") . ":<select  name=\"orderstatus\" onchange=\"window.location='?fnapp=controlcenter&amp;mod={$_FN['mod']}&amp;opt=$opt&amp;mode=$mode&amp;orderstatus=' + this.value\">";
 	echo "\n<option value=\"\">" . FN_TRanslate("all") . "</option>";
 	foreach ($status_items as $item) {
 		echo "\n<option value=\"{$item['unirecid']}\"";

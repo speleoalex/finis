@@ -8,7 +8,7 @@
  *
  */
 defined('_FNEXEC') or die('Restricted access');
-require_once "{$_FN['src_finis']}/modules/dbview/FNDBVIEW.php";
+require_once __DIR__ . "/FNDBVIEW.php";
 /**
  *
  * @global array $_FN
@@ -23,7 +23,7 @@ function FNSEARCH_module_dbview($tosearch_array,$method,$sectionvalues,$maxres)
     global $_FN;
     $results=array();
     $section_to_search=$sectionvalues['id']; // current section 
-    $config=FN_LoadConfig("{$_FN['src_finis']}/modules/dbview/config.php",$sectionvalues['id']); //load config in section
+    $config=FN_LoadConfig(__DIR__ . "/config.php",$sectionvalues['id']); //load config in section
    
     $dbview = new FNDBVIEW($config);
     $tablename=$config['tables'];

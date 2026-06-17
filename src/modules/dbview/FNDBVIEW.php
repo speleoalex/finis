@@ -32,9 +32,54 @@ class FNDBVIEW
     use FNDBVIEWUtils;
 
     var $config;
+    var $moddir;
     function __construct($config)
     {
         $this->config = $config;
+        // Module directory: keeps template/asset paths independent of the folder name
+        $this->moddir = __DIR__;
+    }
+
+    /**
+     * Returns the records-per-page, capping the user-supplied "rpp" parameter to a hard
+     * maximum to mitigate DOS (forged rpp forcing huge pages). The trusted config value
+     * (recordsperpage) is not capped.
+     *
+     * @return int
+     */
+    function GetRecordsPerPage()
+    {
+        $config = $this->config;
+        $RPP_MAX = 200; // hard cap on the user-supplied rpp
+        $rpp_param = FN_GetParam("rpp", $_GET);
+        if ($rpp_param !== "") {
+            $rpp = intval($rpp_param);
+            if ($rpp > $RPP_MAX)
+                $rpp = $RPP_MAX;
+        } else {
+            $rpp = intval($config['recordsperpage']);
+        }
+        if ($rpp < 1)
+            $rpp = 50;
+        return $rpp;
+    }
+
+    /**
+     * Tells whether the table is handled by a native SQL driver (mysql/sqlite/sqlserver),
+     * i.e. whether LIMIT/COUNT(*)/GROUP BY can be pushed down to the database instead of
+     * loading all records into memory through the abstract parser.
+     *
+     * @param string $tablename
+     * @return bool
+     */
+    function TableSupportsNativeSql($tablename)
+    {
+        $xmltable = FN_XMDBTable($tablename);
+        return is_object($xmltable)
+            && isset($xmltable->driverclass)
+            && is_object($xmltable->driverclass)
+            && method_exists($xmltable->driverclass, 'dbQuery')
+            && !empty($xmltable->driverclass->sqltable);
     }
 
     function Init()
@@ -61,7 +106,7 @@ class FNDBVIEW
 
         //--------------- creazione tabelle ------------------------------->
         if (!file_exists("{$_FN['datadir']}/{$_FN['database']}/{$tablename}.php")) {
-            $str_table = file_get_contents("{$_FN['src_finis']}/modules/dbview/install/fn_files.php");
+            $str_table = file_get_contents("{$this->moddir}/install/fn_files.php");
             $str_table = str_replace("fn_files", $tablename, $str_table);
             FN_Write($str_table, $_FN['datadir'] . "/" . $_FN['database'] . "/$tablename.php");
         }
@@ -127,7 +172,16 @@ class FNDBVIEW
      * @param array $params
      * @return array 
      */
-    function GetResults($config = false, $params = false, &$idresult = false)
+    /**
+     * Builds the results query (fields, table, WHERE, ORDER BY) without executing it.
+     * Single source of the filtering logic, reused by GetResults/GetResultsCount/GetGroupCounts.
+     *
+     * @param array $config
+     * @param array $params
+     * @param array|null $rule_result when the rule uses a custom function, the ready-made data is returned here
+     * @return array|false array with keys fields/tablename/where/order/native, or false for a rule-function
+     */
+    function BuildResultsQuery($config = false, $params = false, &$rule_result = null)
     {
         global $_FN;
         static $listok = false;
@@ -164,7 +218,8 @@ class FNDBVIEW
             $tablerules = FN_XMDBTable($config['table_rules']);
             $rulevalues = $tablerules->GetRecordByPrimaryKey($rule);
             if (!empty($rulevalues['function']) && function_exists($rulevalues['function'])) {
-                return $rulevalues['function']($rulevalues);
+                $rule_result = $rulevalues['function']($rulevalues);
+                return false;
             } elseif (!empty($rulevalues['query'])) {
                 $rulequery = "{$rulevalues['query']}";
             }
@@ -176,6 +231,18 @@ class FNDBVIEW
         }
         $filters_items = array();
         $t = FN_XMDBForm($tablename);
+
+        // Whitelist the sort field (strict): only configured sort fields + defaultorder + primary key.
+        // Blocks ORDER BY SQL injection and forced sorts on unindexed columns (DOS via random "order").
+        $allowed_orders = (!empty($config['search_orders'])) ? explode(",", $config['search_orders']) : array();
+        if (!empty($config['defaultorder']))
+            $allowed_orders[] = $config['defaultorder'];
+        $allowed_orders[] = $t->xmltable->primarykey;
+        $allowed_orders = array_filter(array_map('trim', $allowed_orders));
+        if ($order != "" && !in_array($order, $allowed_orders, true)) {
+            $order = $config['defaultorder']; // invalid/forged order: fall back (empty -> primary key later)
+        }
+
         $query_filter = "";
         $and = "";
         foreach ($t->formvals as $k => $v) {
@@ -184,7 +251,8 @@ class FNDBVIEW
                 $filters = explode(",", $filters);
                 $and = "";
                 foreach ($filters as $filter) {
-                    $query_filter .= "$and$k LIKE '$filter'";
+                    // Escape the value: $k is a known form field, but the value comes from the request
+                    $query_filter .= "$and$k LIKE '" . addslashes($filter) . "'";
                     $and = " OR ";
                 }
             }
@@ -447,16 +515,68 @@ class FNDBVIEW
             if ($desc != "")
                 $orderquery .= " DESC";
         }
-        $query = "$query $wherequery $orderquery";
-        $usenative = true;
+
+        return array(
+            'fields' => $ftoread,
+            'tablename' => $tablename,
+            'where' => $wherequery,
+            'order' => $orderquery,
+            'order_field' => $order,
+            'order_desc' => ($desc != ""),
+            // Native path when requested by config or when the driver is SQL (push-down of LIMIT/COUNT/GROUP BY)
+            'native' => (!empty($config['search_query_native_mysql']) || $this->TableSupportsNativeSql($tablename)),
+        );
+    }
+
+    /**
+     * Executes the results query. When $length is set (and this is not an export)
+     * it applies LIMIT $start,$length so only the requested page is loaded into memory,
+     * instead of all records as before.
+     *
+     * @param array $config
+     * @param array $params
+     * @param string $idresult (by-ref) results hash
+     * @param int|false $start LIMIT offset (0-based)
+     * @param int|false $length number of records to read; false = all (legacy behavior)
+     * @return array
+     */
+    function GetResults($config = false, $params = false, &$idresult = false, $start = false, $length = false)
+    {
+        global $_FN;
+        if ($config == false) {
+            $config = $this->config;
+        }
+        if ($params === false) {
+            $params = $_REQUEST;
+        }
+
+        $rule_result = null;
+        $qinfo = $this->BuildResultsQuery($config, $params, $rule_result);
+        if ($qinfo === false) {
+            // rule with custom function: data already prepared, no SQL pagination possible
+            if (!is_array($rule_result)) {
+                $rule_result = array();
+            }
+            $idresult = md5(serialize($rule_result));
+            return $rule_result;
+        }
+
+        $tablename = $qinfo['tablename'];
+        $isexport = !empty($config['enable_export']) && !empty($_GET['export']);
+
+        $query = "SELECT {$qinfo['fields']} FROM $tablename WHERE {$qinfo['where']}{$qinfo['order']}";
+        if ($length !== false && !$isexport) {
+            $start = ($start === false) ? 0 : intval($start);
+            if ($start < 0)
+                $start = 0;
+            $query .= " LIMIT " . $start . "," . intval($length);
+        }
+        $query = str_replace(array("\n", "\r"), "", $query);
         if (isset($_GET['debug'])) {
             dprint_r(__FILE__ . " pre query " . __LINE__ . " : " . FN_GetExecuteTimer());
         }
-        $query = str_replace("\n", "", $query);
-        $query = str_replace("\r", "", $query);
 
-        // Execute query with $wherequery
-        if (!empty($config['search_query_native_mysql'])) {
+        if ($qinfo['native']) {
             $xmltable = FN_XMDBTable($tablename);
             $query = str_replace("FROM $tablename WHERE", "FROM {$xmltable->driverclass->sqltable} WHERE", $query);
             $res = $xmltable->driverclass->dbQuery($query);
@@ -468,43 +588,143 @@ class FNDBVIEW
             $res = array();
         }
 
-
-        //dprint_r($query);
-        //DEBUG: print query
         if (isset($_GET['debug'])) {
             dprint_r($query);
-            dprint_r($_REQUEST);
-            dprint_r($orderquery);
             dprint_r(__FILE__ . " post query " . __LINE__ . " : " . FN_GetExecuteTimer());
-            @ob_end_flush();
         }
         //----------------export------------------------------------------------------->
-        if (!empty($res) && !empty($config['enable_export']) && !empty($_GET['export'])) {
+        if (!empty($res) && $isexport) {
+            $tform = FN_XMDBForm($tablename);
             $first = true;
             $csvres = array();
             foreach ($res as $row) {
-                $rec = $_tables[$tablename]->xmltable->GetRecordByPrimarykey($row[$_tables[$tablename]->xmltable->primarykey]);
+                $rec = $tform->xmltable->GetRecordByPrimarykey($row[$tform->xmltable->primarykey]);
                 if ($first) {
                     $first = false;
+                    $r = array();
                     foreach ($rec as $k => $v) {
-                        $title = $k;
-                        if (isset($_tables[$tablename]->formvals[$k]['title']))
-                            $title = $_tables[$tablename]->formvals[$k]['title'];
+                        $title = isset($tform->formvals[$k]['title']) ? $tform->formvals[$k]['title'] : $k;
                         $r[$k] = $title;
                     }
                     $csvres[] = $r;
                 }
                 $csvres[] = $rec;
-                //break;
             }
             $this->SaveToCSV($csvres, "export.csv");
         }
-        //----------------export------------------------------------------------------->
-        //dprint_r(__LINE__." : ".FN_GetExecuteTimer());
+        //----------------export------------------------------------------------------<
 
-        $idresult = md5($query . serialize(array_column($res, $t->xmltable->primarykey)));
+        $idresult = md5($query);
 
         return $res;
+    }
+
+    /**
+     * Counts the records matching the current filters without loading them into memory.
+     *
+     * @param array $config
+     * @param array $params
+     * @return int
+     */
+    function GetResultsCount($config = false, $params = false)
+    {
+        if ($config == false) {
+            $config = $this->config;
+        }
+        if ($params === false) {
+            $params = $_REQUEST;
+        }
+
+        $rule_result = null;
+        $qinfo = $this->BuildResultsQuery($config, $params, $rule_result);
+        if ($qinfo === false) {
+            return is_array($rule_result) ? count($rule_result) : 0;
+        }
+
+        $tablename = $qinfo['tablename'];
+        $query = "SELECT COUNT(*) AS C FROM $tablename WHERE {$qinfo['where']}";
+        $query = str_replace(array("\n", "\r"), "", $query);
+
+        if ($qinfo['native']) {
+            $xmltable = FN_XMDBTable($tablename);
+            $query = str_replace("FROM $tablename WHERE", "FROM {$xmltable->driverclass->sqltable} WHERE", $query);
+            $res = $xmltable->driverclass->dbQuery($query);
+        } else {
+            $res = FN_XMETADBQuery($query);
+        }
+
+        if (isset($res[0]['C'])) {
+            return intval($res[0]['C']);
+        }
+        return 0;
+    }
+
+    /**
+     * Counts for the navigation facets. On native drivers it uses
+     * SELECT $group, COUNT(*) ... GROUP BY $group (no loading into memory);
+     * on the other drivers it falls back to counting the group fields in PHP.
+     *
+     * @param array $config
+     * @param array $params
+     * @param array $groups list of group fields
+     * @return array [$group][$value] = count
+     */
+    function GetGroupCounts($config = false, $params = false, $groups = array())
+    {
+        if ($config == false) {
+            $config = $this->config;
+        }
+        if ($params === false) {
+            $params = $_REQUEST;
+        }
+        $counts = array();
+        if (empty($groups)) {
+            return $counts;
+        }
+
+        $rule_result = null;
+        $qinfo = $this->BuildResultsQuery($config, $params, $rule_result);
+
+        // In-memory fallback: rule-function or driver without native GROUP BY
+        if ($qinfo === false || empty($qinfo['native'])) {
+            if ($qinfo === false) {
+                $rows = is_array($rule_result) ? $rule_result : array();
+            } else {
+                $fields = implode(",", array_unique($groups));
+                $query = "SELECT $fields FROM {$qinfo['tablename']} WHERE {$qinfo['where']}";
+                $query = str_replace(array("\n", "\r"), "", $query);
+                $rows = FN_XMETADBQuery($query);
+                if (!is_array($rows))
+                    $rows = array();
+            }
+            foreach ($rows as $data) {
+                foreach ($groups as $group) {
+                    if ($group != "" && isset($data[$group])) {
+                        $counts[$group][$data[$group]] = isset($counts[$group][$data[$group]]) ? $counts[$group][$data[$group]] + 1 : 1;
+                    }
+                }
+            }
+            return $counts;
+        }
+
+        // Native driver: one GROUP BY query per group
+        $tablename = $qinfo['tablename'];
+        $xmltable = FN_XMDBTable($tablename);
+        foreach ($groups as $group) {
+            if ($group == "") {
+                continue;
+            }
+            $query = "SELECT $group AS g, COUNT(*) AS C FROM {$xmltable->driverclass->sqltable} WHERE {$qinfo['where']} GROUP BY $group";
+            $query = str_replace(array("\n", "\r"), "", $query);
+            $res = $xmltable->driverclass->dbQuery($query);
+            if (is_array($res)) {
+                foreach ($res as $row) {
+                    $val = isset($row['g']) ? $row['g'] : "";
+                    $counts[$group][$val] = isset($row['C']) ? intval($row['C']) : 0;
+                }
+            }
+        }
+        return $counts;
     }
 
     // I seguenti metodi sono ora nei trait:
@@ -516,7 +736,7 @@ class FNDBVIEW
     /**
      *
      */
-    function PrintList($results, $tplvars)
+    function PrintList($results, $tplvars, $total_records = null)
     {
         global $_FN;
         //--config-->
@@ -529,14 +749,10 @@ class FNDBVIEW
         $tplvars['txt_num_records'] = "";
         //--config--<
         $page = FN_GetParam("page", $_GET);
-        $recordsperpage = FN_GetParam("rpp", $_GET);
-        if ($recordsperpage == "")
-            $recordsperpage = $config['recordsperpage'];
-        if ($recordsperpage == "")
-            $recordsperpage = 50;
+        $recordsperpage = $this->GetRecordsPerPage();
 
         //---template------>
-        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/list.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/list.tp.html" : FN_FromTheme("{$_FN['src_finis']}/modules/dbview/list.tp.html", false);
+        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/list.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/list.tp.html" : FN_FromTheme("{$this->moddir}/list.tp.html", false);
         if (file_exists("themes/{$_FN['theme']}/sections/{$_FN['mod']}/list.tp.html"))
             $tplfile = "themes/{$_FN['theme']}/sections/{$_FN['mod']}/list.tp.html";
         $templateString = file_get_contents($tplfile);
@@ -552,8 +768,11 @@ class FNDBVIEW
         if (isset($_GET['debug'])) {
             dprint_r(__FILE__ . " " . __LINE__ . " : " . FN_GetExecuteTimer());
         }
-        $num_records = count($results);
-        if (is_array($results) && ($c = $num_records) > 0) {
+        // When the total is provided from outside (COUNT(*)), $results holds only the current page;
+        // otherwise (legacy behavior) $results is the whole set and is counted in PHP.
+        $paginated = ($total_records !== null);
+        $num_records = $paginated ? intval($total_records) : count($results);
+        if ($num_records > 0) {
             //---------------------calcolo paginazione -------------------->
             if ($page == "")
                 $page = 1;            //dprint_r("num_records=$num_records recordsperpage=$recordsperpage");
@@ -583,7 +802,7 @@ class FNDBVIEW
                 $tplvars['nav_page_prev'] = false;
             }
 
-            // Prima pagina
+            // First page
             if ($page > 1) {
                 $linkfirstpage = $this->MakeLink(array("page" => 1, "addtocart" => null), "&amp;");
                 $tplvars['nav_page_first'] = array('link' => $linkfirstpage);
@@ -643,7 +862,7 @@ class FNDBVIEW
                 $tplvars['nav_page_next'] = false;
             }
 
-            // Ultima pagina
+            // Last page
             if ($page < $numPages) {
                 $linklastpage = $this->MakeLink(array("page" => $numPages, "addtocart" => null), "&amp;");
                 $tplvars['nav_page_last'] = array('link' => $linklastpage);
@@ -655,9 +874,18 @@ class FNDBVIEW
             $tplvars['txt_num_records'] = FN_Translate("search results", "Aa") . "  $start - $end  " . FN_i18n("of") . " $num_records" . "";
             //---------------------tabella paginazione --------------------<
 
-            for ($c = $start - 1; $c <= $end - 1 && isset($results[$c]); $c++) {
-                $item = $this->HtmlItem($tablename, $results[$c][$t->xmltable->primarykey]);
-                $tplvars['items'][] = $item;
+            if ($paginated) {
+                // $results is already only the current page: iterate every row
+                $pagecount = is_array($results) ? count($results) : 0;
+                for ($c = 0; $c < $pagecount; $c++) {
+                    $item = $this->HtmlItem($tablename, $results[$c][$t->xmltable->primarykey]);
+                    $tplvars['items'][] = $item;
+                }
+            } else {
+                for ($c = $start - 1; $c <= $end - 1 && isset($results[$c]); $c++) {
+                    $item = $this->HtmlItem($tablename, $results[$c][$t->xmltable->primarykey]);
+                    $tplvars['items'][] = $item;
+                }
             }
         }
 
@@ -688,7 +916,12 @@ class FNDBVIEW
     function ViewRecordHistory($id_record, $_tablename = "")
     {
         global $_FN;
-        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/history.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/history.tp.html" : FN_FromTheme("{$_FN['src_finis']}/modules/dbview/history.tp.html", false);
+        // Version history is restricted to administrators: return early for everyone else
+        // (also avoids DB/template work on abusive requests targeting op=history).
+        if (!$this->IsAdmin()) {
+            return "";
+        }
+        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/history.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/history.tp.html" : FN_FromTheme("{$this->moddir}/history.tp.html", false);
         $tplbasepath = dirname($tplfile) . "/";
         $template = file_get_contents($tplfile);
         $tpvars = array();
@@ -829,9 +1062,9 @@ class FNDBVIEW
 
 
         //--- template item ----->
-        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/detail.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/detail.tp.html" : FN_FromTheme("{$_FN['src_finis']}/modules/dbview/detail.tp.html", false);
+        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/detail.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/detail.tp.html" : FN_FromTheme("{$this->moddir}/detail.tp.html", false);
         if ($inner) {
-            $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/detail.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/detail_inner.tp.html" : FN_FromTheme("{$_FN['src_finis']}/modules/dbview/detail_inner.tp.html", false);
+            $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/detail.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/detail_inner.tp.html" : FN_FromTheme("{$this->moddir}/detail_inner.tp.html", false);
         }
 
         $tplbasepath = dirname($tplfile) . "/";
@@ -951,7 +1184,6 @@ class FNDBVIEW
         $tablename = $tables[0];
         $xmlform = FN_XMDBForm($tablename);
         $op = FN_GetParam("op", $_GET);
-        $results = $this->GetResults($config);
         $query = "SELECT * FROM $tablename";
         $results = FN_XMETADBQuery($query);
         $titlefield = explode(",", $config['titlefield']);
@@ -1147,33 +1379,92 @@ select_allcke = function(el){
         $t = FN_XMDBForm($tablename);
         $op = FN_GetParam("op", $_GET, "html");
         $id_record = $row[$t->xmltable->primarykey];
-        $results = $this->GetResults($config);
+        $pk = $t->xmltable->primarykey;
         $next = $prev = "";
-        $k = 0;
-        if (is_array($results))
-            foreach ($results as $k => $item) {
-                $id = $item[$t->xmltable->primarykey];
-                if ($id == $id_record) {
-                    $prev = isset($results[$k - 1]) ? $results[$k - 1][$t->xmltable->primarykey] : $results[count($results) - 1][$t->xmltable->primarykey];
-                    $next = isset($results[$k + 1]) ? $results[$k + 1][$t->xmltable->primarykey] : $results[0][$t->xmltable->primarykey];
+        $position = 0;
+        $total = 0;
 
-                    break;
-                }
+        $rule_result = null;
+        $qinfo = $this->BuildResultsQuery($config, false, $rule_result);
+        $of = ($qinfo !== false) ? $qinfo['order_field'] : "";
+        // Optimizable case: native SQL driver, ordering on a single field present in the record
+        $cankeyset = ($qinfo !== false) && !empty($qinfo['native']) && $of !== ""
+            && strpos($of, ",") === false && array_key_exists($of, $row);
+
+        if ($cankeyset) {
+            $total = $this->GetResultsCount($config);
+            $xmltable = FN_XMDBTable($tablename);
+            $sqltable = $xmltable->driverclass->sqltable;
+            $where = $qinfo['where'];
+            $cv = addslashes($row[$of]);
+            $cpk = addslashes($id_record);
+            // Total-order predicates (field, pk); "before"/"after" relative to the current record
+            $smaller = "(($of < '$cv') OR ($of = '$cv' AND $pk < '$cpk'))";
+            $greater = "(($of > '$cv') OR ($of = '$cv' AND $pk > '$cpk'))";
+            if (!empty($qinfo['order_desc'])) {
+                // Descending order: "before" = greater values, "after" = smaller values
+                $before = $greater;
+                $after = $smaller;
+                $dir = "DESC";
+                $revdir = "ASC";
+            } else {
+                $before = $smaller;
+                $after = $greater;
+                $dir = "ASC";
+                $revdir = "DESC";
             }
+            // 1-based position = number of records preceding the current one + 1
+            $cntq = "SELECT COUNT(*) AS C FROM $sqltable WHERE ($where) AND $before";
+            $cres = $xmltable->driverclass->dbQuery($cntq);
+            $position = (isset($cres[0]['C']) ? intval($cres[0]['C']) : 0) + 1;
+            // next: first record after the current one; if missing, wrap to the first of the list
+            $nq = "SELECT $pk FROM $sqltable WHERE ($where) AND $after ORDER BY $of $dir, $pk $dir LIMIT 0,1";
+            $nres = $xmltable->driverclass->dbQuery($nq);
+            if (isset($nres[0][$pk])) {
+                $next = $nres[0][$pk];
+            } else {
+                $fres = $xmltable->driverclass->dbQuery("SELECT $pk FROM $sqltable WHERE ($where) ORDER BY $of $dir, $pk $dir LIMIT 0,1");
+                $next = isset($fres[0][$pk]) ? $fres[0][$pk] : "";
+            }
+            // prev: first record before the current one (reverse order); if missing, wrap to the last
+            $pq = "SELECT $pk FROM $sqltable WHERE ($where) AND $before ORDER BY $of $revdir, $pk $revdir LIMIT 0,1";
+            $pres = $xmltable->driverclass->dbQuery($pq);
+            if (isset($pres[0][$pk])) {
+                $prev = $pres[0][$pk];
+            } else {
+                $lres = $xmltable->driverclass->dbQuery("SELECT $pk FROM $sqltable WHERE ($where) ORDER BY $of $revdir, $pk $revdir LIMIT 0,1");
+                $prev = isset($lres[0][$pk]) ? $lres[0][$pk] : "";
+            }
+        } else {
+            // Fallback: legacy behavior (full scan) for complex cases
+            $results = $this->GetResults($config);
+            $total = is_array($results) ? count($results) : 0;
+            if (is_array($results))
+                foreach ($results as $k => $item) {
+                    $id = $item[$pk];
+                    if ($id == $id_record) {
+                        $position = $k + 1;
+                        $prev = isset($results[$k - 1]) ? $results[$k - 1][$pk] : $results[$total - 1][$pk];
+                        $next = isset($results[$k + 1]) ? $results[$k + 1][$pk] : $results[0][$pk];
+                        break;
+                    }
+                }
+        }
 
 
 
         $linkusermodify = $this->MakeLink(array("op" => "users", "id" => $id_record), "&");
         $linkmodify = $this->MakeLink(array("op" => "edit", "id" => $id_record), "&");
         $linkprev = $this->MakeLink(array("id" => $prev), "&");
-        $linkhistory = $this->MakeLink(array("op" => "history", "id" => $id_record), "&");
+        // Version history link is shown only to administrators (history is admin-only)
+        $linkhistory = $this->IsAdmin() ? $this->MakeLink(array("op" => "history", "id" => $id_record), "&") : "";
         $linknext = $this->MakeLink(array("id" => $next), "&");
         $linklist = $this->MakeLink(array("op" => null), "&");
         $linkview = $this->MakeLink(array("op" => "view", "id" => $id_record), "&");
 
 
-        $vars['txt_rsults'] = ($k + 1) . "/" . count($results);
-        $vars['txt_num_records'] = ($k + 1) . "/" . count($results);
+        $vars['txt_rsults'] = $position . "/" . $total;
+        $vars['txt_num_records'] = $position . "/" . $total;
         $vars['linkusermodify'] = $linkusermodify;
         $vars['linkmodify'] = $linkmodify;
         $vars['linklist'] = $linklist;
@@ -1181,10 +1472,10 @@ select_allcke = function(el){
         $vars['linknextpage'] = $linknext;
         $vars['linkhistory'] = $linkhistory;
 
-        // Nuove variabili per compatibilità con il tema
+        // New variables for theme compatibility
         $vars['nav_page_prev'] = $linkprev ? array('link' => $linkprev) : false;
         $vars['nav_page_next'] = $linknext ? array('link' => $linknext) : false;
-        // Per la vista singola non ci sono first/last page e nav_pages
+        // For the single-record view there are no first/last page and no nav_pages
         $vars['nav_page_first'] = false;
         $vars['nav_page_last'] = false;
         $vars['nav_pages'] = array();
@@ -1401,7 +1692,7 @@ set_changed();
         }
 
         //----template--------->
-        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/formedit.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/formedit.tp.html" : FN_FromTheme("{$_FN['src_finis']}/modules/dbview/formedit.tp.html", false);
+        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/formedit.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/formedit.tp.html" : FN_FromTheme("{$this->moddir}/formedit.tp.html", false);
         $template = file_get_contents($tplfile);
 
         $tplvars['url_offlineform'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=offlineform&id=$id_record");
@@ -1481,7 +1772,7 @@ set_changed();
                 $params['maxrows'] = $innertablemaxrows;
                 $params['enablenew'] = (!isset($v["enablenew"]) || $v["enablenew"] == 1);
                 $params['enabledelete'] = (!empty($v["enabledelete"]));
-                $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/forminner.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/forminner.tp.html" : FN_FromTheme("{$_FN['src_finis']}/modules/dbview/forminner.tp.html", false);
+                $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/forminner.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/forminner.tp.html" : FN_FromTheme("{$this->moddir}/forminner.tp.html", false);
                 $templateInner = file_get_contents($tplfile);
                 $params['layout_template'] = $templateInner;
                 $link = $this->MakeLink(array("op" => "edit", "id" => $id_record, "inner" => 1), "&", false);
@@ -1553,7 +1844,7 @@ set_changed();
         $config = $this->config;
         //--config--<
         //----template--------->
-        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/form.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/form.tp.html" : FN_FromTheme("{$_FN['src_finis']}/modules/dbview/form.tp.html", false);
+        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/form.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/form.tp.html" : FN_FromTheme("{$this->moddir}/form.tp.html", false);
         $template = file_get_contents($tplfile);
         //die ($tplfile);
         $tpvars = array();
@@ -1615,7 +1906,7 @@ set_changed();
         $Table = FN_XMDBTable($tablename);
         $row = $Table->GetRecordByPrimaryKey($id_record);
         $pk = $Table->primarykey;
-        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/users.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/users.tp.html" : FN_FromTheme("{$_FN['src_finis']}/modules/dbview/users.tp.html", false);
+        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/users.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/users.tp.html" : FN_FromTheme("{$this->moddir}/users.tp.html", false);
         $template = file_get_contents($tplfile);
         $tpvars = array();
         $tpvars['navigationbar'] = $this->Toolbar($config, $row);
@@ -1979,16 +2270,30 @@ set_changed();
         $search_options = $config['search_options'] != "" ? explode(",", $config['search_options']) : array();
         $search_min = $config['search_min'] != "" ? explode(",", $config['search_min']) : array();
         //--config--<
-        $recordsperpage = FN_GetParam("rpp", $_GET);
-        if ($recordsperpage == "")
-            $recordsperpage = $config['recordsperpage'];
+        $recordsperpage = $this->GetRecordsPerPage();
         if (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/top.php")) {
             include("{$_FN['src_application']}/sections/{$_FN['mod']}/top.php");
         }
         $p = FN_GetParam("p", $_GET);
         $op = FN_GetParam("op", $_GET);
         $navigate = 1;
-        $results = $this->GetResults($config);
+        //--------- SQL pagination: load only the current page ----------------->
+        $page = FN_GetParam("page", $_GET);
+        $page = ($page == "") ? 1 : intval($page);
+        if ($page < 1)
+            $page = 1;
+        $offset = ($page - 1) * $recordsperpage;
+        $isexport = !empty($config['enable_export']) && !empty($_GET['export']);
+        $idr = false;
+        // Total count (COUNT(*)) without loading the records
+        $total_records = $this->GetResultsCount($config);
+        // On export all records are needed; otherwise only the page (LIMIT offset,rpp)
+        if ($isexport) {
+            $results = $this->GetResults($config);
+        } else {
+            $results = $this->GetResults($config, false, $idr, $offset, $recordsperpage);
+        }
+        //--------- SQL pagination ------------------------------------------------<
         ob_start();
         if (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/grid_header.php")) {
             include("{$_FN['src_application']}/sections/{$_FN['mod']}/grid_header.php");
@@ -1998,7 +2303,9 @@ set_changed();
         //----------------barra si navigazione categorie--------------------------->
         $tplvars['categories'] = array();
         if ($config['default_show_groups']) {
-            $categories = $this->Navigate($results, $navigate_groups);
+            // Facet counts via SQL GROUP BY (no loading of all records)
+            $group_counts = $this->GetGroupCounts($config, false, $navigate_groups);
+            $categories = $this->Navigate($results, $navigate_groups, $group_counts);
             $tplvars['categories'] = $categories['filters'];
             //dprint_r($tplvars['categories']);
         }
@@ -2009,8 +2316,8 @@ set_changed();
         $tplvars['url_exports'] = array();
         $tplvars['url_queryexport'] = "";
         $tplvars['num_records'] = 0;
-        if ($results && !empty($config['enable_export'])) {
-            $tplvars['num_records'] = count($results);
+        if ($total_records && !empty($config['enable_export'])) {
+            $tplvars['num_records'] = $total_records;
             //($params=false,$sep="&amp;",$norewrite=false,$onlyquery=0)
             $tplvars['url_queryexport'] = $this->MakeLink(array(), "&amp;", true, true);
             $tplvars['url_exports'][] = array("url_export" => $this->MakeLink(array("export" => 1), "&amp;"), "title" => "CSV");
@@ -2056,7 +2363,7 @@ set_changed();
         $tplvars = array_merge($tplvars, $searchform);
 
         $tplvars['url_offlineforminsert'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=offlineform");
-        $res = $this->PrintList($results, $tplvars);
+        $res = $this->PrintList($results, $tplvars, $total_records);
         if (isset($_GET['debug'])) {
             dprint_r(__FILE__ . " " . __LINE__ . " : " . FN_GetExecuteTimer());
         }
@@ -2071,7 +2378,7 @@ set_changed();
      * @param type $results
      * @param type $groups 
      */
-    function Navigate($results, $groups)
+    function Navigate($results, $groups, $precomputed_counts = null)
     {
         global $_FN;
         $return = array();
@@ -2083,20 +2390,25 @@ set_changed();
         $Table = FN_XMDBForm($tablename);
 
         //----foreign key ---->
-        $i = 0;
-        if (is_array($results))
-            foreach ($results as $data) {
-                //$data = $Table->xmltable->GetRecordByPrimaryKey($item[$Table->xmltable->primarykey]);
-                foreach ($groups as $group) {
-                    if (isset($Table->formvals[$group]['fk_show_field'])) {
-                        $fs = $Table->formvals[$group]['fk_show_field'];
+        if (is_array($precomputed_counts)) {
+            // Counts already computed via SQL (GROUP BY): no in-memory record scan
+            $gresults = $precomputed_counts;
+        } else {
+            $i = 0;
+            if (is_array($results))
+                foreach ($results as $data) {
+                    //$data = $Table->xmltable->GetRecordByPrimaryKey($item[$Table->xmltable->primarykey]);
+                    foreach ($groups as $group) {
+                        if (isset($Table->formvals[$group]['fk_show_field'])) {
+                            $fs = $Table->formvals[$group]['fk_show_field'];
+                        }
+                        //echo "$group ";
+                        if ($group != "" && isset($data[$group]))
+                            $gresults[$group][$data[$group]] = isset($gresults[$group][$data[$group]]) ? $gresults[$group][$data[$group]] + 1 : 1;
+                        $i++;
                     }
-                    //echo "$group ";
-                    if ($group != "" && isset($data[$group]))
-                        $gresults[$group][$data[$group]] = isset($gresults[$group][$data[$group]]) ? $gresults[$group][$data[$group]] + 1 : 1;
-                    $i++;
                 }
-            }
+        }
         //$return['gresults']=$gresults;
         $ret_groups = array();
 
@@ -2200,7 +2512,7 @@ set_changed();
         } elseif (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/default.png")) {
             $photo = "{$_FN['siteurl']}/sections/{$_FN['mod']}/default.png";
         } else
-            $photo = FN_PathSite("{$_FN['src_finis']}/modules/dbview/default.png",false);
+            $photo = FN_PathSite("{$this->moddir}/default.png",false);
         if (empty($config['image_size']))
             $config['image_size'] = 200;
         $img = "{$_FN['siteurl']}index.php?fnapp=thumb&format=png&h={$config['image_size']}&w={$config['image_size_h']}&f=" . $photo;

@@ -95,7 +95,7 @@ trait FNDBVIEWExport
             return;
         }
 
-        $str = file_get_contents(FN_FromTheme("{$_FN['src_finis']}/modules/dbview/form_offline.html"));
+        $str = file_get_contents(FN_FromTheme("{$this->moddir}/form_offline.html"));
         $frm = FN_XMDBform($this->config['tables']);
         $linkform = FN_RewriteLink("index.php?mod={$_FN['mod']}&amp;op=edit&amp;id=$id", "&", true);
         $vals = $this->GetRecordValues($id);
@@ -121,7 +121,7 @@ trait FNDBVIEWExport
     {
         global $_FN;
 
-        $str = file_get_contents(FN_FromTheme("{$_FN['src_finis']}/modules/dbview/form_offline.html"));
+        $str = file_get_contents(FN_FromTheme("{$this->moddir}/form_offline.html"));
         $frm = FN_XMDBform($this->config['tables']);
         $linkform = FN_RewriteLink("index.php?mod={$_FN['mod']}&amp;op=new", "&", true);
 

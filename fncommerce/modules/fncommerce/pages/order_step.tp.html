@@ -1,7 +1,8 @@
 <div class="container-fluid">
     <h3 class="mb-4">{step_title}</h3>
 
-    <form method="post" action="{form_action}">
+    <form method="post" action="{form_action}" onsubmit="return fncStepValidate(this, '{step_name}')">
+        <div id="step-validation-msg" class="alert alert-warning d-none" role="alert">{txt_select_option}</div>
         <div class="mb-4">
             <!-- foreach {options} -->
             <div class="form-check mb-3">
@@ -29,3 +30,18 @@
         </div>
     </form>
 </div>
+<script>
+function fncStepValidate(form, stepName) {
+    var radios = form.querySelectorAll('input[type=radio][name="' + stepName + '"]');
+    if (radios.length === 0) return true; // nessuna opzione a scelta singola: non bloccare
+    for (var i = 0; i < radios.length; i++) {
+        if (radios[i].checked) return true;
+    }
+    var box = document.getElementById('step-validation-msg');
+    if (box) {
+        box.classList.remove('d-none');
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return false;
+}
+</script>

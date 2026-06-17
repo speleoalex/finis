@@ -344,16 +344,25 @@ function print_saveorder()
             fnc_send_confirm($newstate);
             //---invia stao dell'ordine---<
             //---chiama l' evento del modulo--->
-            if (isset($newstate['costs']))
-                foreach ($newstate['costs'] as $key => $v) {
-                    if (isset($newstate[$key])) {
-                        $classname = "fnc_$key" . "_{$newstate[$key]}";
-                        require_once(__DIR__ . "/../modules/$key/{$newstate[$key]}/module.php");
-                        $class = new $classname($newstate);
-                        if (method_exists($class, "on_order_confirm"))
-                            $class->on_order_confirm($newstate);
-                    }
-                }
+            // Lancia on_order_confirm() per il modulo selezionato in ogni step
+            // del checkout (es. shippingmethods, payments). Non legato all'array
+            // 'costs', cosi' viene chiamato anche per i moduli con costo 0.
+            $confirmedorder = is_array($newstate) ? array_merge($orderstatus, $newstate) : $orderstatus;
+            foreach (fnc_get_order_steps() as $stepmod) {
+                $stepmod = trim($stepmod);
+                if ($stepmod == "" || empty($confirmedorder[$stepmod]))
+                    continue;
+                $modfile = __DIR__ . "/../modules/$stepmod/{$confirmedorder[$stepmod]}/module.php";
+                if (!file_exists($modfile))
+                    continue;
+                require_once($modfile);
+                $classname = "fnc_{$stepmod}_{$confirmedorder[$stepmod]}";
+                if (!class_exists($classname))
+                    continue;
+                $class = new $classname($confirmedorder);
+                if (method_exists($class, "on_order_confirm"))
+                    $class->on_order_confirm($confirmedorder);
+            }
             //---chiama l' evento del modulo---<
             //elimina ordine temporaneo --->
             fnc_clear_order_temp();
@@ -594,6 +603,7 @@ function print_current_order_step($step)
     $vars['txt_back'] = FN_i18n("back");
     $vars['txt_next'] = FN_i18n("next");
     $vars['txt_cost'] = FN_i18n("cost");
+    $vars['txt_select_option'] = FN_Translate("please select an option");
 
     // Collect options from modules
     $options = array();
@@ -630,6 +640,11 @@ function print_current_order_step($step)
                 $old_style_html .= $old_html;
             }
         }
+    }
+
+    // Se c'e' una sola opzione e nessuna e' gia' selezionata, preselezionala
+    if (count($options) == 1 && $options[0]['checked'] == '') {
+        $options[0]['checked'] = 'checked="checked"';
     }
 
     // If we have new style options, pass them to template

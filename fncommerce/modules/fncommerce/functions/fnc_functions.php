@@ -1465,3 +1465,12 @@ function fnc_have_orders($user)
         return true;
     return false;
 }
+
+
+if (!function_exists('is_alphanumeric'))
+{
+	function is_alphanumeric($string)
+	{
+		return (bool) preg_match('/^[a-zA-Z0-9_]+$/', (string) $string);
+	}
+}

@@ -11,7 +11,7 @@
 defined('_FNEXEC') or die('Restricted access');
 $op=FN_GetParam("op",$_GET);
 //--config-->
-$config=FN_LoadConfig("{$_FN['src_finis']}/modules/dbview/config.php");
+$config=FN_LoadConfig(__DIR__ . "/config.php");
 //--config--<
 //dprint_r($config);
 $tables=explode(",",$config['tables']);
@@ -53,7 +53,7 @@ if ($op== "view")
     $vars['image']=$image;
     $vars['url']=FN_RewriteLink("index.php?mod={$_FN['mod']}&amp;op=view&amp;id=$id","",true);
     $vars['title']=$title;
-    $_FN['section_header_footer'].=FN_TPL_ApplyTplFile(FN_FromTheme("{$_FN['src_finis']}/modules/dbview/header.tp.html",false),$vars);
+    $_FN['section_header_footer'].=FN_TPL_ApplyTplFile(FN_FromTheme(__DIR__ . "/header.tp.html",false),$vars);
 }
 
 
