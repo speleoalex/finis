@@ -265,7 +265,7 @@ class XMETATable extends stdClass
         }
         $this->datafile = $this->path . "/" . $this->databasename . "/" . $this->tablename . "/";
         $this->xmlfieldname = $this->tablename;
-        // cerca la chiave primaria
+        // find the primary key
         $this->primarykey = array();
         foreach ($fields as $field)
         {
@@ -302,7 +302,7 @@ class XMETATable extends stdClass
     function setDriver($drivertype = "")
     {
         $this->driver = $drivertype;
-        //modalita' database---->
+        // database mode ---->
         if (!$this->driver)
         {
             $this->driver = get_xml_single_element("driver", $this->xmldescriptor);
@@ -424,7 +424,7 @@ class XMETATable extends stdClass
         return $this->getFilePath($recordvalues, $recordkey);
     }
 
-    //-----metodi del driver---------------->
+    //-----driver methods---------------->
 
     private function _buildSiteUrl()
     {
@@ -468,7 +468,7 @@ class XMETATable extends stdClass
         $_FILES[$key]['name'] = $filename;
     }
 
-    //-----metodi del driver---------------->
+    //-----driver methods (delegated)---------------->
     function GetNumRecords($restr = null)
     {
         return $this->driverclass ? $this->driverclass->GetNumRecords($restr) : null;
@@ -604,7 +604,7 @@ class XMETATable extends stdClass
         return $this->UpdateRecordBypk($values, $this->primarykey, $unirecid);
     }
 
-    //-----metodi del driver----------------<
+    //-----driver methods (end)----------------<
     function FindFolderTable($oldvalues)
     {
 
@@ -685,7 +685,7 @@ class XMETATable extends stdClass
         $tablename = $this->tablename;
         $path = realpath($this->path);
         $newvalues = $values;
-        //----gestione campi d tipo FILES o IMAGE
+        //---- handle FILE and IMAGE type fields
         if (is_array($this->primarykey) || !isset($newvalues[$this->primarykey]))
             return;
         $unirecid = $newvalues[$this->primarykey];
@@ -732,12 +732,12 @@ class XMETATable extends stdClass
             $type = isset($this->fields[$key]) ? $this->fields[$key] : null;
             if (isset($type->type) && ($type->type == 'file' || $type->type == 'image'))
             {
-                //cancello i vecchi record se esiste il nuovo
+                // delete old file if a new one is being uploaded
                 $dirtable_oldvalue = false;
                 if (isset($values[$this->primarykey]))
                 {
 
-                    if (isset($_FILES[$key]['tmp_name']) && $_FILES[$key]['tmp_name'] != "" && $oldvalues != null && isset($values[$key])) // se e' un aggiornamento
+                    if (isset($_FILES[$key]['tmp_name']) && $_FILES[$key]['tmp_name'] != "" && $oldvalues != null && isset($values[$key])) // update operation
                     {
                         $dirtable_oldvalue = $this->FindFolderTable($values) ?: $tablename;
                     }
@@ -816,8 +816,8 @@ class XMETATable extends stdClass
                                 mkdir("$path/$databasename/$dirtable_new/$unirecid/$key");
                             }
 
-                            //workarround: alla insert non funziona move_uploaded_file
-                            //se elimino il file temporaneo non funziona nemmeno copy  
+                            // workaround: on insert, move_uploaded_file fails;
+                            // deleting the temp file also breaks copy
                             if ($oldvalues)
                             {
                                 move_uploaded_file($_FILES[$key]['tmp_name'], "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
@@ -846,14 +846,14 @@ class XMETATable extends stdClass
                 }
             }
         }
-        //---------------- creazione anteprime per le immagini ----------------------
+        //---------------- generate thumbnails for image fields ----------------------
 
         foreach ($this->fields as $field)
         {
             switch ($field->type)
             {
                 case "image":
-                    if (isset($values[$field->name]) && $values[$field->name] != "") // se il campo e' stato aggiornato
+                    if (isset($values[$field->name]) && $values[$field->name] != "") // field was updated
                     {
                         $dirtable = $dirtable_new;
                         if ($this->pathdata)

@@ -9,9 +9,9 @@
  */
 /**
  * xmetadb_sqlite.php created on 13/feb/2014
- * driver sqlite per xmetadb
- * permette di inserire i dati in una tabella sqlite
- * il descrittore della tabella deve contenere:
+ * sqlite driver for xmetadb
+ * allows inserting data into a sqlite table
+ * the table descriptor must contain:
  *
  * <driver>sqlite</driver>
  * <host>sqliteserverhost</host>
@@ -56,7 +56,7 @@ class XMETATable_sqlite extends stdClass
         $this->sqlitedatabasename=$this->databasename;
         $tablename=$this->tablename;
         $xml=$this->xmldescriptor;
-        //----Mysql---->
+        //----SQLite setup---->
         $sqlite['filename']=get_xml_single_element("sqlitefilename",$xml);
         $sqlite['database']=get_xml_single_element("database",$xml);
         $sqltable=get_xml_single_element("sqltable",$xml);
@@ -65,7 +65,7 @@ class XMETATable_sqlite extends stdClass
         if ($sqltable == "")
             $sqltable=$this->tablename;
         $this->sqltable=$sqltable;
-        // se sono impostate connessioni a livello globale nypasso le impostazioni della tabella
+        // if global connections are set, pass the table settings
         global $xmetadb_sqlitedatabase,$xmetadb_sqlitefilename;
         if ($xmetadb_sqlitedatabase != "")
         {
@@ -88,7 +88,6 @@ class XMETATable_sqlite extends stdClass
             $xmltable->connection=$sqlite;
             $this->connection=& $xmltable->connection;
         }
-        //dprint_r($sqlite);
         $this->sqlfilename=$sqlite['filename'];
         if (false !== ($conn=new SQLiteDatabase($this->sqlfilename,0666,$error)))
         {
@@ -104,12 +103,10 @@ class XMETATable_sqlite extends stdClass
                         $exists=true;
                 }
             }
-            //crea la tabella----->
+            // create table ----->
             if (!$exists)
             {
-                //die ("ccc");
                 $fields=$this->fields;
-                //dprint_r($fields);
                 $query="CREATE TABLE {$this->sqltable} (";
                 $n=count($fields);
                 foreach($fields as $field)
@@ -130,7 +127,7 @@ class XMETATable_sqlite extends stdClass
                         case "int" :
                             $query .= " INT";
                             break;
-                        default : //forzo tutto a varchar
+                        default : // force everything to varchar
                             $query .= " VARCHAR";
                             $field['size']="255";
                             break;
@@ -149,30 +146,26 @@ class XMETATable_sqlite extends stdClass
                     {
                         $query .= "  PRIMARY KEY ";
                     }
-                    //$query .= "  NOT NULL ";
                     if ($n-- > 1)
                         $query .= ",";
                 }
                 $query .= ")";
-                //dprint_r($query);
                 if (!$this->dbQuery($query))
                 {
                     echo("error:".$this->sqlite_error);
                 }
-                //transfert xml data into sqlite
+                // transfer xml data into sqlite
                 $tmpRecords=xmetadb_readDatabase("$path/".$databasename."/".$tablename,$tablename,false,false);
-                //dprint_r($tmpRecords);
                 foreach($tmpRecords as $rec)
                 {
                     $this->InsertRecord($rec);
                 }
             }
 
-            //crea la tabella-----<
-            //--sincronizzo i campi --->
+            // create table -----<
+            //--synchronize fields --->
             $xmlfield=$this->fields;
             $result=$this->dbQuery("PRAGMA table_info(".$this->sqltable."); ");
-            //dprint_r($result);
             if ($result)
             {
                 foreach($result as $tmp)
@@ -200,11 +193,10 @@ class XMETATable_sqlite extends stdClass
             }
             if ($toalter)
             {
-                //die("toalter");
                 $oldRecords=$this->dbQuery("SELECT * FROM {$this->sqltable};");
-                //vecchie tabelle temporanee--->
+                // old temporary tables --->
                 $this->dbQuery("DROP TABLE {$this->sqltable}");
-                //vecchie tabelle temporanee---<
+                // old temporary tables ---<
                 $fields=$this->fields;
                 $query="CREATE TABLE {$this->sqltable} (";
                 $n=count($fields);
@@ -226,7 +218,7 @@ class XMETATable_sqlite extends stdClass
                         case "int" :
                             $query .= " INT";
                             break;
-                        default : //forzo tutto a varchar
+                        default : // force everything to varchar
                             $query .= " VARCHAR";
                             $field['size']="255";
                             break;
@@ -245,7 +237,6 @@ class XMETATable_sqlite extends stdClass
                     {
                         $query .= "  PRIMARY KEY ";
                     }
-                    //$query .= "  NOT NULL ";
                     if ($n-- > 1)
                         $query .= ",";
                 }
@@ -254,7 +245,7 @@ class XMETATable_sqlite extends stdClass
                 {
                     echo("error:".$this->sqlite_error);
                 }
-                //transfert xml data into sqlite
+                // transfer xml data into sqlite
                 //rebuild connection
                 $this->conn=new SQLiteDatabase($sqlite['filename'],0666,$error);
                 foreach($oldRecords as $rec)
@@ -263,7 +254,7 @@ class XMETATable_sqlite extends stdClass
                 }
             }
             $this->sqlitefields=$sqlite_fields;
-            //--sincronizzo i campi ---<
+            //--synchronize fields ---<
         }
         else
         {
@@ -271,7 +262,7 @@ class XMETATable_sqlite extends stdClass
             return false;
         }
         return true;
-        //<----Mysql----
+        //<----SQLite----
     }
 
     /**
@@ -387,11 +378,9 @@ class XMETATable_sqlite extends stdClass
         $this->conn=new SQLiteDatabase($this->sqlfilename,0666,$error);
         if (!isset($this->conn) || !$this->conn)
         {
-            //dprint_r("no conn in:".$query);
             echo ($this->sqlite_error);
             return false;
         }
-        //dprint_r($query);
         $q=$this->conn->query($query,SQLITE_ASSOC,$this->sqlite_error);
         $res=null;
         if ($q)
@@ -421,7 +410,6 @@ class XMETATable_sqlite extends stdClass
             }
             $res[$k]=$tmp;
         }
-        //dprint_r($res);
         return $res;
     }
 
@@ -438,14 +426,14 @@ class XMETATable_sqlite extends stdClass
 
     /**
      * GetRecordByPk
-     * torna il record passandogli la chiave primaria
-     * @param string $pvalue valore chiave
+     * returns the record given the primary key
+     * @param string $pvalue key value
      */
     function GetRecordByPk($pvalue)
     {
         $tablename=$this->tablename;
         $pkey=$this->primarykey;
-        // se i dati sono su database --->
+        // if data is on a database --->
         if ($this->connection)
         {
             if (!$this->conn)
@@ -456,11 +444,10 @@ class XMETATable_sqlite extends stdClass
             {
                 return null;
             }
-            //$res = sqlite_fetch_assoc($result);
             $res=$this->fix_null($result[0]);
             return $res;
         }
-        // <--- se i dati sono su database
+        // <--- if data is on a database
         return false;
     }
 
@@ -483,10 +470,10 @@ class XMETATable_sqlite extends stdClass
 
     /**
      * DelRecord
-     * Elimina un record.
+     * Deletes a record.
      * @param string $unirecid
-     * <b>$values[$this->primarykey] deve essere presente</b>
-     * @return array record appena inserito o null
+     * <b>$values[$this->primarykey] must be present</b>
+     * @return array just inserted record or null
      * */
     function DelRecord($pkvalue)
     {
@@ -535,7 +522,7 @@ class XMETATable_sqlite extends stdClass
 
     /**
      * InsertRecord
-     * Aggiunge un record
+     * Adds a record
      *
      * @param array $values
      * */
@@ -598,7 +585,6 @@ class XMETATable_sqlite extends stdClass
                 $query .= implode(",",$tf);
                 $query .= ");";
             }
-            //dprint_r($query);
             $ret=$this->dbQuery($query);
             if (!$ret)
             {
@@ -619,7 +605,7 @@ class XMETATable_sqlite extends stdClass
 
     /**
      * UpdateRecordBypk
-     * aggiorna il record passandogli la chiave primaria
+     * updates the record given the primary key
      * @param array $values
      * @param string $pkey
      * @param string $pvalue
@@ -634,18 +620,16 @@ class XMETATable_sqlite extends stdClass
                 $existsvalues=$this->GetRecordByPk($pvalue);
                 if (!isset($existsvalues[$pkey]))
                     return false;
-                // $oldvalues = ($values[$pkey] != $pvalue ) ? $existsvalues : null;
                 $oldvalues=$existsvalues;
                 $query="UPDATE {$this->sqltable} SET ";
                 $values2=array();
                 foreach($values as $k=> $value)
                 {
-                    //if ($values[$k] != $existsvalues[$k])//accorcio la query
                     if (isset($this->fields[$k]))
                         $values2[$k]=$values[$k];
                 }
                 $n=count($values2);
-                if ($n == 0) //se non c'e' nulla da aggiornare
+                if ($n == 0) // nothing to update
                     return $existsvalues;
 
                 foreach($values2 as $k=> $value)
@@ -715,7 +699,6 @@ class XMETATable_sqlite extends stdClass
         }
 
         $ret=$this->dbQuery($query);
-        //dprint_r($query);
         if (isset($ret[0]['C']))
             return $ret[0]['C'];
         return 0;
@@ -770,15 +753,14 @@ class XMETATable_sqlite extends stdClass
     /**
      * GetAutoincrement
      *
-     * gestisce l' autoincrement di un campo della tabella
+     * manages the autoincrement of a table field
      *
-     * @param string nome del campo
-     * @return indice disponibile
+     * @param string field name
+     * @return next available index
      */
     function GetAutoincrement($field)
     {
         $query="SELECT MAX($field) FROM {$this->sqltable} WHERE $field NOT LIKE '%[a-z]%' ";
-        //dprint_r($query);
         $record=$this->dbQuery($query);
         if (!isset($record[0]["MAX($field)"]))
             return 1;
@@ -789,16 +771,14 @@ class XMETATable_sqlite extends stdClass
 }
 
 /**
- * xml_to_sql
- * Trasforma una tabella xml in una tabella sql
+ * xml_to_sqlite
+ * Converts an xml table to a sqlite table
  *
  */
 function xml_to_sqlite($databasename,$tablename,$xmlpath,$connection,$dropold=false)
 {
-    // leggo i dati dalla tabella xml
+    // read data from the xml table
     $TableXml=new XMETATable($databasename,$tablename,$xmlpath);
-    //$records = $TableXml->GetRecords();
-    //die();
     if (!isset($connection['sqltable']))
     {
         $connection['sqltable']=$tablename;
@@ -814,17 +794,16 @@ function xml_to_sqlite($databasename,$tablename,$xmlpath,$connection,$dropold=fa
     }
     if (!$connessione=@sqlite_connect($connection['host'],$connection['user'],$connection['password']))
     {
-        //echo "connection failed<br />";
         echo sqlite_error();
         return false;
     }
-    //modifico le propriet� della tabella xml
+    // modify the properties of the xml table
     $oldfilestring=file_get_contents($xmlpath."/$databasename/$tablename.php");
     $strnew="\n\t<driver>sqlite</driver>";
     $strnew .= "\n\t<database>".$connection['database']."</database>";
     $strnew .= "\n\t<sqltable>".$connection['sqltable']."</sqltable>";
     $newfilestring=preg_replace('/<\/tables>$/s',xmetadb_encode_preg_replace2nd($strnew)."\n</tables>",trim(($oldfilestring)))."\n";
-    //die("<pre>".htmlspecialchars($newfilestring)."</pre>");
+
     $file=fopen($xmlpath."/$databasename/$tablename.php","w");
     fwrite($file,$newfilestring);
     $TableSql=new XMETATable($databasename,$tablename,$xmlpath);

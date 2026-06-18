@@ -1,7 +1,7 @@
 <?php
 
 /**
- * driver xmlphp per Xmltable
+ * xmlphp driver for Xmltable
  *
  */
 class XMETATable_xmlphp extends stdClass
@@ -47,11 +47,11 @@ class XMETATable_xmlphp extends stdClass
         $this->xmlfieldname = &$xmltable->xmlfieldname;
         $this->datafile = &$xmltable->datafile;
         $this->xmltagroot = &$xmltable->xmltagroot;
-        //propriera' relative a i file xml
+        // properties relative to xml files
         $path = $this->path;
         $databasename = $this->databasename;
         $tablename = $this->tablename;
-        // dati su singolo file
+        // data on a single file
         $this->filename = get_xml_single_element("filename", $this->xmldescriptor);
         if (is_array($params))
         {
@@ -63,13 +63,12 @@ class XMETATable_xmlphp extends stdClass
                 }
             }
         }
-        //dprint_r($this->datafile);
         return true;
     }
 
     /**
      * GetNumRecords
-     * Torna il numero di records
+     * Returns the number of records
      */
     function GetNumRecords($restr = null)
     {
@@ -107,7 +106,7 @@ class XMETATable_xmlphp extends stdClass
 
     /**
      * GetRecords
-     * recupera tutti i records
+     * retrieves all records
      */
     function GetRecords($restr = false, $min = false, $length = false, $order = false, $reverse = false, $fields = false)
     {
@@ -140,7 +139,7 @@ class XMETATable_xmlphp extends stdClass
             die("TODO xmetadb: not yet implemented function for this driver");
         }
 
-        //cache su file---->
+        // file cache ---->
         if ($this->usecachefile == 1)
         {
             $cacheindex = $rc . $min . $length . $order . $reverse . $fields;
@@ -151,14 +150,12 @@ class XMETATable_xmlphp extends stdClass
             {
                 $ret = file_get_contents($cachefile);
                 $ret = @unserialize($ret);
-                //dprint_r("[$cachefile]");
-                //dprint_r ($ret);
                 if ($ret !== false)
                     return $ret;
             }
         }
-        //cache su file----<
-        // filtro i field che non sono associati alla tabella
+        // file cache ----<
+        // filter fields not associated with the table
         if ($fields === false)
         {
             $fields = array();
@@ -170,15 +167,15 @@ class XMETATable_xmlphp extends stdClass
         }
         $all = xmetadb_readDatabase($this->datafile, $fieldname, $fields, false);
 
-        if ($all === false) //il file non esiste
+        if ($all === false) // file does not exist
         {
             return array();
         }
-        if ($all === null) //errore lettura
+        if ($all === null) // read error
         {
             return null;
         }
-        //se il campo manca lo forzo a default oppure null
+        // if the field is missing, force it to default or null
         foreach ($all as $k => $r)
         {
             foreach ($this->fields as $field)
@@ -245,7 +242,7 @@ class XMETATable_xmlphp extends stdClass
         }
         else
             $ret = $all;
-        //ordinamento dei records ------>
+        // sort records ------>
 
         if ($order !== false && $order !== "" && /*  isset($this->fields[$order]) && */ is_array($ret))
         {
@@ -284,12 +281,12 @@ class XMETATable_xmlphp extends stdClass
         {
             $ret = array_reverse($ret);
         }
-        //ordinamento dei records ------<
-        // minimo e massimo
+        // sort records ------<
+        // minimum and maximum
         if ($min != false && $length != false)
             $ret = array_slice($ret, $min - 1, $length);
         $ret = array_values($ret);
-        //cache su file---->
+        // file cache ---->
         if ($this->usecachefile == 1)
         {
             $cachestring = serialize($ret);
@@ -297,16 +294,16 @@ class XMETATable_xmlphp extends stdClass
             fwrite($fp, $cachestring);
             fclose($fp);
         }
-        //cache su file----<
+        // file cache ----<
 
         return $ret;
     }
 
     /**
      * GetRecord
-     * recupera un singolo record
+     * retrieves a single record
      *
-     * @param array restrizione
+     * @param array restriction
      */
     function GetRecord($restr = false)
     {
@@ -322,7 +319,7 @@ class XMETATable_xmlphp extends stdClass
     /**
      * GetRecordByUnirecid
      *
-     * Torna un record in formato array partendo dall' unirecid (nomefile)
+     * Returns a record as an array starting from the unirecid (filename)
      * */
     function GetRecordByPrimaryKey($unirecid)
     {
@@ -332,10 +329,10 @@ class XMETATable_xmlphp extends stdClass
     /**
      * GetAutoincrement
      *
-     * gestisce l' autoincrement di un campo della tabella
+     * manages the autoincrement of a table field
      *
-     * @param string nome del campo
-     * @return indice disponibile
+     * @param string field name
+     * @return next available index
      */
     function GetAutoincrement($field)
     {
@@ -359,19 +356,17 @@ class XMETATable_xmlphp extends stdClass
             }
         }
         $this->numrecords = $contrec;
-        //		return ($max + 1).uniqid(".");
         return $max + 1;
     }
 
     /**
      * InsertRecord
-     * Aggiunge un record
+     * Adds a record
      *
      * @param array $values
      * */
     function InsertRecord($values)
     {
-        //dprint_r($values);
         $this->numrecords = -1;
         $this->numrecordscache = array();
         $databasename = $this->databasename;
@@ -426,8 +421,8 @@ class XMETATable_xmlphp extends stdClass
             $this->dbunlock();
             return "error:missing the primary key in table  $tablename";
         }
-        // cerco il file da modificare o creare----->
-        if (!preg_match("/\\/$/si", $this->datafile)) //datafile
+        // find the file to modify or create ----->
+        if (!preg_match("/\\/$/si", $this->datafile)) // datafile
             $xmltowritefullpath = $this->datafile;
         else
         {
@@ -442,8 +437,8 @@ class XMETATable_xmlphp extends stdClass
                 $xmltowritefullpath = "{$this->datafile}" . urlencode($values[$this->indexfield]) . ".php"; //indexfield
             }
         }
-        // cerco il file da modificare o creare-----<
-        // se esiste gia'
+        // find the file to modify or create -----<
+        // if it already exists
         if (file_exists($xmltowritefullpath))
         {
             $readok = false;
@@ -559,7 +554,7 @@ class XMETATable_xmlphp extends stdClass
     }
 
     /**
-     * elimina tutti i dati da una tabella
+     * deletes all data from a table
      */
     function Truncate()
     {
@@ -583,10 +578,10 @@ class XMETATable_xmlphp extends stdClass
 
     /**
      * DelRecord
-     * Elimina un record.
+     * Deletes a record.
      * @param string $unirecid
-     * <b>$values[$this->primarykey] deve essere presente</b>
-     * @return array record appena inserito o null
+     * <b>$values[$this->primarykey] must be present</b>
+     * @return array just inserted record or null
      * */
     function DelRecord($pkvalue)
     {
@@ -604,7 +599,7 @@ class XMETATable_xmlphp extends stdClass
                 xmetadb_remove_dir_rec("{$this->datafile}$pkvalue");
         $this->ClearCachefile();
         $n = xmetadb_readDatabase($oldfile, $this->xmlfieldname, false, false);
-        // se e' l' ultimo record
+        // if it is the last record
         if (is_array($n) && count($n) == 1)
         {
             if (preg_match("/\\/$/si", $this->datafile))
@@ -623,7 +618,7 @@ class XMETATable_xmlphp extends stdClass
         $readok = false;
         for ($i = 0; $i < _MAX_FILE_ACCESS_ATTEMPTS; $i++)
         {
-            if (!file_exists($oldfile)) //errore
+            if (!file_exists($oldfile)) // error
                 break;
             $oldfilestring = file_get_contents("$oldfile");
             if (strpos($oldfilestring, "</{$this->xmltagroot}>") !== false)
@@ -650,7 +645,7 @@ class XMETATable_xmlphp extends stdClass
 
     /**
      * GetFileRecord
-     * torna il nome del file che contiene il record
+     * returns the name of the file containing the record
      * @param string $pkey
      * @param string $pvalue
      */
@@ -660,12 +655,11 @@ class XMETATable_xmlphp extends stdClass
         $tablename = $this->tablename;
         $path = $this->path;
 
-        //$pvalue=urlencode($pvalue);
         if (!preg_match("/\\/$/si", $this->datafile))
         {
             return $this->datafile;
         }
-        //guardo prima quelo con la chiave primaria
+        // check first the one with the primary key
         if (file_exists($this->datafile . "/" . urlencode($pvalue) . ".php"))
         {
             $data = file_get_contents($this->datafile . "/" . urlencode($pvalue) . ".php");
@@ -677,7 +671,7 @@ class XMETATable_xmlphp extends stdClass
             }
         }
 
-        //cerco in tutti i files
+        // search in all files
         $pvalue = xmlenc($pvalue);
         $pvalue = xmetadb_encode_preg($pvalue);
         if (!file_exists($this->datafile))
@@ -690,8 +684,6 @@ class XMETATable_xmlphp extends stdClass
             {
                 $data = file_get_contents($this->datafile . "/$file");
                 $data = xmetadb_removexmlcomments($data);
-                ///dprint_xml('/<' . $pkey . '>' . $pvalue . '<\/' . $pkey . '>/s');
-                //dprint_r($this->datafile . "/$file");
                 if (preg_match('/<' . $pkey . '>' . $pvalue . '<\/' . $pkey . '>/s', $data))
                 {
                     $this->cache_filerecord[$pvalue] = $this->datafile . "/$file";
@@ -705,8 +697,8 @@ class XMETATable_xmlphp extends stdClass
 
     /**
      * GetRecordByPk
-     * torna il record passandogli la chiave primaria
-     * @param string $pvalue valore chiave
+     * returns the record given the primary key
+     * @param string $pvalue key value
      */
     function GetRecordByPk($pvalue)
     {
@@ -714,7 +706,7 @@ class XMETATable_xmlphp extends stdClass
         $databasename = $this->databasename;
         $tablename = $this->tablename;
         $path = $this->path;
-        //cache su file---->
+        // file cache ---->
         if (!is_array($pkey) && $this->usecachefile == 1)
         {
             $cacheindex = $pvalue;
@@ -729,9 +721,8 @@ class XMETATable_xmlphp extends stdClass
                     return $ret;
             }
         }
-        //cache su file----<
+        // file cache ----<
         $old = $this->GetFileRecord($pkey, $pvalue);
-        //dprint_r("$pkey.$old.$pvalue");
         $values = xmetadb_readDatabase($old, $this->xmlfieldname);
         $ret = false;
         $found = false;
@@ -748,14 +739,14 @@ class XMETATable_xmlphp extends stdClass
                 break;
             }
         }
-        //riempo i campi che mancano
+        // fill missing fields
         if ($found)
             foreach ($this->fields as $field)
             {
                 if (!isset($ret[$field->name]))
                     $ret[$field->name] = isset($field->defaultvalue) ? $field->defaultvalue : null;
             }
-        //cache su file---->
+        // file cache ---->
         if ($this->usecachefile == 1)
         {
             $cachestring = serialize($ret);
@@ -763,13 +754,13 @@ class XMETATable_xmlphp extends stdClass
             fwrite($fp, $cachestring);
             fclose($fp);
         }
-        //cache su file----<
+        // file cache ----<
         return $ret;
     }
 
     /**
      * UpdateRecordBypk
-     * aggiorna il record passandogli la chiave primaria
+     * updates the record given the primary key
      * @param array $values
      * @param string $pkey
      * @param string $pvalue
@@ -812,15 +803,13 @@ class XMETATable_xmlphp extends stdClass
                     return "duplicate primarykey";
                 }
             }
-            //dprint_r($oldvalues);
-            //die();
             foreach ($values as $key => $value)
             {
                 $newvalues[$key] = $value;
             }
             $oldvalues[$this->primarykey] = $pvalue;
             $this->xmltable->gestfiles($values, $oldvalues);
-            //compongo il nuovo xml per il record da aggiornare
+            // build the new xml for the record to update
             $strnew = "<{$this->xmlfieldname}>";
             foreach ($newvalues as $key => $value)
             {
@@ -844,7 +833,7 @@ class XMETATable_xmlphp extends stdClass
             $handle = fopen($old, "w");
             fwrite($handle, $newfilestring);
             $this->ClearCachefile();
-            $newvalues = xmetadb_readDatabase($old, $this->xmlfieldname, false, false); //aggiorna la cache
+            $newvalues = xmetadb_readDatabase($old, $this->xmlfieldname, false, false); // update cache
             $newvalues = $this->GetRecordByPk($values[$pkey]);
 
             if (!isset($newvalues[$pkey]))

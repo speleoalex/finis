@@ -8,15 +8,15 @@
  *
  */
 /**
- * xmetadb_sqlite.php created on 13/feb/2014
- * driver sqlite per xmetadb
- * permette di inserire i dati in una tabella sqlite
- * il descrittore della tabella deve contenere:
+ * xmetadb_sqlserver.php created on 13/feb/2014
+ * sqlserver driver for xmetadb
+ * allows inserting data into a sql server table
+ * the table descriptor must contain:
  *
- * <driver>sqlite</driver>
- * <host>sqliteserverhost</host>
- * <user>sqliteusername</user>
- * <password>sqlitepassword</password>
+ * <driver>sqlserver</driver>
+ * <host>sqlserverhost</host>
+ * <user>sqlusername</user>
+ * <password>sqlpassword</password>
  *
  *
  *
@@ -134,14 +134,14 @@ class XMETATable_sqlserver extends stdClass
             $this->sqlpassword=get_xml_single_element("password",$this->xmldescriptor);
         }
         //------------------------db name--------------------------------------<
-        //---da variabili globali che sostituiscono xml------------------------>
+        //---from global variables that override xml ----------------------->
         global $xmetadb_mssqldatabase;
         if ($xmetadb_mssqldatabase)
         {
             $this->sqldatabasename=$xmetadb_mssqldatabase;
         }
-        //---da variabili globali che sostituiscono xml------------------------<
-        //verifico se esiste il db--------------------------------------------->
+        //---from global variables that override xml -----------------------<
+        // check if the database exists ------------------------------------->
 
         $query="SELECT name FROM master.sys.databases WHERE name = '{$this->sqldatabasename}'";
         $res=$this->dbQuery($query);
@@ -152,18 +152,17 @@ class XMETATable_sqlserver extends stdClass
         }
 
 
-        //verifico se esiste il db---------------------------------------------<
-        //--------------creo il db--------------------------------------------->
+        // check if the database exists -------------------------------------<
+        //--------------create the database ----------------------------------->
         if (!$dbexists)
         {
             $query="CREATE DATABASE {$this->sqldatabasename}";
             $res=$this->dbQuery($query);
         }
-        //--------------creo il db---------------------------------------------<
-        //verifico se esiste la tabella---------------------------------------->
+        //--------------create the database -----------------------------------<
+        // check if the table exists ---------------------------------------->
 
         $query="SELECT * FROM information_schema.tables  WHERE TABLE_TYPE='BASE TABLE'  AND TABLE_NAME='{$this->sqltablename}'";
-        //dprint_r($query);
         $res=$this->dbQuery($query);
         $exists=false;
         if (isset($res[0]) && is_array($res[0]))
@@ -174,7 +173,6 @@ class XMETATable_sqlserver extends stdClass
         {
             $query="SELECT * FROM sys.views where name = '{$this->sqltablename}'";
             $res=$this->dbQuery($query);
-            //dprint_r($res);
             if (isset($res[0]['name']))
             {
                 $exists=true;
@@ -182,7 +180,7 @@ class XMETATable_sqlserver extends stdClass
             }
         }
 
-        //verifico se esiste la tabella----------------------------------------<
+        // check if the table exists ----------------------------------------<
         /* CREATE TABLE [dbo].[WhatsUpIn](
           [IDMessaggio] [int] IDENTITY(3500000,1) NOT NULL,
           [NumberApplication] [varchar](32) NULL,
@@ -195,12 +193,10 @@ class XMETATable_sqlserver extends stdClass
           ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY] */
 
 
-        //crea la tabella----->
+        // create table ----->
         if (!$exists)
         {
-            //die ("ccc");
             $fields=$this->fields;
-            //dprint_r($fields);
             $query="CREATE TABLE {$this->sqltablename} (";
             $n=count($fields);
             foreach($fields as $field)
@@ -221,7 +217,7 @@ class XMETATable_sqlserver extends stdClass
                     case "int" :
                         $query.=" INT";
                         break;
-                    default : //forzo tutto a varchar
+                    default : // force everything to varchar
                         $query.=" VARCHAR";
                         $field['size']="255";
                         break;
@@ -249,7 +245,6 @@ class XMETATable_sqlserver extends stdClass
                     $query.=",";
             }
             $query.=") ;";
-            //die($query);
             if (!$this->dbQuery($query))
             {
                 die("sqlservererror".__LINE__);
@@ -263,14 +258,13 @@ class XMETATable_sqlserver extends stdClass
                 $this->InsertRecord($rec);
             }
         }
-        //crea la tabella-----<
-        //--sincronizzo i campi --->
+        // create table -----<
+        //--synchronize fields --->
         if (empty($dbcache[$this->sqldatabasename][$this->sqltablename]['describe']))
             $dbcache[$this->sqldatabasename][$this->sqltablename]['describe']=$this->dbQuery("exec sp_columns  ".$this->sqltablename);
         $xmlfield=$this->fields;
         $result=$dbcache[$this->sqldatabasename][$this->sqltablename]['describe'];
         $exists=false;
-        //dprint_r($result);
         if ($result)
         {
             foreach($result as $tmp)
@@ -278,7 +272,6 @@ class XMETATable_sqlserver extends stdClass
                 if (!is_array($tmp))
                     return true;
                 $sql_fields[$tmp['COLUMN_NAME']]=$tmp;
-                //dprint_r($tmp);
                 if ($tmp['NULLABLE']!= "NO")
                 {
                     $this->nullfields[$tmp['COLUMN_NAME']]=$tmp['COLUMN_NAME'];
@@ -287,7 +280,6 @@ class XMETATable_sqlserver extends stdClass
         }
         else
         {
-            //echo sql_error();
             return false;
         }
         $flag_tablechanged=false;
@@ -312,7 +304,7 @@ class XMETATable_sqlserver extends stdClass
                     case "int" :
                         $query.=" INT";
                         break;
-                    default : //forzo tutto a varchar
+                    default : // force everything to varchar
                         $query.=" VARCHAR";
                         $field['size']="255";
                         break;
@@ -332,7 +324,6 @@ class XMETATable_sqlserver extends stdClass
                 {
                     $query.=" DEFAULT('')";
                 }
-                //dprint_r($query);
                 if (!$this->dbQuery($query))
                 {
                     die("sqlservererror".__LINE__);
@@ -345,7 +336,7 @@ class XMETATable_sqlserver extends stdClass
             $dbcache[$this->sqldatabasename][$this->sqltablename]['describe']=$this->dbQuery("exec sp_columns  ".$this->sqltablename);
 
         $this->sqlfields=$sql_fields;
-        //--sincronizzo i campi ---<
+        //--synchronize fields ---<
     }
 
     /**
@@ -355,7 +346,6 @@ class XMETATable_sqlserver extends stdClass
      */
     function dbQuery($query)
     {
-        //dprint_r(htmlspecialchars($query));
         $db=array();
         $db['server']=$this->sqlhost;
         $db['dbname']=$this->sqldatabasename;
@@ -366,7 +356,7 @@ class XMETATable_sqlserver extends stdClass
 
         $result=false;
         $rows=false;
-        //versione con le funzioni ms
+        // version using ms functions
         if (!function_exists("mssql_query"))
         {
             if (empty($this->conn))
@@ -434,7 +424,7 @@ class XMETATable_sqlserver extends stdClass
                 }
                 $this->conn=$link;
             }
-            // solo su select,update,delete
+            // only for select, update, delete
             mssql_select_db($db['dbname'],$this->conn);
             $result=mssql_query($query);
             if (defined("DEBUG_TIME") && DEBUG_TIME == true)
@@ -551,7 +541,7 @@ class XMETATable_sqlserver extends stdClass
         {
             //dprint_r($query);
         }
-        if ($res && is_array($res) && $min!== false)
+        if ($res && is_array($res) && $min !== false)
         {
             $tmp=array();
             $count=is_array($res) ? count($res) : 0;
@@ -639,18 +629,14 @@ class XMETATable_sqlserver extends stdClass
 
     /**
      * GetRecordByPk
-     * torna il record passandogli la chiave primaria
-     * @param string $pvalue valore chiave
+     * returns the record given the primary key
+     * @param string $pvalue key value
      */
     function GetRecordByPk($pvalue)
     {
         $tablename=$this->tablename;
-        // se i dati sono su database --->
+        // if data is on a database --->
         $query="SELECT * FROM {$this->sqltablename} WHERE ".$this->MakeQueryPk($pvalue);
-
-//dprint_r($pvalue);
-//dprint_r($query);
-//        die();
         $result=$this->dbQuery($query);
         if (!isset($result[0]))
         {
@@ -679,10 +665,10 @@ class XMETATable_sqlserver extends stdClass
 
     /**
      * DelRecord
-     * Elimina un record.
+     * Deletes a record.
      * @param string $unirecid
-     * <b>$values[$this->primarykey] deve essere presente</b>
-     * @return array record appena inserito o null
+     * <b>$values[$this->primarykey] must be present</b>
+     * @return array just inserted record or null
      * */
     function DelRecord($pkvalue)
     {
@@ -728,7 +714,7 @@ class XMETATable_sqlserver extends stdClass
 
     /**
      * InsertRecord
-     * Aggiunge un record
+     * Adds a record
      *
      * @param array $values
      * */
@@ -738,7 +724,6 @@ class XMETATable_sqlserver extends stdClass
         if ($this->conn)
         {
             $seldb=true;
-            //dprint_r($this->fields[$this->primarykey]);
             $query="INSERT INTO ".$this->sqltablename." (";
             if (!is_array($this->primarykey) && !isset($values[$this->primarykey]) && empty($this->fields[$this->primarykey]->autoincrement_db_side))
                 $values[$this->primarykey]="";
@@ -800,7 +785,6 @@ class XMETATable_sqlserver extends stdClass
             $query.=");";
         }
         $ret=false;
-        //dprint_r($query);
         $ret=$this->dbQuery($query);
         if (!$ret)
         {
@@ -835,7 +819,7 @@ class XMETATable_sqlserver extends stdClass
 
     /**
      * UpdateRecordBypk
-     * aggiorna il record passandogli la chiave primaria
+     * updates the record given the primary key
      * @param array $values
      * @param string $pkey
      * @param string $pvalue
@@ -849,7 +833,6 @@ class XMETATable_sqlserver extends stdClass
             $existsvalues=$this->GetRecordByPk($pvalue);
             if (!$existsvalues || !is_array($existsvalues) || count($existsvalues) == 0)
                 return false;
-            // $oldvalues = ($values[$pkey] != $pvalue ) ? $existsvalues : null;
             $oldvalues=$existsvalues;
             $query="UPDATE {$this->sqltablename} SET ";
 
@@ -858,14 +841,14 @@ class XMETATable_sqlserver extends stdClass
             {
                 if (isset($this->fields[$k]))
                 {
-                    if ($values[$k]!= $existsvalues[$k])//accorcio la query
+                    if ($values[$k]!= $existsvalues[$k]) // shorten the query
                     {
                         $values2[$k]=$values[$k];
                     }
                 }
             }
             $n=count($values2);
-            if ($n == 0) //se non c'e' nulla da aggiornare
+            if ($n == 0) // nothing to update
             {
                 return $existsvalues;
             }
@@ -890,7 +873,6 @@ class XMETATable_sqlserver extends stdClass
                 }
             }
             $query.=" WHERE ".$this->MakeQueryPk($pvalue);
-            //dprint_r($query);
             $ret=$this->dbQuery($query);
             $this->gestfiles($values,$oldvalues);
             if (!$ret)
@@ -986,27 +968,23 @@ class XMETATable_sqlserver extends stdClass
     /**
      * GetAutoincrement
      *
-     * gestisce l' autoincrement di un campo della tabella
+     * manages the autoincrement of a table field
      *
-     * @param string nome del campo
-     * @return indice disponibile
+     * @param string field name
+     * @return next available index
      */
     function GetAutoincrement($field)
     {
-        //die ("vvvv");
         static $last="";
         if (isset($this->maxautoincrement[$field]))
         {
             return $this->maxautoincrement[$field] + 1;
         }
-        //todo autoincrement offset SHOW VARIABLES;
-        //dprint_r ("SELECT MAX(CAST($field AS UNSIGNED)) AS $field FROM {$this->sqltablename} WHERE $field NOT LIKE '%[a-z]%' ");
-        //dprint_r($record);
+        // todo autoincrement offset SHOW VARIABLES;
         $record=$this->dbQuery("SELECT MAX(CAST($field AS BIGINT)) AS $field FROM {$this->sqltablename} WHERE [$field] NOT LIKE '%[a-z]%' ");
         if (!isset($record[0][$field]))
             return 1;
         $max=$record[0][$field];
-        //dprint_r($max);
         return $max + 1;
     }
 
@@ -1107,7 +1085,6 @@ sys.columns cref
         $xml.="\n\t<sqltable>$tablename</sqltable>";
 
         $xml.="\n</tables>\n";
-        //die("tabella mancante, scommentare per crearla");
         file_put_contents("$path/$xmltablename.php",$xml);
     }
     else

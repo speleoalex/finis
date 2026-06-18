@@ -8,9 +8,7 @@ include_once __DIR__ . "/xmetadb/XMETATable.php";
  * @package xmetadb
  *
  */
-//-----PARSER XML -----
-// TODO:
-// LA PRIMARYKEY DEVE ESSERE SEMPRE IL PRIMO CAMPO DEL DESCRITTORE
+// TODO: the primary key must always be the first field in the descriptor
 define("_MAX_FILE_ACCESS_ATTEMPTS", "1000");
 define("_MAX_FILES_PER_FOLDER", "10000");
 define("_MAX_LOCK_TIME", "30"); // seconds
@@ -84,7 +82,7 @@ function xmetadb_xml2array($data, $elem, $fields = false)
 
 /**
  * xmetadb_readDatabase
- * legge un file xml e restituisce un array
+ * Reads an XML file and returns an array.
  * <db>
  * <elem>
  * <pippo>1</pippo>
@@ -97,18 +95,16 @@ function xmetadb_xml2array($data, $elem, $fields = false)
  * </db>
  *
  * xmetadb_readDatabase($filename,"elem")
- * ritorna:
+ * returns:
  *
  * $ret[0]['pippo']=1
  * $ret[0]['pluto']=1
  * $ret[1]['pippo']=2
  * $ret[1]['pluto']=2
  *
- * oppure null se non e' stato possibile leggere il file
+ * or null if the file could not be read
  *
- * @todo Da risolvere il problema che avviene
- * nel caso un campo abbia lo steso nome della tebella !!!!
- *
+ * @todo Fix the issue when a field has the same name as the table.
  *
  * */
 function xmetadb_readDatabase($filename, $elem, $fields = false, $usecache = true)
@@ -144,7 +140,7 @@ function xmetadb_readDatabase($filename, $elem, $fields = false, $usecache = tru
         return $cache[$filename][$_fields][$elem];
     }
     $tmp = array();
-    // --- gestione xml in più files --------->
+    // --- xml split across multiple files --------->
     if (is_dir($filename))
     {
         $data = null;
@@ -162,7 +158,7 @@ function xmetadb_readDatabase($filename, $elem, $fields = false, $usecache = tru
         $cache[$filename][$_fields][$elem] = $tmp;
         return $tmp;
     }
-    //<--------- gestione xml in piu' files ---
+    //<--------- xml split across multiple files ---
     $data = file_get_contents($filename);
     //da xml ad array....
     $ret = xmetadb_xml2array($data, $elem, $fields); //null if data = ""
@@ -174,9 +170,9 @@ function xmetadb_readDatabase($filename, $elem, $fields = false, $usecache = tru
 /**
  * xmlenc
  *
- * codifica i dati per inserirli tra i tag xml
+ * Encodes data for insertion between XML tags.
  * @param string $str
- * @return stringa codificata
+ * @return string encoded string
  */
 function xmlenc($str)
 {
@@ -189,9 +185,9 @@ function xmlenc($str)
 /**
  * xmldec
  *
- * decodifica i dati inseriti tra i tag xml
+ * Decodes data extracted from between XML tags.
  * @param string $str
- * @return stringa codificata
+ * @return string decoded string
  */
 function xmldec($str)
 {
@@ -205,11 +201,9 @@ function xmldec($str)
 
 /**
  * xmetadb_create_thumb
- * Crea l' anteprima di un file
- * uso questa funzione per crearmi le anteprime per i campi di tipo immagine
- * occorrono le librerie GD
- * @param string $filename nome del file
- * @param int $max dimensione massima anteprima
+ * Creates a file thumbnail for image-type fields. Requires the GD library.
+ * @param string $filename file name
+ * @param int $max maximum thumbnail size
  */
 function xmetadb_create_thumb($filename, $max, $max_h = "", $max_w = "")
 {
@@ -333,7 +327,6 @@ function xmetadb_create_thumb($filename, $max, $max_h = "", $max_w = "")
     imagecopyresampled($thumb, $source, 0, 0, 0, 0, $new_width, $new_height, $width, $height);
     // Output
     $file_to_open = $file_thumb;
-    //forzo estensione jpg
     imagejpeg($thumb, $file_to_open . ".jpg");
 }
 
@@ -344,7 +337,6 @@ function xmetadb_create_thumb($filename, $max, $max_h = "", $max_w = "")
  */
 function xmetadb_ImageCreateFromBMP($filename)
 {
-    //Ouverture du fichier en mode binaire
     if (!$f1 = fopen($filename, "rb"))
         return FALSE;
     $FILE = unpack("vfile_type/Vfile_size/Vreserved/Vbitmap_offset", fread($f1, 14));
@@ -433,10 +425,10 @@ function xmetadb_ImageCreateFromBMP($filename)
 
 /**
  * xmetadb_removexmlcomments
- * rimuove i commenti da un file xml
+ * Removes comments and processing instructions from XML data.
  *
  * @param string $data
- * @return string xml privo di commenti
+ * @return string XML with comments removed
  *
  */
 function xmetadb_removexmlcomments($data)
@@ -446,20 +438,18 @@ function xmetadb_removexmlcomments($data)
     return $data;
 }
 
-//-------------------------FUNZIONI DI CREAZIONE/MODIFICA DATABASE----------------
+//-------------------------DATABASE CREATION/MODIFICATION FUNCTIONS----------------
 /**
  * XMETATable::createMetadbTable
  *
- * crea una nuova tabella xml
- * @param string nome database
- * @param string nome tabella
- * @param array campi
- * @param string path dei databases
- * @param misc $singlefilename se su un solo file specificarne il nome, se su database
- * mettere la connessione di tipo array(host=>'' user=>'' password=>'')
+ * Creates a new XML table.
+ * @param string $databasename database name
+ * @param string $tablename table name
+ * @param array $fields field definitions
+ * @param string $path database path
+ * @param mixed $singlefilename single-file name, or false for directory-based storage
  *
- *
- * -- ESEMPIO : --
+ * -- EXAMPLE : --
  * $fields[0]['name']="id";
  * $fields[0]['primarykey']=1;
  * $fields[0]['defaultvalue']=null;
@@ -477,11 +467,11 @@ function createxmltable($databasename, $tablename, $fields, $path = ".", $single
 
 /**
  * XMETATable::createMetadbDatabase
- * crea un database
+ * Creates a database directory.
  *
  * @param string $databasename
  * @param string $path
- * @return false se il databare e'stato creato oppure una stringa che contiene l' errore
+ * @return false on success, or an error string on failure
  */
 function createxmldatabase($databasename, $path = ".")
 {
@@ -490,7 +480,7 @@ function createxmldatabase($databasename, $path = ".")
 
 /**
  * XMETATable::meteDatabaseExists
- * verifica se un database esiste
+ * Checks whether a database exists.
  *
  * @param string $databasename
  * @param string $path
@@ -551,7 +541,6 @@ function addxmltablefield($databasename, $tablename, $field, $path = ".", $force
 
         $newvalues[$key] = $value;
     }
-    //compongo il nuovo xml per il record da aggiornare
     $strnew = "<field>";
     foreach ($newvalues as $key => $value)
     {
@@ -574,13 +563,13 @@ function addxmltablefield($databasename, $tablename, $field, $path = ".", $force
         {
             $handle = fopen($old, "w");
             fwrite($handle, $newfilestring);
-            xmetadb_readDatabase($old, 'field', false, false); //aggiorna la cache
+            xmetadb_readDatabase($old, 'field', false, false); // refresh cache
         }
         return $newvalues;
     }
     else // new field
     {
-        for ($i = 0; $i < _MAX_FILE_ACCESS_ATTEMPTS; $i++)
+        for ($i = 0; $i < 3; $i++)
         {
             $oldfilestring = file_get_contents("$path/$databasename/$tablename.php");
             if (strpos($oldfilestring, "</tables>") !== false)
@@ -598,19 +587,19 @@ function addxmltablefield($databasename, $tablename, $field, $path = ".", $force
         $handle = fopen("$path/$databasename/$tablename.php", "w");
         fwrite($handle, $newfilestring);
         fclose($handle);
-        xmetadb_readDatabase($old, 'field', false, false); //aggiorna la cache
+        xmetadb_readDatabase($old, 'field', false, false); // refresh cache
         return $newvalues;
     }
 }
 
 /**
  * getxmltablefield
- * ritorna tutte le proprieta' di un campo di una tabella xml
+ * Returns all properties of a field in an XML table.
  *
- * @param string databasename
- * @param string tablename
- * @param string fieldname
- * @param string path
+ * @param string $databasename
+ * @param string $tablename
+ * @param string $fieldname
+ * @param string $path
  */
 function getxmltablefield($databasename, $tablename, $fieldname, $path = ".")
 {

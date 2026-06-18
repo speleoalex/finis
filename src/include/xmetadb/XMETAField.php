@@ -1,7 +1,7 @@
 <?php
 /**
- * classe  XMETAField
- * classe che descrive un singolo field della tabella
+ * class XMETAField
+ * class that describes a single table field
  */
 //#[AllowDynamicProperties]
 class XMETAField extends stdClass
@@ -22,7 +22,7 @@ class XMETAField extends stdClass
     function __construct($descriptionfile, $fieldname)
     {
         $this->proprieties = array();
-        //---proprieta' relative al database
+        //---properties relative to the database
         $this->proprieties['type']= "varchar";
 
         $this->type = "varchar";
@@ -48,7 +48,7 @@ class XMETAField extends stdClass
             }
         }
         if ($this->title == null) {
-            $this->title = $this->name; // se e' null prende il nome del campo
+            $this->title = $this->name; // if null, uses the field name
         }
         if ($this->type == "string") {
             $this->type = "varchar";

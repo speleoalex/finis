@@ -9,8 +9,8 @@
  */
 
 /**
- * driver xmlphp per Xmltable
- * 
+ * serialize driver for Xmltable
+ *
  */
 class XMETATable_serialize  extends stdClass
 {
@@ -42,11 +42,11 @@ class XMETATable_serialize  extends stdClass
         $this->primarykey=&$xmltable->primarykey;
         $this->driver=&$xmltable->driver;
         $this->records=array();
-        //propriera' relative a i file xml
+        // properties relative to xml files
         $path=$this->path;
         $databasename=$this->databasename;
         $tablename=$this->tablename;
-        // dati su singolo file
+        // data on a single file
         $this->filename=get_xml_single_element("filename",file_get_contents("$path/$databasename/$tablename.php"));
         if (is_array($params))
         {
@@ -60,7 +60,7 @@ class XMETATable_serialize  extends stdClass
 
     /**
      * GetNumRecords
-     * Torna il numero di records
+     * Returns the number of records
      */
     function GetNumRecords($restr=null)
     {
@@ -86,7 +86,7 @@ class XMETATable_serialize  extends stdClass
 
     /**
      * GetRecords
-     * recupera tutti i records
+     * retrieves all records
      */
     function GetRecords($restr=false,$min=false,$length=false,$order=false,$reverse=false,$fields=false)
     {
@@ -117,7 +117,7 @@ class XMETATable_serialize  extends stdClass
           {
           return $this->records[md5($cacheindex)];
           } */
-        //cache su file---->
+        // file cache ---->
         if ($this->usecachefile== 1)
         {
             if (!file_exists("$path/".$databasename."/cache"))
@@ -127,14 +127,12 @@ class XMETATable_serialize  extends stdClass
             {
                 $ret=file_get_contents($cachefile);
                 $ret=@unserialize($ret);
-                //dprint_r("[$cachefile]");
-                //dprint_r ($ret);
                 if ($ret!== false)
                     return $ret;
             }
         }
-        //cache su file----<
-        // filtro i field che non sono associati alla tabella
+        // file cache ----<
+        // filter fields not associated with the table
         if ($fields=== false)
         {
             $fields=array();
@@ -152,7 +150,7 @@ class XMETATable_serialize  extends stdClass
         }
         if (!is_array($all))
             return null;
-        //se il campo manca lo forzo a default oppure null
+        // if the field is missing, force it to default or null
         foreach($all as $k=> $r)
         {
             foreach($this->fields as $field)
@@ -187,8 +185,7 @@ class XMETATable_serialize  extends stdClass
         }
         else
             $ret=$all;
-        //dprint_r($ret);
-        //ordinamento dei records
+        // sort records
         if ($order!== false && $order!== "" && isset($this->fields[$order]) && is_array($ret))
         {
             $newret=array();
@@ -222,31 +219,28 @@ class XMETATable_serialize  extends stdClass
         {
             $ret=array_reverse($ret);
         }
-        // minimo e massimo
+        // minimum and maximum
         if ($min!= false && $length!= false)
             $ret=array_slice($ret,$min - 1,$length);
         $ret=array_values($ret);
-        //cache su file---->
+        // file cache ---->
         if ($this->usecachefile== 1)
         {
             $cachestring=serialize($ret);
-            //dprint_r($cachefile);
-            //dprint_r($cacheindex);
-            //dprint_r($cachestring);
             $fp=fopen($cachefile,"wb");
             fwrite($fp,$cachestring);
             fclose($fp);
         }
-        //cache su file----<
+        // file cache ----<
         /* $this->records[md5($cacheindex)]=$ret; */
         return $ret;
     }
 
     /**
      * GetRecord
-     * recupera un singolo record
-     * 
-     * @param array restrizione
+     * retrieves a single record
+     *
+     * @param array restriction
      */
     function GetRecord($restr=false)
     {
@@ -261,7 +255,7 @@ class XMETATable_serialize  extends stdClass
     /**
      * GetRecordByUnirecid
      *
-     * Torna un record in formato array partendo dall' unirecid (nomefile)
+     * Returns a record as an array starting from the unirecid (filename)
      * */
     function GetRecordByPrimaryKey($unirecid)
     {
@@ -271,10 +265,10 @@ class XMETATable_serialize  extends stdClass
     /**
      * GetAutoincrement
      *
-     * gestisce l' autoincrement di un campo della tabella
+     * manages the autoincrement of a table field
      *
-     * @param string nome del campo
-     * @return indice disponibile
+     * @param string field name
+     * @return next available index
      */
     function GetAutoincrement($field)
     {
@@ -296,8 +290,8 @@ class XMETATable_serialize  extends stdClass
 
     /**
      * InsertRecord
-     * Aggiunge un record
-     * 
+     * Adds a record
+     *
      * @param array $values
      * */
     function InsertRecord($values)
@@ -328,7 +322,7 @@ class XMETATable_serialize  extends stdClass
         }
         if (!isset($values[$this->primarykey]) || $values[$this->primarykey]== "")
         {
-            return "manca la chiave primaria nella tabella $tablename";
+            return "missing primary key in table $tablename";
         }
         if (!file_exists("$path/$databasename/$tablename/"))
             mkdir("$path/$databasename/$tablename");
@@ -347,10 +341,10 @@ class XMETATable_serialize  extends stdClass
 
     /**
      * DelRecord
-     * Elimina un record.
+     * Deletes a record.
      * @param string $unirecid
-     * <b>$values[$this->primarykey] deve essere presente</b>
-     * @return array record appena inserito o null
+     * <b>$values[$this->primarykey] must be present</b>
+     * @return array just inserted record or null
      * */
     function DelRecord($pkvalue)
     {
@@ -376,7 +370,7 @@ class XMETATable_serialize  extends stdClass
 
     /**
      * GetFileRecord
-     * torna il nome del file che contiene il record
+     * returns the name of the file containing the record
      * @param string $pkey
      * @param string $pvalue
      */
@@ -394,8 +388,8 @@ class XMETATable_serialize  extends stdClass
 
     /**
      * GetRecordByPk
-     * torna il record passandogli la chiave primaria
-     * @param string $pvalue valore chiave
+     * returns the record given the primary key
+     * @param string $pvalue key value
      */
     function GetRecordByPk($pvalue)
     {
@@ -405,7 +399,7 @@ class XMETATable_serialize  extends stdClass
         $path=$this->path;
         $old=$this->GetFileRecord($pkey,$pvalue);
         $ret=readSerialDatabase($old);
-        //riempo i campi che mancano
+        // fill missing fields
         if ($ret)
             foreach($this->fields as $field)
             {
@@ -417,7 +411,7 @@ class XMETATable_serialize  extends stdClass
 
     /**
      * UpdateRecordBypk
-     * aggiorna il record passandogli la chiave primaria
+     * updates the record given the primary key
      * @param array $values
      * @param string $pkey
      * @param string $pvalue
@@ -432,7 +426,6 @@ class XMETATable_serialize  extends stdClass
             $old=$this->GetFileRecord($pkey,$pvalue);
             if (!file_exists($old))
                 return false;
-            //$oldfilestring = file_get_contents($old);
             $readok=false;
             for($i=0; $i < _MAX_FILE_ACCESS_ATTEMPTS; $i++)
             {
@@ -464,9 +457,7 @@ class XMETATable_serialize  extends stdClass
             if ($pvalue!= $newvalues[$pkey])
                 rename($old,"$path/$databasename/$tablename/".urlencode($newvalues[$pkey]).".s.php");
             $this->ClearCachefile();
-            //dprint_r("$path/$databasename/$tablename/" . urlencode($newvalues[$pkey]) . ".s.php");
             $newvalues=readSerialDatabase("$path/$databasename/$tablename/".urlencode($newvalues[$pkey]).".s.php",true);
-            //dprint_r($newvalues);
             if (!isset($newvalues[$pkey]))
                 return false;
             return $newvalues;

@@ -1,6 +1,6 @@
 <?php
 /**
- * driver csv per Xmltable
+ * csv driver for Xmltable
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  * @copyright Copyright (c) 2003-2009
  * @license http://opensource.org/licenses/gpl-license.php GNU General Public License
@@ -40,7 +40,7 @@ class XMETATable_csv
         $this->records=array();
         $this->xmldescriptor=&$xmltable->xmldescriptor;
 
-        //propriera' relative a i file xml
+        // properties relative to xml files
         $path=$this->path;
         $databasename=$this->databasename;
         $tablename=$this->tablename;
@@ -58,7 +58,6 @@ class XMETATable_csv
         $this->filename=$csv;
         if (!file_exists($csv))
         {
-            //die ($csv);
             $f=array();
             foreach($this->fields as $k=> $v)
             {
@@ -74,8 +73,8 @@ class XMETATable_csv
 
     /**
      * GetNumRecords
-     * Torna il numero di records
-     * 
+     * Returns the number of records
+     *
      * @param array $restr
      */
     function GetNumRecords($restr=null)
@@ -88,7 +87,6 @@ class XMETATable_csv
         $cacheid=md5($cacheid);
         if (isset($this->numrecords[$cacheid]))
         {
-            //	echo "CACHE";
             return $this->numrecords[$cacheid];
         }
         $c=count($this->GetRecords($restr,false,false,false,false,$this->primarykey));
@@ -116,14 +114,14 @@ class XMETATable_csv
 
     /**
      * GetRecords
-     * recupera tutti i records
-     * 
-     * @param unknown_type $restr
-     * @param unknown_type $min
-     * @param unknown_type $length
-     * @param unknown_type $order
-     * @param unknown_type $reverse
-     * @param unknown_type $fields
+     * retrieves all records
+     *
+     * @param mixed $restr
+     * @param mixed $min
+     * @param mixed $length
+     * @param mixed $order
+     * @param mixed $reverse
+     * @param mixed $fields
      */
     function GetRecords($restr=false,$min=false,$length=false,$order=false,$reverse=false,$fields=false)
     {
@@ -150,7 +148,7 @@ class XMETATable_csv
         }
 
         $cacheindex=$rc.$min.$length.$order.$reverse.$fields;
-        //cache su file---->
+        // file cache ---->
         if ($this->usecachefile == 1)
         {
             if (!file_exists("$path/".$databasename."/cache"))
@@ -164,7 +162,7 @@ class XMETATable_csv
                     return $ret;
             }
         }
-        //cache su file----<
+        // file cache ----<
         $all=$this->readCSVDatabase($this->filename,true);
         if (!is_array($all))
             return null;
@@ -192,7 +190,7 @@ class XMETATable_csv
         {
             $ret=$all;
         }
-        //ordinamento dei records
+        // sort records
         if ($order !== false && $order !== "" && isset($this->fields[$order]) && is_array($ret))
         {
             $newret=array();
@@ -226,11 +224,11 @@ class XMETATable_csv
         {
             $ret=array_reverse($ret);
         }
-        // minimo e massimo
+        // minimum and maximum
         if ($min != false && $length != false)
             $ret=array_slice($ret,$min - 1,$length);
         $ret=array_values($ret);
-        //cache su file---->
+        // file cache ---->
         if ($this->usecachefile == 1)
         {
             $cachestring=serialize($ret);
@@ -238,16 +236,15 @@ class XMETATable_csv
             fwrite($fp,$cachestring);
             fclose($fp);
         }
-        //cache su file----<
-        //dprint_r($ret);
+        // file cache ----<
         return $ret;
     }
 
     /**
      * GetRecord
-     * recupera un singolo record
-     * 
-     * @param array restrizione
+     * retrieves a single record
+     *
+     * @param array restriction
      */
     function GetRecord($restr=false)
     {
@@ -262,7 +259,7 @@ class XMETATable_csv
     /**
      * GetRecordByUnirecid
      *
-     * Torna un record in formato array partendo dall' unirecid (nomefile)
+     * Returns a record as an array starting from the unirecid (filename)
      * */
     function GetRecordByPrimaryKey($unirecid)
     {
@@ -272,10 +269,10 @@ class XMETATable_csv
     /**
      * GetAutoincrement
      *
-     * gestisce l' autoincrement di un campo della tabella
+     * manages the autoincrement of a table field
      *
-     * @param string nome del campo
-     * @return indice disponibile
+     * @param string field name
+     * @return next available index
      */
     function GetAutoincrement($field)
     {
@@ -299,8 +296,8 @@ class XMETATable_csv
 
     /**
      * InsertRecord
-     * Aggiunge un record
-     * 
+     * Adds a record
+     *
      * @param array $values
      * */
     function InsertRecord($values)
@@ -331,12 +328,12 @@ class XMETATable_csv
         }
         if (!isset($values[$this->primarykey]) || $values[$this->primarykey] == "")
         {
-            return "manca la chiave primaria nella tabella $tablename";
+            return "missing primary key in table $tablename";
         }
         if (!file_exists("$path/$databasename/$tablename/"))
             mkdir("$path/$databasename/$tablename");
         $f=array();
-        //--header e nuovo record---->
+        //--header and new record---->
         foreach($this->fields as $k=> $v)
         {
             $f[]=$k;
@@ -346,7 +343,7 @@ class XMETATable_csv
         $newline=implode($this->separator,$nl);
         $header=implode($this->separator,$f);
 
-        //--header e nuovo record----<
+        //--header and new record----<
         global $xmetadb_csvfastinsert;
         if ($xmetadb_csvfastinsert)
         {
@@ -362,7 +359,7 @@ class XMETATable_csv
             foreach($all as $k=> $records)
             {
                 $add=true;
-                // se esiste gia' un record con la stessa pk
+                // if a record with the same primary key already exists
                 if ($values[$this->primarykey] == $records[$this->primarykey])
                     return false;
             }
@@ -383,22 +380,21 @@ class XMETATable_csv
         fclose($h);
         $this->xmltable->gestfiles($values);
         $this->ClearCachefile();
-        //$values = $this->GetRecordByPrimaryKey($values[$this->primarykey]);
         return $newvalues;
     }
 
     /**
      * DelRecord
-     * Elimina un record.
+     * Deletes a record.
      * @param string $unirecid
-     * <b>$values[$this->primarykey] deve essere presente</b>
-     * @return array record appena inserito o null
+     * <b>$values[$this->primarykey] must be present</b>
+     * @return array just inserted record or null
      * */
     function DelRecord($pkvalue)
     {
         $this->numrecords=-1;
         $f=array();
-        //--header e nuovo record---->
+        //--header and new record---->
         foreach($this->fields as $k=> $v)
         {
             $f[]=$k;
@@ -406,13 +402,13 @@ class XMETATable_csv
         $header=implode($this->separator,$f);
         $filename=$this->GetFileRecord($this->primarykey,$pkvalue);
         $all=$this->readCSVDatabase($filename,false);
-        //--header e nuovo record----<
+        //--header and new record----<
         $add=false;
         $str=$header;
         foreach($all as $k=> $records)
         {
             $add=true;
-            // se esiste gia' un record con la stessa pk
+            // if a record with the same primary key already exists
             if ($pkvalue == $records[$this->primarykey])
                 continue;
             $tnv=array();
@@ -431,7 +427,7 @@ class XMETATable_csv
 
     /**
      * GetFileRecord
-     * torna il nome del file che contiene il record
+     * returns the name of the file containing the record
      * @param string $pkey
      * @param string $pvalue
      */
@@ -442,8 +438,8 @@ class XMETATable_csv
 
     /**
      * GetRecordByPk
-     * torna il record passandogli la chiave primaria
-     * @param string $pvalue valore chiave
+     * returns the record given the primary key
+     * @param string $pvalue key value
      */
     function GetRecordByPk($pvalue)
     {
@@ -460,7 +456,7 @@ class XMETATable_csv
 
     /**
      * UpdateRecordBypk
-     * aggiorna il record passandogli la chiave primaria
+     * updates the record given the primary key
      * @param array $values
      * @param string $pkey
      * @param string $pvalue
@@ -468,7 +464,7 @@ class XMETATable_csv
     function UpdateRecordBypk($values,$pkey,$pvalue)
     {
         $f=array();
-        //--header e nuovo record---->
+        //--header and new record---->
         $oldvalues=$newval=$this->GetRecordByPrimaryKey($pvalue);
         foreach($this->fields as $k=> $v)
         {
@@ -481,13 +477,13 @@ class XMETATable_csv
         $header=implode($this->separator,$f);
         $filename=$this->GetFileRecord($pkey,$pvalue);
         $all=$this->readCSVDatabase($filename,false);
-        //--header e nuovo record----<
+        //--header and new record----<
         $add=false;
         $str=$header;
         foreach($all as $k=> $records)
         {
             $add=true;
-            // sostituisco la riga
+            // replace the row
             if ($pvalue == $records[$pkey])
             {
                 $str .= "\n$newline";

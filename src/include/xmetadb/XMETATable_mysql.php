@@ -9,7 +9,7 @@
  */
 /**
  * xmetadb_mysql.php created on 13/gen/2009
- * driver mysql per xmetadb
+ * mysql driver for xmetadb
  * allows you to enter data into a mysql table
  * :
  *
@@ -88,7 +88,7 @@ class XMETATable_mysql extends stdClass
         $this->mysqldatabasename = $this->databasename;
         $tablename = $this->tablename;
         $xml = $this->xmldescriptor;
-        //----Mysql---->
+        //----Mysql setup---->
         $mysql['host'] = get_xml_single_element("host", $xml);
         $mysql['user'] = get_xml_single_element("user", $xml);
         $mysql['password'] = get_xml_single_element("password", $xml);
@@ -108,7 +108,7 @@ class XMETATable_mysql extends stdClass
         }
         $this->sqltable = $sqltable;
 
-        // se sono impostate connessioni a livello globale passo le impostazioni della tabella
+        // if global connections are set, pass the table settings
         global $_FN;
         if (is_array($params))
         {
@@ -148,7 +148,6 @@ class XMETATable_mysql extends stdClass
                 $this->mysqldatabasename = $this->databasename;
             }
 
-            //print_r($xmetadb_mysqlconnection);
             try
             {
                 $this->conn->query("SET character_set_results = 'utf8', character_set_client = 'utf8', character_set_connection = 'utf8', character_set_database = 'utf8', character_set_server = 'utf8'");
@@ -179,7 +178,6 @@ class XMETATable_mysql extends stdClass
             {
                 $result = $this->conn->query("SHOW databases");
                 $exists = false;
-                //dprint_r($result);
                 global $xmetadb_mysqlcurrentdb;
                 if ($xmetadb_mysqlcurrentdb == $this->mysqldatabasename)
                 {
@@ -230,13 +228,12 @@ class XMETATable_mysql extends stdClass
             }
 
 
-            //crea la tabella----->
+            // create table ----->
             if (!$exists)
             {
                 @ini_set("max_execution_time", "600");
 
                 $fields = $this->fields;
-                //dprint_r($fields);
                 $query = "CREATE TABLE `{$this->sqltable}` (";
                 $n = count($fields);
                 foreach ($fields as $field)
@@ -269,7 +266,7 @@ class XMETATable_mysql extends stdClass
                             $query .= " INT";
                             $default = "NULL";
                             break;
-                        default: //forzo tutto a varchar
+                        default: // force everything to varchar
                             $query .= " VARCHAR";
                             $field['size'] = "255";
                             break;
@@ -292,7 +289,6 @@ class XMETATable_mysql extends stdClass
                     {
                         if ($default == "''" && $field['type'] == "datetime" && empty($field["mysql_default"]))
                         {
-                            //dprint_r($default);
                         }
                         else
                         {
@@ -336,8 +332,8 @@ class XMETATable_mysql extends stdClass
                     $this->InsertRecord($rec);
                 }
             }
-            //crea la tabella-----<
-            //--sincronizzo i campi --->
+            // create table -----<
+            //--synchronize fields --->
             if (empty($dbcache[$this->mysqldatabasename][$sqltable]['describe']))
                 $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $this->dbQuery("DESCRIBE " . $this->sqltable);
             $xmlfield = $this->fields;
@@ -394,7 +390,7 @@ class XMETATable_mysql extends stdClass
                         case "json":
                             $query .= " JSON";
                             break;
-                        default: //forzo tutto a varchar
+                        default: // force everything to varchar
                             $query .= " VARCHAR";
                             $field['size'] = "255";
                             break;
@@ -448,15 +444,13 @@ class XMETATable_mysql extends stdClass
                 }
             }
             $this->mysqlfields = $mysql_fields;
-            //--sincronizzo i campi ---<
+            //--synchronize fields ---<
         }
         else
         {
             echo ($this->conn->error);
             return false;
         }
-        //	dprint_r($this->fields);
-        //	die();
         return true;
         //<----Mysql----
     }
@@ -542,7 +536,6 @@ class XMETATable_mysql extends stdClass
                 $query .= ",$length";
             }
         }
-        //dprint_r($query);
         $ret = $this->dbQuery($query);
         return $ret;
     }
@@ -572,7 +565,6 @@ class XMETATable_mysql extends stdClass
     {
         try
         {
-            //dprint_r($query);
             if (!isset($this->conn) || !$this->conn)
             {
                 echo ($this->conn->error);
@@ -595,8 +587,6 @@ class XMETATable_mysql extends stdClass
                     return true;
                 if (preg_match("/^INSERT /is", $query))
                     return true;
-                //			if (!is_resource($result))
-                //				return true;
                 $res = array();
                 while ($tmp = $result->fetch_assoc())
                 {
@@ -630,14 +620,14 @@ class XMETATable_mysql extends stdClass
 
     /**
      * GetRecordByPk
-     * torna il record passandogli la chiave primaria
-     * @param string $pvalue valore chiave
+     * returns the record given the primary key
+     * @param string $pvalue key value
      */
     function GetRecordByPk($pvalue)
     {
         $tablename = $this->tablename;
         $pkey = $this->primarykey;
-        // se i dati sono su database --->
+        // if data is on a database --->
         if ($this->connection && !empty($pkey))
         {
             if (!$this->conn)
@@ -649,11 +639,10 @@ class XMETATable_mysql extends stdClass
             {
                 return null;
             }
-            //$res = mysql_fetch_assoc($result);
             $res = $this->fix_null($result[0]);
             return $res;
         }
-        // <--- se i dati sono su database
+        // <--- if data is on a database
         return false;
     }
 
@@ -683,10 +672,10 @@ class XMETATable_mysql extends stdClass
 
     /**
      * DelRecord
-     * Elimina un record.
+     * Deletes a record.
      * @param string $unirecid
-     * <b>$values[$this->primarykey] deve essere presente</b>
-     * @return array record appena inserito o null
+     * <b>$values[$this->primarykey] must be present</b>
+     * @return array just inserted record or null
      * */
     function DelRecord($pkvalue)
     {
@@ -703,7 +692,6 @@ class XMETATable_mysql extends stdClass
             else
                 $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . addslashes($pkvalue) . "'";
             $result = $this->dbQuery($query);
-            //mysql_close($connessione);
             if (!$result)
             {
                 echo $this->conn->error;
@@ -736,7 +724,7 @@ class XMETATable_mysql extends stdClass
 
     /**
      * InsertRecord
-     * Aggiunge un record
+     * Adds a record
      *
      * @param array $values
      * */
@@ -830,8 +818,8 @@ class XMETATable_mysql extends stdClass
     }
 
     /**
-     * InsertRecord
-     * Aggiunge un record
+     * InsertRecordFast
+     * Adds a record (fast version)
      *
      * @param array $values
      * */
@@ -912,7 +900,7 @@ class XMETATable_mysql extends stdClass
 
     /**
      * UpdateRecordBypk
-     * aggiorna il record passandogli la chiave primaria
+     * updates the record given the primary key
      * @param array $values
      * @param string $pkey
      * @param string $pvalue
@@ -928,18 +916,16 @@ class XMETATable_mysql extends stdClass
                 $existsvalues = $this->GetRecordByPk($pvalue);
                 if (!isset($existsvalues[$pkey]))
                     return false;
-                // $oldvalues = ($values[$pkey] != $pvalue ) ? $existsvalues : null;
                 $oldvalues = $existsvalues;
                 $query = "UPDATE `{$this->sqltable}` SET ";
                 $values2 = array();
                 foreach ($values as $k => $value)
                 {
-                    //if ($values[$k] != $existsvalues[$k])//accorcio la query
                     if (isset($this->fields[$k]))
                         $values2[$k] = $values[$k];
                 }
                 $n = count($values2);
-                if ($n == 0) //se non c'e' nulla da aggiornare
+                if ($n == 0) // nothing to update
                     return $existsvalues;
 
                 foreach ($values2 as $k => $value)
@@ -1004,7 +990,7 @@ class XMETATable_mysql extends stdClass
                         $values2[$k] = $values[$k];
                 }
                 $n = count($values2);
-                if ($n == 0) //se non c'e' nulla da aggiornare
+                if ($n == 0) // nothing to update
                     return $this->GetRecordByPk($pvalue);;
                 foreach ($values2 as $k => $value)
                 {
@@ -1072,7 +1058,6 @@ class XMETATable_mysql extends stdClass
         }
 
         $ret = $this->dbQuery($query);
-        //dprint_r($query);
         if (isset($ret[0]['C']))
             return $ret[0]['C'];
         return 0;
@@ -1127,42 +1112,36 @@ class XMETATable_mysql extends stdClass
     /**
      * GetAutoincrement
      *
-     * gestisce l' autoincrement di un campo della tabella
+     * manages the autoincrement of a table field
      *
-     * @param string nome del campo
-     * @return indice disponibile
+     * @param string field name
+     * @return next available index
      */
     function GetAutoincrement($field)
     {
-        //die ("vvvv");
         static $last = "";
         if (isset($this->maxautoincrement[$field]))
         {
             return $this->maxautoincrement[$field] + 1;
         }
-        //todo autoincrement offset SHOW VARIABLES;
+        // todo autoincrement offset SHOW VARIABLES;
         $record = $this->dbQuery("SELECT MAX(CAST($field AS UNSIGNED)) AS $field FROM {$this->sqltable} WHERE $field NOT LIKE '%[a-z]%' ");
-        //dprint_r ("SELECT MAX(CAST($field AS UNSIGNED)) AS $field FROM {$this->sqltable} WHERE $field NOT LIKE '%[a-z]%' ");
-        //dprint_r($record);
         if (!isset($record[0][$field]))
             return 1;
         $max = $record[0][$field];
-        //dprint_r($max);
         return intval($max) + 1;
     }
 }
 
 /**
  * xml_to_sql
- * Trasforma una tabella xml in una tabella sql
+ * Converts an xml table to a sql table
  *
  */
 function xml_to_sql($databasename, $tablename, $xmlpath, $connection, $dropold = false)
 {
-    // leggo i dati dalla tabella xml
+    // read data from the xml table
     $TableXml = new XMETATable($databasename, $tablename, $xmlpath);
-    //$records = $TableXml->GetRecords();
-    //die();
     if (!isset($connection['sqltable']))
     {
         $connection['sqltable'] = $tablename;
@@ -1183,11 +1162,10 @@ function xml_to_sql($databasename, $tablename, $xmlpath, $connection, $dropold =
     }
     if (!$xmetadb_mysqlconnection)
     {
-        //echo "connection failed<br />";
         echo $this->conn->error;
         return false;
     }
-    //modifico le proprieta' della tabella xml
+    // modify the properties of the xml table
     $oldfilestring = file_get_contents($xmlpath . "/$databasename/$tablename.php");
     $strnew = "\n\t<driver>mysql</driver>";
     $strnew .= "\n\t<host>" . $connection['host'] . "</host>";
