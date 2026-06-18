@@ -119,9 +119,9 @@ function xmetadb_readDatabase($filename, $elem, $fields = false, $usecache = tru
     static $cache = array();
     static $lastmod = array();
     $filename = realpath($filename);
-    if (!isset($lastmod[$filename]) || $lastmod[$filename] != filectime($filename) . filesize($filename))
+    if (!isset($lastmod[$filename]) || $lastmod[$filename] != filemtime($filename) . filesize($filename))
     {
-        $lastmod[$filename] = filectime($filename) . filesize($filename);
+        $lastmod[$filename] = filemtime($filename) . filesize($filename);
         $usecache = false;
     }
     if (is_dir($filename))
@@ -163,16 +163,7 @@ function xmetadb_readDatabase($filename, $elem, $fields = false, $usecache = tru
         return $tmp;
     }
     //<--------- gestione xml in piu' files ---
-    //tenta di accedere al file
-    for ($i = 0; $i < _MAX_FILE_ACCESS_ATTEMPTS; $i++)
-    {
-        $data = file_get_contents($filename);
-        // funziona ma sarebbe da verificare la chiusura di </database>
-        if ("" != $data)
-        {
-            break;
-        }
-    }
+    $data = file_get_contents($filename);
     //da xml ad array....
     $ret = xmetadb_xml2array($data, $elem, $fields); //null if data = ""
     //echo "fname=$filename";
@@ -539,7 +530,7 @@ function addxmltablefield($databasename, $tablename, $field, $path = ".", $force
     if (!file_exists($old))
         return null;
     $readok = false;
-    for ($i = 0; $i < _MAX_FILE_ACCESS_ATTEMPTS; $i++)
+    for ($i = 0; $i < 3; $i++)
     {
         $oldfilestring = file_get_contents($old);
         if (strpos($oldfilestring, "</tables>") !== false)
@@ -547,6 +538,7 @@ function addxmltablefield($databasename, $tablename, $field, $path = ".", $force
             $readok = true;
             break;
         }
+        if ($i < 2) usleep(5000);
     }
     if (!$readok)
     {

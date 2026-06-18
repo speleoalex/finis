@@ -98,7 +98,13 @@ class XMETATable extends stdClass
         {
             return new XMETATable($databasename, $tablename, $path, $params);
         }
-        $assoc = is_array($params) ? md5(serialize(ksort($params))) : "";
+        if (is_array($params) && !empty($params)) {
+            $sorted = $params;
+            ksort($sorted);
+            $assoc = md5(serialize($sorted));
+        } else {
+            $assoc = "";
+        }
         $id = "$databasename," . $tablename . ",$path;" . $assoc;
         if (!isset($tables[$id]))
         {
@@ -613,14 +619,13 @@ class XMETATable extends stdClass
         $path = realpath($this->path);
         $found = false;
         $notexists = false;
-        //-----------------first folder---------------------------------------->
+        // Fast path: record is in the default (first) folder — avoids glob scan
         $oldfileimage = "$path/$databasename/$dirtable_oldvalue/$id";
-        //dprint_r($oldfileimage);
         if (file_exists($oldfileimage))
         {
             return $dirtable_oldvalue;
         }
-        //-----------------first folder----------------------------------------<
+        // Slow path: table is sharded across numbered subfolders (.1, .2, …)
         $i = 1;
         $ret = $dirtable_oldvalue;
         $max = count(glob("$path/$databasename/*"));
@@ -731,11 +736,7 @@ class XMETATable extends stdClass
 
                     if (isset($_FILES[$key]['tmp_name']) && $_FILES[$key]['tmp_name'] != "" && $oldvalues != null && isset($values[$key])) // se e' un aggiornamento
                     {
-                        //find folder--->
-                        $dirtable_oldvalue = $this->FindFolderTable($values);
-                        if ($dirtable_oldvalue == false)
-                            $dirtable_oldvalue = $tablename;
-                        //find folder---<
+                        $dirtable_oldvalue = $this->FindFolderTable($values) ?: $tablename;
                     }
                     if (!empty($values[$this->primarykey]) && !empty($oldvalues[$key]))
                     {
