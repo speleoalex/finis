@@ -1,10 +1,11 @@
 <?php
+namespace Xmetadb;
 
 /**
  * xmlphp driver for Xmltable
  *
  */
-class XMETATable_xmlphp extends stdClass
+class XMETATable_xmlphp extends \stdClass
 {
 
     var $databasename;
@@ -820,7 +821,7 @@ class XMETATable_xmlphp extends stdClass
             $strnew = xmetadb_encode_preg_replace2nd($strnew);
             $pvalue = xmlenc($pvalue);
             $pvalue = xmetadb_encode_preg($pvalue);
-            $newfilestring = preg_replace('/<' . $this->xmlfieldname . '>([^(' . $this->xmlfieldname . ')]*)<' . $pkey . '>' . $pvalue . '<\/' . $pkey . '>(.*?)<\/' . $this->xmlfieldname . '>/s', $strnew, $oldfilestring);
+        $newfilestring = preg_replace('/<' . $this->xmlfieldname . '>((?:(?!<\/?' . $this->xmlfieldname . ').)*)<' . $pkey . '>' . $pvalue . '<\/' . $pkey . '>(.*?)<\/' . $this->xmlfieldname . '>/s', $strnew, $oldfilestring);
             $newfilestring = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<?php exit(0);?>\n" . trim(ltrim($newfilestring));
             if (!is_writable($old))
             {
@@ -839,3 +840,5 @@ class XMETATable_xmlphp extends stdClass
         }
     }
 }
+
+class_alias('Xmetadb\XMETATable_xmlphp', 'XMETATable_xmlphp');

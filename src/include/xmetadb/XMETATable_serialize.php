@@ -1,4 +1,5 @@
 <?php
+namespace Xmetadb;
 
 /**
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -12,7 +13,7 @@
  * serialize driver for Xmltable
  *
  */
-class XMETATable_serialize  extends stdClass
+class XMETATable_serialize  extends \stdClass
 {
 
     var $databasename;
@@ -491,4 +492,5 @@ function readSerialDatabase($file,$clearcache=false)
     return $ret;
 }
 
+class_alias('Xmetadb\XMETATable_serialize', 'XMETATable_serialize');
 ?>

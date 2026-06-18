@@ -1,4 +1,5 @@
 <?php
+namespace Xmetadb;
 /**
  * csv driver for Xmltable
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -23,6 +24,8 @@ class XMETATable_csv
     var $fields;
     var $separator;
     var $records;
+    var $maxautoincrement;
+    var $_csvReadCache;
 
     function __construct(&$xmltable)
     {
@@ -38,6 +41,8 @@ class XMETATable_csv
         $this->primarykey=&$xmltable->primarykey;
         $this->driver=&$xmltable->driver;
         $this->records=array();
+        $this->maxautoincrement = [];
+        $this->_csvReadCache = [];
         $this->xmldescriptor=&$xmltable->xmldescriptor;
 
         // properties relative to xml files
@@ -99,6 +104,7 @@ class XMETATable_csv
     function ClearCachefile()
     {
         $this->records=array();
+        $this->_csvReadCache = []; // invalidate read cache after any write
         if ($this->usecachefile != 1)
             return;
         $databasename=$this->databasename;
@@ -109,8 +115,8 @@ class XMETATable_csv
             foreach($files as $file)
             {
                 @unlink($file);
-            }
     }
+}
 
     /**
      * GetRecords
@@ -317,13 +323,7 @@ class XMETATable_csv
                 }
             if ((!isset($values[$f->name]) || $values[$f->name] === null) && (isset($this->fields[$f->name]->defaultvalue) && $this->fields[$f->name]->defaultvalue != ""))
             {
-                $dv=$this->fields[$f->name]->defaultvalue;
-                $fname=$f->name;
-                $rv="";
-                eval("\$rv=$dv;");
-                $rv=str_replace("\\","\\\\",$rv);
-                $rv=str_replace("'","\\'",$rv);
-                eval("\$values"."['$fname'] = '$rv' ;");
+                $values[$f->name] = $this->fields[$f->name]->defaultvalue;
             }
         }
         if (!isset($values[$this->primarykey]) || $values[$this->primarykey] == "")
@@ -422,6 +422,7 @@ class XMETATable_csv
         $h=fopen($filename,"w");
         fwrite($h,$str);
         fclose($h);
+        $this->ClearCachefile();
         return true;
     }
 
@@ -521,6 +522,7 @@ class XMETATable_csv
         $this->numrecords=-1;
         $this->numrecordscache=array();
         xmetadb_remove_dir_rec("$path/$databasename/$tablename");
+        $this->maxautoincrement = [];
         $this->ClearCachefile();
         return true;
     }
@@ -532,14 +534,12 @@ class XMETATable_csv
      */
     function readCSVDatabase($filename,$usecache=false)
     {
-        //$usecache=true;
-        //clearstatcache() ;
-        static $cache=false;
-        if ($usecache && isset($cache[$filename]))
-            return $cache[$filename];
-        $row=1;
         if (!file_exists($filename))
             return array();
+        if ($usecache && isset($this->_csvReadCache[$filename])) {
+            return $this->_csvReadCache[$filename];
+        }
+        $row=1;
         $handle=fopen("$filename","r");
         $ret=array();
         while(($data=fgetcsv($handle,5000,$this->separator,"\"","\\")) !== false)
@@ -564,7 +564,7 @@ class XMETATable_csv
             $row++;
         }
         fclose($handle);
-        $cache[$filename]=$ret;
+        $this->_csvReadCache[$filename] = $ret;
         return $ret;
     }
 
@@ -596,3 +596,5 @@ class XMETATable_csv
     }
 
 }
+
+class_alias('Xmetadb\XMETATable_csv', 'XMETATable_csv');

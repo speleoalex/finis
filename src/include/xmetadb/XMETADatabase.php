@@ -1,4 +1,5 @@
 <?php
+namespace Xmetadb;
 /**
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  * @copyright Copyright (c) 2003-2024
@@ -470,10 +471,15 @@ class XMETADatabase
             {
 
 
+                if ($this->isUnsafeEvalCode($where2))
+                {
+                    trigger_error("xmetadb WHERE contains unsafe constructs: " . $where2, E_USER_WARNING);
+                    return false;
+                }
                 try
                 {
                     eval("if ($where2) {" . '$ok=true;' . "} ");
-                } catch (ParseError $e)
+                } catch (\ParseError $e)
                 {
                     trigger_error("xmetadb WHERE eval error: " . $e->getMessage(), E_USER_WARNING);
                     return false;
@@ -561,7 +567,6 @@ class XMETADatabase
         }
         $where2 = str_replace("\\'", "$apice", $where2);
 
-        $where2 = preg_replace("/([a-zA-Z0-9_ ]+) = ([a-zA-Z0-9_'\"]+)/i", '${1} == ${2}', $where2);
         // = -> ==
         $where2 = preg_replace("/([a-zA-Z0-9_ ]+) = ([a-zA-Z0-9_'\"]+)/i", '${1} == ${2}', $where2);
         // LIKE -> ==
@@ -570,8 +575,8 @@ class XMETADatabase
         $where2 = preg_replace("/(\\w+)( <> | LIKE | > | >= | == | <= | < )(['|\\\"])([^'|^\\\"|^%]+)(['|\\\"])/", '\$item[\'${1}\'] ${2} ${3}${4}${5}', $where2);
         // field = ''
         $where2 = preg_replace("/(\\w+)( <> | LIKE | > | >= | == | <= | < )(['|\\\"])(['|\\\"])/", '\$item[\'${1}\'] ${2} ${3}${4}', $where2);
-        // field = 1
-        $where2 = preg_replace("/(\\w+)( <> | LIKE | > | >= | == | <= | < )([0-9]+)/", '\$item[\'${1}\'] ${2} "${3}"', $where2);
+        // field = 1  (no quotes: uses numeric comparison, avoids "9" > "10" lexicographic bug)
+        $where2 = preg_replace("/(\\w+)( <> | LIKE | > | >= | == | <= | < )([0-9]+)/", '\$item[\'${1}\'] ${2} ${3}', $where2);
         // field1 = field2
         $where2 = preg_replace("/(\\w+)( <> | LIKE | > | >= | == | <= | < )([\\w]+)/", '\$item[\'${1}\'] ${2} $item[\'${3}\']', $where2);
         // fiels LIKE "%t%"
@@ -609,6 +614,22 @@ class XMETADatabase
         return false;
     }
 
+    private function isUnsafeEvalCode($code)
+    {
+        $allowed = preg_replace(
+            '/\$item\[\'[^\']*\'\]|' .
+            'preg_match\([^()]*(?:\([^()]*\)[^()]*)*\)|' .
+            '==|!=|<>|>=|<=|>|<|&&|\|\||!' .
+            '|\bAND\b|\bOR\b|\bNOT\b|' .
+            '[0-9]+|\'[^\']*\'|"[^"]*"|' .
+            '\btrue\b|\bfalse\b|' .
+            '\s|\(|\)/i',
+            '',
+            $code
+        );
+        return $allowed !== '';
+    }
+
     function iExplode($Delimiter, $String, $Limit = '')
     {
         $tmpString = strtoupper($String);
@@ -625,4 +646,4 @@ class XMETADatabase
     }
 }
 
-?>
+class_alias('Xmetadb\XMETADatabase', 'XMETADatabase');

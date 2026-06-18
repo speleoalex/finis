@@ -1,4 +1,5 @@
 <?php
+namespace Xmetadb;
 
 /**
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -9,22 +10,20 @@
  */
 /**
  * xmetadb_sqlite.php created on 13/feb/2014
- * sqlite driver for xmetadb
- * allows inserting data into a sqlite table
+ * sqlite3 driver for xmetadb
+ * allows inserting data into a sqlite3 table
  * the table descriptor must contain:
  *
- * <driver>sqlite</driver>
- * <host>sqliteserverhost</host>
- * <user>sqliteusername</user>
- * <password>sqlitepassword</password>
+ * <driver>sqlite3</driver>
+ * <host>sqlite3host</host>
+ * <user>sqlite3username</user>
+ * <password>sqlite3password</password>
  *
  *
  *
  * @author Alessandro Vernassa <speleoalex@gmail.com>
  */
-global $xmetadb_sqlitedatabase, $xmetadb_sqliteusername, $xmetadb_sqlitefilename;
-
-class XMETATable_sqlite3 extends stdClass
+class XMETATable_sqlite3 extends \stdClass
 {
 
     function __construct(& $xmltable, $params = false)
@@ -91,7 +90,7 @@ class XMETATable_sqlite3 extends stdClass
         }
 //		try
         {
-            $this->conn = new SQLite3($sqlite['filename'], SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
+            $this->conn = new \SQLite3($sqlite['filename'], SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
         }
 //		catch(Exception $e)
 //		{
@@ -274,7 +273,7 @@ class XMETATable_sqlite3 extends stdClass
             $and = "";
             foreach ($restr as $h => $v)
             {
-                $query .= " $and [$h] LIKE '" . SQLite3::escapeString($v) . "' ";
+                $query .= " $and [$h] LIKE '" . \SQLite3::escapeString($v) . "' ";
                 $and = "AND";
             }
         }
@@ -444,7 +443,7 @@ class XMETATable_sqlite3 extends stdClass
         {
             if (!$this->conn)
                 die("error connection");
-            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . SQLite3::escapeString($pvalue) . "'";
+            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . \SQLite3::escapeString($pvalue) . "'";
             $result = $this->dbQuery($query);
             if (!isset($result[0]))
             {
@@ -489,19 +488,19 @@ class XMETATable_sqlite3 extends stdClass
         if ($this->connection)
         {
             if (!$this->conn)
-                die(sqlite_error());
+                die("SQLite connection error: " . $this->sqlite_error);
             $pkey = $this->primarykey;
             if ($this->fields[$this->primarykey]->type == "int")
                 $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE " . $pkvalue;
             else
-                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . SQLite3::escapeString($pkvalue) . "'";
+                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . \SQLite3::escapeString($pkvalue) . "'";
             $result = $this->dbQuery($query);
             if (!$result)
             {
                 echo $this->sqlite_error;
                 return false;
             }
-            if (!strpos($pkvalue, "..") !== false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
+            if (strpos($pkvalue, "..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
                 xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
             return true;
         }
@@ -586,7 +585,7 @@ class XMETATable_sqlite3 extends stdClass
                                 $tf[] = $v;
                             else
                             {
-                                $v = SQLite3::escapeString($v);
+                                $v = \SQLite3::escapeString($v);
                                 $tf[] = "'$v'";
                             }
                         }
@@ -655,9 +654,9 @@ class XMETATable_sqlite3 extends stdClass
                         else
                         {
                             if ($this->fields[$k]->type == "int")
-                                $query .= SQLite3::escapeString($value);
+                                $query .= \SQLite3::escapeString($value);
                             else
-                                $query .= "'" . SQLite3::escapeString($value) . "'";
+                                $query .= "'" . \SQLite3::escapeString($value) . "'";
                         }
                         if ($n-- > 1)
                             $query .= ",";
@@ -676,13 +675,13 @@ class XMETATable_sqlite3 extends stdClass
                 $this->gestfiles($values, $oldvalues);
                 if (!$ret)
                 {
-                    return sqlite_error();
+                    return $this->sqlite_error;
                 }
                 $newvalues = $this->GetRecordByPk($values[$pkey]);
             }
             else
             {
-                return sqlite_error();
+                return $this->sqlite_error;
             }
             return $newvalues;
         }
@@ -705,7 +704,7 @@ class XMETATable_sqlite3 extends stdClass
             $and = "";
             foreach ($restr as $h => $v)
             {
-                $query .= " $and $h LIKE '" . SQLite3::escapeString($v) . "' ";
+                $query .= " $and $h LIKE '" . \SQLite3::escapeString($v) . "' ";
                 $and = "AND";
             }
         }
@@ -791,4 +790,5 @@ class XMETATable_sqlite3 extends stdClass
 
 }
 
+class_alias('Xmetadb\XMETATable_sqlite3', 'XMETATable_sqlite3');
 ?>

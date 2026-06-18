@@ -1,10 +1,11 @@
 <?php
+namespace Xmetadb;
 /**
  * class XMETAField
  * class that describes a single table field
  */
 //#[AllowDynamicProperties]
-class XMETAField extends stdClass
+class XMETAField extends \stdClass
 {
     var $name = null;
     var $extra = null;
@@ -58,3 +59,5 @@ class XMETAField extends stdClass
         }
     }
 }
+
+class_alias('Xmetadb\XMETAField', 'XMETAField');

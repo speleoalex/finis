@@ -1,4 +1,5 @@
 <?php
+namespace Xmetadb;
 
 /**
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -24,7 +25,7 @@
  */
 global $xmetadb_sqlitedatabase,$xmetadb_sqliteusername,$xmetadb_sqlitefilename;
 
-class XMETATable_sqlite extends stdClass
+class XMETATable_sqlite extends \stdClass
 {
 
     function __construct(& $xmltable,$params=false)
@@ -89,7 +90,7 @@ class XMETATable_sqlite extends stdClass
             $this->connection=& $xmltable->connection;
         }
         $this->sqlfilename=$sqlite['filename'];
-        if (false !== ($conn=new SQLiteDatabase($this->sqlfilename,0666,$error)))
+        if (false !== ($conn=new \SQLiteDatabase($this->sqlfilename,0666,$error)))
         {
             $this->conn=$conn;
             $this->dbQuery('PRAGMA encoding = "UTF-8"; ');
@@ -247,7 +248,7 @@ class XMETATable_sqlite extends stdClass
                 }
                 // transfer xml data into sqlite
                 //rebuild connection
-                $this->conn=new SQLiteDatabase($sqlite['filename'],0666,$error);
+                $this->conn=new \SQLiteDatabase($sqlite['filename'],0666,$error);
                 foreach($oldRecords as $rec)
                 {
                     $this->InsertRecord($rec);
@@ -375,7 +376,10 @@ class XMETATable_sqlite extends stdClass
      */
     function dbQuery($query)
     {
-        $this->conn=new SQLiteDatabase($this->sqlfilename,0666,$error);
+        if (!isset($this->conn) || !$this->conn)
+        {
+            $this->conn=new \SQLiteDatabase($this->sqlfilename,0666,$error);
+        }
         if (!isset($this->conn) || !$this->conn)
         {
             echo ($this->sqlite_error);
@@ -495,7 +499,7 @@ class XMETATable_sqlite extends stdClass
                 echo $this->sqlite_error;
                 return false;
             }
-            if (!strpos($pkvalue,"..") !== false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
+            if (strpos($pkvalue,"..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
                 xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
             return true;
         }
@@ -810,4 +814,5 @@ function xml_to_sqlite($databasename,$tablename,$xmlpath,$connection,$dropold=fa
     return true;
 }
 
+class_alias('Xmetadb\XMETATable_sqlite', 'XMETATable_sqlite');
 ?>

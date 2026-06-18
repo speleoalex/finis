@@ -1,4 +1,5 @@
 <?php
+namespace Xmetadb;
 
 /**
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -26,7 +27,7 @@
 global $_FN;
 global $xmetadb_mysqlcurrentdb, $xmetadb_mysqlconnection;
 
-class XMETATable_mysql extends stdClass
+class XMETATable_mysql extends \stdClass
 {
 
     var $databasename;
@@ -137,7 +138,7 @@ class XMETATable_mysql extends stdClass
         global $xmetadb_mysqlconnection;
         if (!$xmetadb_mysqlconnection)
         {
-            $xmetadb_mysqlconnection = new mysqli($mysql['host'], $mysql['user'], $mysql['password']);
+            $xmetadb_mysqlconnection = new \mysqli($mysql['host'], $mysql['user'], $mysql['password']);
         }
         
         if ($xmetadb_mysqlconnection)
@@ -151,7 +152,7 @@ class XMETATable_mysql extends stdClass
             try
             {
                 $this->conn->query("SET character_set_results = 'utf8', character_set_client = 'utf8', character_set_connection = 'utf8', character_set_database = 'utf8', character_set_server = 'utf8'");
-            } catch (Exception $e)
+            } catch (\Exception $e)
             {
                 
             }
@@ -160,7 +161,7 @@ class XMETATable_mysql extends stdClass
                 try{
                     $this->conn->query("SET time_zone = '" . $this->conn->real_escape_string($_FN['xmetadb_timezone']) . "'");
 
-                }catch (Exception $e)
+                }catch (\Exception $e)
                 {
                     trigger_error($e, E_USER_WARNING);
                 }
@@ -169,7 +170,7 @@ class XMETATable_mysql extends stdClass
             {
                 $this->conn->select_db($this->mysqldatabasename);
                 $exists = true;
-            } catch (Exception $e)
+            } catch (\Exception $e)
             {
                 $exists = false;
             }
@@ -190,7 +191,7 @@ class XMETATable_mysql extends stdClass
                         $this->conn->select_db($this->mysqldatabasename);
                         $exists = true;
                         $xmetadb_mysqlcurrentdb = $this->mysqldatabasename;
-                    } catch (Exception $e)
+                    } catch (\Exception $e)
                     {
                         $exists = false;
                     }
@@ -490,7 +491,11 @@ class XMETATable_mysql extends stdClass
             $and = "";
             foreach ($restr as $h => $v)
             {
-                $query .= " $and `$h` LIKE '" . addslashes($v) . "' ";
+                if ($this->conn) {
+                    $query .= " $and `$h` LIKE '" . $this->conn->real_escape_string($v) . "' ";
+                } else {
+                    $query .= " $and `$h` LIKE '" . addslashes($v) . "' ";
+                }
                 $and = "AND";
             }
         }
@@ -600,7 +605,7 @@ class XMETATable_mysql extends stdClass
             }
 
             return $res;
-        } catch (Exception $e)
+        } catch (\Exception $e)
         {
             error_log($e);
             return false;
@@ -690,14 +695,14 @@ class XMETATable_mysql extends stdClass
             if ($this->fields[$this->primarykey]->type == "int")
                 $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE " . $pkvalue;
             else
-                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . addslashes($pkvalue) . "'";
+                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string($pkvalue) . "'";
             $result = $this->dbQuery($query);
             if (!$result)
             {
                 echo $this->conn->error;
                 return false;
             }
-            if (!strpos($pkvalue, "..") !== false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
+            if (strpos($pkvalue, "..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
                 xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
             return true;
         }
@@ -780,8 +785,7 @@ class XMETATable_mysql extends stdClass
                                 $tf[] = $v;
                             else
                             {
-                                $v = str_replace('\\', "\\\\", $v);
-                                $tf[] = "'" . str_replace("'", "\\'", $v) . "'";
+                                $tf[] = "'" . $this->conn->real_escape_string($v) . "'";
                             }
                         }
                     }
@@ -799,16 +803,6 @@ class XMETATable_mysql extends stdClass
             if (!isset($values[$this->primarykey]) || $values[$this->primarykey] == "")
             {
                 $lastid = $this->dbQuery("SELECT * FROM {$this->sqltable} where {$this->primarykey} LIKE LAST_INSERT_ID();");
-                /*
-                  $lastid = $this->dbQuery("SELECT LAST_INSERT_ID() FROM {$this->sqltable};");
-                  if ( !isset($lastid[0]['LAST_INSERT_ID()']) )
-                  {
-                  echo ($this->conn->error);
-                  return false;
-                  }
-                  $values[$this->primarykey] = $lastid[0]['LAST_INSERT_ID()'];
-
-                 */
                 $values = $lastid[0];
             }
             $this->gestfiles($values);
@@ -874,8 +868,7 @@ class XMETATable_mysql extends stdClass
                                 $tf[] = $v;
                             else
                             {
-                                $v = str_replace('\\', "\\\\", $v);
-                                $tf[] = "'" . str_replace("'", "\\'", $v) . "'";
+                                $tf[] = "'" . $this->conn->real_escape_string($v) . "'";
                             }
                         }
                     }
@@ -1003,17 +996,17 @@ class XMETATable_mysql extends stdClass
                         }
                         else
                         {
-                            if ($this->fields[$k]->type == "int")
-                                $query .= addslashes($value);
-                            else
-                                $query .= "'" . addslashes($value) . "'";
+                                if ($this->fields[$k]->type == "int")
+                                    $query .= $this->conn->real_escape_string($value);
+                                else
+                                    $query .= "'" . $this->conn->real_escape_string($value) . "'";
+                            }
+                            if ($n-- > 1)
+                                $query .= ",";
                         }
-                        if ($n-- > 1)
-                            $query .= ",";
                     }
-                }
-                $query .= " WHERE `$pkey`=";
-                if ($this->fields[$pkey]->type == "int" || $this->fields[$pkey]->type == "float")
+                    $query .= " WHERE `$pkey`=";
+                    if ($this->fields[$pkey]->type == "int" || $this->fields[$pkey]->type == "float")
                     $query .= "$pvalue ";
                 else
                     $query .= "'$pvalue' ";
@@ -1181,3 +1174,5 @@ function xml_to_sql($databasename, $tablename, $xmlpath, $connection, $dropold =
     $TableSql = new XMETATable($databasename, $tablename, $xmlpath);
     return true;
 }
+
+class_alias('Xmetadb\XMETATable_mysql', 'XMETATable_mysql');

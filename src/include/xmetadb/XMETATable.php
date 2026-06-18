@@ -1,4 +1,5 @@
 <?php
+namespace Xmetadb;
 
 include_once __DIR__ . "/XMETAField.php";
 
@@ -59,7 +60,7 @@ include_once __DIR__ . "/XMETAField.php";
  * <CodiceISO>DE</CodiceISO>
  * </stati>
  */
-class XMETATable extends stdClass
+class XMETATable extends \stdClass
 {
 
     var $databasename;
@@ -461,11 +462,10 @@ class XMETATable extends stdClass
         {
             dprint_r("$filepath not exists");
         }
-        $_FILES[$key]['tmp_name'] = realpath($filepath);
-
-        if ($filename == "")
-            $filename = basename($filepath);
-        $_FILES[$key]['name'] = $filename;
+        $this->uploadedFiles[$key] = [
+            'tmp_name' => realpath($filepath),
+            'name' => $filename ?: basename($filepath),
+        ];
     }
 
     //-----driver methods (delegated)---------------->
@@ -695,11 +695,16 @@ class XMETATable extends stdClass
             $dirtable = $this->FindFolderTable($oldvalues);
             if (false !== $dirtable)
             {
-                if (file_exists("$path/$databasename/$dirtable/" . $oldvalues[$this->primarykey]))
+                $oldPath = "$path/$databasename/$dirtable/" . $oldvalues[$this->primarykey];
+                if (file_exists($oldPath))
                 {
                     if (!empty($values[$this->primarykey]))
                     {
-                        rename("$path/$databasename/$dirtable/" . $oldvalues[$this->primarykey], "$path/$databasename/$dirtable/" . $values[$this->primarykey]);
+                        $newPath = "$path/$databasename/$dirtable/" . $values[$this->primarykey];
+                        if (!file_exists($newPath))
+                        {
+                            rename($oldPath, $newPath);
+                        }
                     }
                     $dirtable_new = $this->FindFolderTable($oldvalues);
                 }
@@ -737,7 +742,8 @@ class XMETATable extends stdClass
                 if (isset($values[$this->primarykey]))
                 {
 
-                    if (isset($_FILES[$key]['tmp_name']) && $_FILES[$key]['tmp_name'] != "" && $oldvalues != null && isset($values[$key])) // update operation
+                    $upload = isset($this->uploadedFiles[$key]) ? $this->uploadedFiles[$key] : (isset($_FILES[$key]) ? $_FILES[$key] : null);
+                    if (isset($upload['tmp_name']) && $upload['tmp_name'] != "" && $oldvalues != null && isset($values[$key])) // update operation
                     {
                         $dirtable_oldvalue = $this->FindFolderTable($values) ?: $tablename;
                     }
@@ -780,9 +786,10 @@ class XMETATable extends stdClass
                         }
                     }
                 }
-                if (isset($_FILES[$key]['tmp_name']) && $_FILES[$key]['tmp_name'] != "")
+                $upload = isset($this->uploadedFiles[$key]) ? $this->uploadedFiles[$key] : (isset($_FILES[$key]) ? $_FILES[$key] : null);
+                if (isset($upload['tmp_name']) && $upload['tmp_name'] != "")
                 {
-                    $name_clean = $_FILES["$key"]['name'];
+                    $name_clean = $upload['name'];
                     $name_clean = str_replace("\\", "", $name_clean);
                     $name_clean = str_replace("/", "", $name_clean);
 
@@ -791,13 +798,13 @@ class XMETATable extends stdClass
                     // Dot is escaped to prevent false positives (e.g. 'xphp').
                     if (preg_match('/\.(php[0-9]?|phtml|phar|shtml|pl|cgi|sh|py)(\.|$)/i', $name_clean))
                     {
-                        touch("$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
+                        continue;
                     }
                     else
                     {
                         if (isset($this->fields[$key . "_base64data"]))
                         {
-                            $values[$key . "_base64data"] = base64_encode(file_get_contents($_FILES[$key]['tmp_name']));
+                            $values[$key . "_base64data"] = base64_encode(file_get_contents($upload['tmp_name']));
                             $r = $this->UpdateRecord(array("{$this->primarykey}" => $values[$this->primarykey], $key . "_base64data" => $values[$key . "_base64data"]));
                         }
                         else
@@ -820,24 +827,24 @@ class XMETATable extends stdClass
                             // deleting the temp file also breaks copy
                             if ($oldvalues)
                             {
-                                move_uploaded_file($_FILES[$key]['tmp_name'], "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
+                                move_uploaded_file($upload['tmp_name'], "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
                                 if (!file_exists("$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean))
                                 {
-                                    $this->Copy($_FILES[$key]['tmp_name'], "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
+                                    $this->Copy($upload['tmp_name'], "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
                                 }
                                 if (!file_exists("$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean))
                                 {
-                                    trigger_error("failed copy {$_FILES[$key]['tmp_name']} to " . "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean, E_USER_WARNING);
+                                    trigger_error("failed copy {$upload['tmp_name']} to " . "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean, E_USER_WARNING);
                                 }
                             }
                             else
                             {
 
-                                $tmpname = $_FILES[$key]['tmp_name'];
+                                $tmpname = $upload['tmp_name'];
                                 FN_Copy($tmpname, "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
                                 if (!file_exists("$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean))
                                 {
-                                    trigger_error("failed copy {$_FILES[$key]['tmp_name']} to " . "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean, E_USER_WARNING);
+                                    trigger_error("failed copy {$upload['tmp_name']} to " . "$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean, E_USER_WARNING);
                                 }
                             }
                             $create_thumb[$key] = true;
@@ -876,3 +883,5 @@ class XMETATable extends stdClass
         }
     }
 }
+
+class_alias('Xmetadb\XMETATable', 'XMETATable');
