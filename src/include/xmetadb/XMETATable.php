@@ -191,11 +191,6 @@ class XMETATable extends stdClass
             $this->defaultdriver = $params['default_database_driver'];
         }
 
-        if (!empty($params['default_database_driver']))
-        {
-            $this->defaultdriver = $params['default_database_driver'];
-        }
-
         //if is xml
         if (is_array($tablename))
         {
@@ -406,7 +401,6 @@ class XMETATable extends stdClass
     function getThumbPath($recordvalues, $recordkey)
     {
         $databasename = $this->databasename;
-        $tablename = $this->tablename;
         $path = realpath($this->path);
         $ret = "";
         $unirecid = $recordvalues[$this->primarykey];
@@ -423,53 +417,32 @@ class XMETATable extends stdClass
 
     //-----metodi del driver---------------->
 
-    function get_file($recordvalues, $recordkey)
+    private function _buildSiteUrl()
     {
         $php_self = isset($_SERVER['PHP_SELF']) ? $_SERVER['PHP_SELF'] : "";
-        $dirname = dirname($php_self);
+        $dirname  = dirname($php_self);
         if ($dirname == "/" || $dirname == "\\")
             $dirname = "";
-        $protocol = "http://";
-        if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on")
-            $protocol = "https://";
-        $siteurl = "$protocol" . $_SERVER['HTTP_HOST'] . $dirname;
-        if (substr($siteurl, strlen($siteurl) - 1, 1) != "/")
-        {
-            $siteurl = $siteurl . "/";
-        }
-        $file = $this->getFilePath($recordvalues, $recordkey);
-        if ($file && $file[0] == "?")
-        {
-            return "$siteurl" . $file;
-        }
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on") ? "https://" : "http://";
+        $siteurl  = $protocol . $_SERVER['HTTP_HOST'] . $dirname;
+        if (substr($siteurl, -1) != "/")
+            $siteurl .= "/";
+        return $siteurl;
+    }
 
-        if ($file && file_exists($file))
-        {
-            return "$siteurl" . $file;
-        }
+    function get_file($recordvalues, $recordkey)
+    {
+        $file = $this->getFilePath($recordvalues, $recordkey);
+        if ($file && ($file[0] == "?" || file_exists($file)))
+            return $this->_buildSiteUrl() . $file;
         return false;
     }
 
     function get_thumb($recordvalues, $recordkey)
     {
         $file = $this->getThumbPath($recordvalues, $recordkey);
-
         if ($file && file_exists($file))
-        {
-            $php_self = isset($_SERVER['PHP_SELF']) ? $_SERVER['PHP_SELF'] : "";
-            $dirname = dirname($php_self);
-            if ($dirname == "/" || $dirname == "\\")
-                $dirname = "";
-            $protocol = "http://";
-            if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on")
-                $protocol = "https://";
-            $siteurl = "$protocol" . $_SERVER['HTTP_HOST'] . $dirname;
-            if (substr($siteurl, strlen($siteurl) - 1, 1) != "/")
-            {
-                $siteurl = $siteurl . "/";
-            }
-            return "$siteurl" . $file;
-        }
+            return $this->_buildSiteUrl() . $file;
         return false;
     }
 
@@ -806,10 +779,6 @@ class XMETATable extends stdClass
                 if (isset($_FILES[$key]['tmp_name']) && $_FILES[$key]['tmp_name'] != "")
                 {
                     $name_clean = $_FILES["$key"]['name'];
-                    if (ini_get('magic_quotes_gpc') == 1)
-                    {
-                        $name_clean = stripslashes($_FILES["$key"]['name']);
-                    }
                     $name_clean = str_replace("\\", "", $name_clean);
                     $name_clean = str_replace("/", "", $name_clean);
 

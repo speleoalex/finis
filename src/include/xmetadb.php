@@ -38,42 +38,40 @@ function removePhpTags($inputString)
 
 function xmetadb_xml2array($data, $elem, $fields = false)
 {
-    //eliminazione dei commenti
-    if (!isset($data[2]) && $data[2] != "x")
-    {
-        return json_decode(removePhpTags($data));
+    // If data is not XML (doesn't start with "<?x"), try JSON decode first.
+    // Falls through to XML parsing when json_decode returns null.
+    if (!isset($data[2]) || $data[2] !== 'x') {
+        $decoded = json_decode(removePhpTags($data), true);
+        if ($decoded !== null) {
+            return $decoded;
+        }
     }
     $data = xmetadb_removexmlcomments($data);
-    //visualizza solo determinati campi
     if (is_array($fields))
     {
         $fields = implode("|", $fields);
     }
     $out = "";
     $ret = null;
-    if (preg_match("/<$elem>.*<$elem>[^<]+<\/$elem>/s", $data)) //se il nome del nodo contiene un elemento con lo stesso nome
+    if (preg_match("/<$elem>.*<$elem>[^<]+<\/$elem>/s", $data))
     {
-        preg_match_all("#<$elem>(.*?<$elem>.*?</$elem>.*?)</$elem>#s", $data, $out); //CONTIENE ALL'INTERNO UN NODO CON LO STESSO NOME
+        preg_match_all("#<$elem>(.*?<$elem>.*?</$elem>.*?)</$elem>#s", $data, $out);
     }
     else
     {
-        preg_match_all("#<$elem>.*?</$elem>#s", $data, $out); //OK
+        preg_match_all("#<$elem>.*?</$elem>#s", $data, $out);
     }
     if (is_array($out[0]))
         foreach ($out[0] as $innerxml)
         {
-            //----------metodo 0 ------------------------
-            for ($oi = 0; $oi < 1; $oi++)
+            $tmp2 = $t1 = null;
+            preg_match_all('/<(' . $fields . '[^\/]*?)>([^<]*)<\/\1>/s', $innerxml, $t1);
+            foreach ($t1[1] as $k => $tt)
             {
-                $tmp2 = $t1 = null;
-                preg_match_all('/<(' . $fields . '[^\/]*?)>([^<]*)<\/\1>/s', $innerxml, $t1);
-                foreach ($t1[1] as $k => $tt)
-                {
-                    if ($t1[2][$k] != null)
-                        $tmp2[$tt] = xmldec($t1[2][$k]);
-                    else
-                        $tmp2[$tt] = "";
-                }
+                if ($t1[2][$k] != null)
+                    $tmp2[$tt] = xmldec($t1[2][$k]);
+                else
+                    $tmp2[$tt] = "";
             }
             if ($tmp2 != null)
             {
@@ -117,7 +115,7 @@ function xmetadb_readDatabase($filename, $elem, $fields = false, $usecache = tru
 {
     if (!file_exists($filename))
         return false;
-    $_fields = "_" . $fields;
+    $_fields = "_" . (is_array($fields) ? implode(",", $fields) : $fields);
     static $cache = array();
     static $lastmod = array();
     $filename = realpath($filename);
@@ -189,9 +187,8 @@ function xmetadb_readDatabase($filename, $elem, $fields = false, $usecache = tru
  * @param string $str
  * @return stringa codificata
  */
-function xmlenc($str, $charset = "ISO-8859-1")
+function xmlenc($str)
 {
-    //return htmlentities ( $str, ENT_QUOTES, "ISO-8859-1" );
     $str = str_replace("&", "&amp;", $str);
     $str = str_replace("<", "&lt;", $str);
     $str = str_replace(">", "&gt;", $str);
@@ -205,11 +202,10 @@ function xmlenc($str, $charset = "ISO-8859-1")
  * @param string $str
  * @return stringa codificata
  */
-function xmldec($str, $charset = "ISO-8859-1")
+function xmldec($str)
 {
     if (!is_string($str))
         return "";
-    //return html_entity_decode($str, ENT_QUOTES, $charset);
     $str = str_replace("&gt;", ">", $str);
     $str = str_replace("&lt;", "<", $str);
     $str = str_replace("&amp;", "&", $str);
@@ -554,7 +550,7 @@ function addxmltablefield($databasename, $tablename, $field, $path = ".", $force
     }
     if (!$readok)
     {
-        die("error update");
+        return "error: could not read descriptor file";
     }
     $oldfilestring = xmetadb_removexmlcomments($oldfilestring);
     $oldvalues = $newvalues = getxmltablefield($databasename, $tablename, $field['name'], $path);
@@ -690,29 +686,9 @@ function xmetadb_encode_preg_replace2nd($str)
     return $str;
 }
 
-/**
- * xmetadb_encode_preg_replace2nd
- * prepara la stringa per il primo parametro
- * dell' preg_replace aggiungendo
- * la barra davanti ai cratteri speciali
- *
- *
- */
 function xmetadb_encode_preg($str)
 {
-    $str = str_replace('\\', '\\\\', $str);
-    $str = str_replace('/', '\\/', $str);
-    $str = str_replace('(', '\\(', $str);
-    $str = str_replace(')', '\\)', $str);
-    $str = str_replace('^', '\\^', $str);
-    $str = str_replace('$', '\\$', $str);
-    $str = str_replace('*', '\\*', $str);
-    $str = str_replace('+', '\\+', $str);
-    $str = str_replace('?', '\\?', $str);
-    $str = str_replace('[', '\\[', $str);
-    $str = str_replace(']', '\\]', $str);
-    $str = str_replace('|', '\\|', $str);
-    return $str;
+    return preg_quote($str, '/');
 }
 
 /**
@@ -733,11 +709,6 @@ function get_xml_single_element($elem, $xml)
         return "";
     $buff = preg_replace("/<\/" . $elem . ">.*/s", "", $buff);
     return $buff;
-}
-
-function xmetadb_get_xml_single_element($elem, $xml)
-{
-    return get_xml_single_element($elem, $xml);
 }
 
 /**
@@ -843,38 +814,17 @@ function xmetadb_array_natsort_by_key($data, $order, $desc = false)
     return $data;
 }
 
-/*
-  $test[]=array("name"=>1,"name2"=>"1","name3"=>12);
-  $test[]=array("name"=>1,"name2"=>"2","name3"=>12);
-  $test[]=array("name"=>2,"name2"=>"2","name3"=>10);
-  $test[]=array("name"=>2,"name2"=>"1","name3"=>14);
-  $test[]=array("name"=>3,"name2"=>"4","name3"=>22);
-  $test[]=array("name"=>4,"name2"=>"5","name3"=>1);
-  $test[]=array("name"=>5,"name2"=>"6","name3"=>5);
-  $test[]=array("name"=>6,"name2"=>"7","name3"=>1);
-  $test[]=array("name"=>7,"name2"=>"8","name3"=>5);
-  $test[]=array("name"=>8,"name2"=>"9","name3"=>66);
-  $test[]=array("name"=>9,"name2"=>"10","name3"=>21);
-  //$test2 = xmetadb_array_sort_by_key($test,"name2:asc,name:desc");
-  $test2=xmetadb_array_natsort_by_key($test,"name:asc,name2:asc");
-
-
-  dprint_r($test2);
-  die();
- */
-
 /**
- *
  * @param string $a
  * @param string $b
- * @return int 
+ * @return int
  */
 function xmetadb_NatSort_callback($a, $b)
 {
     $a = strtolower($a);
     $b = strtolower($b);
     //if ( fn_erg("^[0-9]", $a) && fn_erg("^[0-9]", $b) )
-    if (preg_match("/" . str_replace('/', '\\/', "^[0-9]") . "/s", $a, $regs) && preg_match("/" . str_replace('/', '\\/', "^[0-9]") . "/s", $b, $regs))
+    if (preg_match("/^[0-9]/", $a) && preg_match("/^[0-9]/", $b))
     {
         $aa = explode("_", $a);
         $bb = explode("_", $b);
