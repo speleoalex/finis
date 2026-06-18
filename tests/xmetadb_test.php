@@ -580,7 +580,7 @@ file_put_contents("$rmdir/sub/b.txt", 'b');
 file_put_contents("$rmdir/sub/sub2/c.txt", 'c');
 xmetadb_remove_dir_rec($rmdir);
 $t->eq(false, file_exists($rmdir), 'directory fully removed');
-$t->info('path traversal: function calls die() on paths containing "../" (strpos guard only)');
+$t->info('path traversal: basic removal test (detailed security assertions in Suite 16)');
 
 // ===========================================================================
 // SUITE 14 — XMETATable CRUD — driver=sqlite3
@@ -657,6 +657,98 @@ if (!$mysql_host) {
             $tbl_mysql->driverclass->dbQuery("DROP TABLE IF EXISTS items_mysql");
         }
     }
+}
+
+// ===========================================================================
+// SUITE 16 — Security hardening (Phase 3)
+// ===========================================================================
+$t->suite('Security hardening');
+
+// 3.1 — createMetadbTable: XML injection in field values
+$sec_db = 'secdb';
+createxmldatabase($sec_db, $tmpdir);
+$fields_sec = [
+    ['name' => 'id',   'primarykey' => '1', 'type' => 'int', 'extra' => 'autoincrement'],
+    // Field with XML-special chars in defaultvalue — must be escaped in the descriptor
+    ['name' => 'desc', 'primarykey' => '0', 'type' => 'varchar', 'defaultvalue' => 'a < b & c > d'],
+];
+createxmltable($sec_db, 'sectbl', $fields_sec, $tmpdir);
+$descriptor = file_get_contents("$tmpdir/$sec_db/sectbl.php");
+$t->ok(strpos($descriptor, '&lt;') !== false,  'createMetadbTable: < escaped as &lt; in descriptor');
+$t->ok(strpos($descriptor, '&gt;') !== false,  'createMetadbTable: > escaped as &gt; in descriptor');
+$t->ok(strpos($descriptor, '&amp;') !== false, 'createMetadbTable: & escaped as &amp; in descriptor');
+$t->ok(strpos($descriptor, 'a < b') === false, 'createMetadbTable: raw < not present in descriptor');
+
+// createMetadbTable with array singlefilename — already had xmlenc, verify still works
+createxmltable($sec_db, 'sectbl2', [
+    ['name' => 'id', 'primarykey' => '1', 'type' => 'int', 'extra' => 'autoincrement'],
+], $tmpdir, ['driver' => 'xmlphp', 'note' => 'val <with> &special']);
+$descriptor2 = file_get_contents("$tmpdir/$sec_db/sectbl2.php");
+$t->ok(strpos($descriptor2, '&lt;') !== false, 'createMetadbTable: array singlefilename values escaped');
+
+// 3.3 — xmetadb_remove_dir_rec: path traversal blocked
+// We can't test die() directly without subprocess; verify the safe path still works.
+$safe_rmdir = "$tmpdir/sec_rmtest";
+mkdir("$safe_rmdir/sub", 0755, true);
+file_put_contents("$safe_rmdir/sub/file.txt", 'x');
+xmetadb_remove_dir_rec($safe_rmdir);
+$t->eq(false, file_exists($safe_rmdir), 'remove_dir_rec: safe absolute path removed correctly');
+
+// Verify the check now catches '..' (not just '../')
+$caught = false;
+// Use a subprocess to test die() without killing the test runner
+$output = shell_exec('php -r \'
+    require_once "' . __DIR__ . '/../src/include/xmetadb.php";
+    function FN_GetParam($k,$v=false,$t=""){return null;}
+    xmetadb_remove_dir_rec("/tmp/x/../y");
+\' 2>&1');
+$t->ok(strpos($output, 'xmetadberror') !== false, 'remove_dir_rec: ".." component blocked (die triggered)');
+
+$output_nb = shell_exec('php -r \'
+    require_once "' . __DIR__ . '/../src/include/xmetadb.php";
+    function FN_GetParam($k,$v=false,$t=""){return null;}
+    xmetadb_remove_dir_rec("/tmp/x\0y");
+\' 2>&1');
+$t->ok(strpos($output_nb, 'xmetadberror') !== false, 'remove_dir_rec: null byte blocked');
+
+// 3.4 — get_xml_single_element: ReDoS — special chars in element name handled safely
+$xml_sec = '<config><name>test</name><value>42</value></config>';
+// Element name with regex metacharacters — should return '' without crash/exception
+$res_special = get_xml_single_element('na.+e', $xml_sec);
+$t->eq('', $res_special, 'get_xml_single_element: regex chars in elem name return empty (no match)');
+
+$res_slash = get_xml_single_element('na/me', $xml_sec);
+$t->eq('', $res_slash, 'get_xml_single_element: slash in elem name does not break delimiter');
+
+// Normal elements still work after escaping
+$t->eq('test', get_xml_single_element('name',  $xml_sec), 'get_xml_single_element: normal element still extracted');
+$t->eq('42',   get_xml_single_element('value', $xml_sec), 'get_xml_single_element: normal element still extracted (2)');
+
+// 3.6 — gestfiles: file upload extension blacklist regex
+// Test the pattern directly (the function itself can't be called without a real upload)
+$dangerous_names = [
+    'shell.php'        => true,
+    'shell.php5'       => true,
+    'shell.phtml'      => true,
+    'shell.phar'       => true,
+    'shell.php.jpg'    => true,  // double extension
+    'shell.shtml'      => true,
+    'script.pl'        => true,
+    'script.cgi'       => true,
+    'script.sh'        => true,
+    'script.py'        => true,
+];
+$safe_names = [
+    'photo.jpg'        => false,
+    'document.pdf'     => false,
+    'archive.zip'      => false,
+    'image.png'        => false,
+    'data.phpx'        => false,  // NOT a PHP extension
+    'test_php.txt'     => false,  // contains 'php' as substring, not extension
+];
+foreach (array_merge($dangerous_names, $safe_names) as $name => $should_block) {
+    $blocked = (bool)preg_match('/\.(php[0-9]?|phtml|phar|shtml|pl|cgi|sh|py)(\.|$)/i', $name);
+    $t->eq($should_block, $blocked, "upload blacklist: '$name' " . ($should_block ? 'blocked' : 'allowed'));
 }
 
 // ===========================================================================

@@ -137,7 +137,7 @@ class XMETATable extends stdClass
             $str .= "\n\t<field>";
             foreach ($field as $key => $value)
             {
-                $str .= "\n\t\t<$key>$value</$key>";
+                $str .= "\n\t\t<$key>" . xmlenc($value) . "</$key>";
             }
             $str .= "\n\t</field>";
         }
@@ -152,7 +152,7 @@ class XMETATable extends stdClass
             }
             else
             {
-                $str .= "\n<filename>$singlefilename</filename>";
+                $str .= "\n<filename>" . xmlenc($singlefilename) . "</filename>";
             }
         }
         $str .= "\n</tables>";
@@ -337,9 +337,12 @@ class XMETATable extends stdClass
 
     function sendFileToClient()
     {
-        $unirecid = FN_GetParam("id", $_REQUEST);
-        $recordkey = FN_GetParam("recordkey", $_REQUEST);
-        $uid = FN_GetParam("uid", $_REQUEST);
+        // Sanitize path-sensitive parameters from user input before any filesystem use.
+        // $unirecid: record primary key used as directory name — allow safe chars only.
+        // $recordkey: field name used as directory name — word chars only.
+        $unirecid   = preg_replace('/[^a-zA-Z0-9._\-]/', '', (string)FN_GetParam("id", $_REQUEST));
+        $recordkey  = preg_replace('/[^a-zA-Z0-9_]/', '',  (string)FN_GetParam("recordkey", $_REQUEST));
+        $uid        = FN_GetParam("uid", $_REQUEST);
         $xmetadbgetfile = FN_GetParam("xmetadbgetfile", $_REQUEST);
         if (!$xmetadbgetfile || $recordkey == "" || $uid == "" || $unirecid === "")
         {
@@ -783,8 +786,10 @@ class XMETATable extends stdClass
                     $name_clean = str_replace("\\", "", $name_clean);
                     $name_clean = str_replace("/", "", $name_clean);
 
-                    //die ($name_clean);
-                    if (preg_match('/.php/is', $name_clean) || preg_match('/.php3/is', $name_clean) || preg_match('/.php4/is', $name_clean) || preg_match('/.php5/is', $name_clean) || preg_match('/.phtml/is', $name_clean))
+                    // Block server-side execution extensions anywhere in the filename
+                    // (handles double-extension attacks like file.php.jpg).
+                    // Dot is escaped to prevent false positives (e.g. 'xphp').
+                    if (preg_match('/\.(php[0-9]?|phtml|phar|shtml|pl|cgi|sh|py)(\.|$)/i', $name_clean))
                     {
                         touch("$path/$databasename/$dirtable_new/$unirecid/$key/" . $name_clean);
                     }

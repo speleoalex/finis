@@ -636,7 +636,8 @@ function getxmltablefield($databasename, $tablename, $fieldname, $path = ".")
  * */
 function xmetadb_remove_dir_rec($dirtodelete)
 {
-    if (strpos($dirtodelete, "../") !== false)
+    // Reject path traversal attempts in all common forms and null-byte injection.
+    if (strpos($dirtodelete, '..') !== false || strpos($dirtodelete, "\0") !== false)
         die("xmetadberror:xmetadb_remove_dir_rec");
     if (false != ($objs = glob($dirtodelete . "/.*")))
     {
@@ -695,11 +696,12 @@ function xmetadb_encode_preg($str)
  */
 function get_xml_single_element($elem, $xml)
 {
-    $xml = xmetadb_removexmlcomments($xml);
-    $buff = preg_replace("/.*<" . $elem . ">/s", "", $xml);
+    $xml  = xmetadb_removexmlcomments($xml);
+    $safe = preg_quote($elem, '/');
+    $buff = preg_replace("/.*<" . $safe . ">/s", "", $xml);
     if ($buff == $xml)
         return "";
-    $buff = preg_replace("/<\/" . $elem . ">.*/s", "", $buff);
+    $buff = preg_replace("/<\/" . $safe . ">.*/s", "", $buff);
     return $buff;
 }
 
