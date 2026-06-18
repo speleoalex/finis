@@ -24,17 +24,71 @@ class XMETADatabase
     {
         return preg_quote($str, '/');
     }
+
     /**
-     * Parser SQL
-     * es.
-     * SELECT * FROM table1 WHERE field1 AS alias1, field2 WHERE field1 = "condition" OR field2 = "condition2" ORDER BY field1 LIMIT 1,10
+     * Split a VALUES(...) content string into individual values,
+     * respecting single-quoted strings so commas inside quotes are not split.
+     * Strips surrounding quotes and whitespace from each token.
      *
-     * Limitazioni attuali:
-     * ancora da implementare INSERT,UPDATE,DELETE
+     * Examples:
+     *   "'Alice', 'Rome'"         → ['Alice', 'Rome']
+     *   "'hello, world', '42'"    → ['hello, world', '42']
+     *   "'it''s here', 'x'"       → ["it's here", 'x']
+     */
+    private function splitValues($str)
+    {
+        $tokens = [];
+        $len    = strlen($str);
+        $i      = 0;
+        $current = '';
+        while ($i < $len) {
+            $ch = $str[$i];
+            if ($ch === "'" || $ch === '"') {
+                // Consume quoted string
+                $quote = $ch;
+                $i++;
+                while ($i < $len) {
+                    if ($str[$i] === $quote) {
+                        // Handle escaped quote ('' inside single-quoted string)
+                        if ($i + 1 < $len && $str[$i + 1] === $quote) {
+                            $current .= $quote;
+                            $i += 2;
+                        } else {
+                            $i++;
+                            break;
+                        }
+                    } else {
+                        $current .= $str[$i];
+                        $i++;
+                    }
+                }
+            } elseif ($ch === ',') {
+                $tokens[] = trim($current);
+                $current  = '';
+                $i++;
+            } else {
+                $current .= $ch;
+                $i++;
+            }
+        }
+        $tokens[] = trim($current);
+        return $tokens;
+    }
+    /**
+     * Execute a SQL-like query against the xmetadb database.
+     *
+     * Supported: SELECT, INSERT, UPDATE, DELETE, DESCRIBE, SHOW TABLES.
+     * WHERE conditions are evaluated via PHP eval() — this is by design to
+     * keep the implementation self-contained. Do not pass untrusted user
+     * input directly as a query string without sanitisation.
+     *
+     * Example:
+     *   SELECT * FROM users WHERE active = '1' ORDER BY name LIMIT 1,10
      */
     function Query($query)
     {
         $databasename = $this->databasename;
+        // Cache key includes path so different XMETADatabase instances do not share entries
         static $tblcache = array();
         $qitems = array();
         $qitems['query'] = $query;
@@ -45,13 +99,12 @@ class XMETADatabase
         $qitems['min'] = false;
         $qitems['length'] = false;
         $qitems['where'] = false;
-        $fieldstoget = false;
+        $tbl = [];
         //SELECT
         if (preg_match("/^SELECT/is", $query))
         {
             if (preg_match("/^SELECT( DISTINCT | )([_a-zA-Z0-9, \(\)\*]+|\*|COUNT\(\*\)) FROM ([_a-zA-Z0-9,]+)(.+)/i", "$query ", $t1))
             {
-                //campi
                 $qitems['fields'] = trim(ltrim($t1[2]));
                 $qitems['tablename'] = trim(ltrim($t1[3]));
                 $qitems['option'] = trim(ltrim($t1[1]));
@@ -59,7 +112,7 @@ class XMETADatabase
                 $rightselect = $t1[4];
                 foreach ($tablenames as $tablename)
                 {
-                    $cid = $this->path . $databasename . $tablename;
+                    $cid = $this->path . '/' . $databasename . '/' . $tablename;
                     if (!isset($tblcache[$cid]))
                         $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $tablename, $this->path,$this->params);
                     //	$tblcache[$cid] = new XMETATable($databasename,$tablename,$this->path);
@@ -94,13 +147,11 @@ class XMETADatabase
                     $qitems['min'] = $dt3[2];
                     $qitems['length'] = $dt3[3];
                 }
-                //order by
-                if (preg_match("/(.*)(i:limit|)ORDER BY(.*)(i:limit|)/i", $rightselect, $dt2))
+                // ORDER BY: capture everything after ORDER BY, strip trailing LIMIT if present
+                if (preg_match("/ORDER BY\s+(.+)/i", $rightselect, $dt2))
                 {
-                    $tt = $this->iExplode(" limit ", $dt2[3]);
-                    $tt = $tt[0];
-                    $tmpwhere = $dt2[1];
-                    $qitems['orderby'] = trim(ltrim($tt));
+                    $tt = $this->iExplode(" LIMIT ", $dt2[1]);
+                    $qitems['orderby'] = trim($tt[0]);
                 }
             }
             //----CONDIZIONE---------------------->
@@ -120,7 +171,7 @@ class XMETADatabase
                 }
                 else
                 {
-                    $k1 = $k2 = trim(ltrim($field));
+                    $k1 = $k2 = 'COUNT(*)';
                 }
                 $count = true;
             }
@@ -135,14 +186,16 @@ class XMETADatabase
             if (preg_match("/^DESCRIBE ([a-zA-Z0-9_]+)/is", "$query ", $t1))
             {
                 $qitems['tablename'] = trim(ltrim($t1[1]));
-                $cid = $this->path . $databasename . $qitems['tablename'];
+                if (!file_exists($this->path . "/$databasename/{$qitems['tablename']}.php"))
+                    return "xmetadb: unknown table {$qitems['tablename']}";
+                $cid = $this->path . '/' . $databasename . '/' . $qitems['tablename'];
                 if (!isset($tblcache[$cid]))
-                    $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $qitems['tablename'], $this->path,$this->params);
+                    $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $qitems['tablename'], $this->path, $this->params);
                 $t = &$tblcache[$cid];
                 $ret = array();
                 foreach ($t->fields as $field)
                 {
-                    $ret[] = array("Field" => $field->name, "Type" => $field->type, "Null" => "NO", "Key" => $field->primarykey, "Extra" => $field->extra);
+                    $ret[] = ['Field' => $field->name, 'Type' => $field->type, 'Null' => 'NO', 'Key' => $field->primarykey, 'Extra' => $field->extra];
                 }
                 return $ret;
             }
@@ -163,27 +216,28 @@ class XMETADatabase
         //INSERT
         if (preg_match("/^INSERT/is", $query))
         {
-            if (preg_match("/^INSERT[ ]+INTO([a-zA-Z0-9\\`\\._ ]+)\\(([a-zA-Z_ ,]+)\\)[ ]+VALUES[ ]+\\((.*)\\)/i", "$query ", $t1))
+            // Field name pattern allows digits: [a-zA-Z0-9_ ,]+
+            if (preg_match("/^INSERT[ ]+INTO([a-zA-Z0-9\\`\\._ ]+)\\(([a-zA-Z0-9_ ,]+)\\)[ ]+VALUES[ ]+\\((.*)\\)/i", "$query ", $t1))
             {
-                $qitems['tablename'] = trim(ltrim($t1[1]));
-                $qitems['fields'] = trim(ltrim($t1[2]));
-                $qitems['values'] = trim(ltrim($t1[3]));
-                $cid = $this->path . $databasename . $qitems['tablename'];
+                $qitems['tablename'] = trim($t1[1]);
+                $qitems['fields']    = trim($t1[2]);
+                $qitems['values']    = trim($t1[3]);
+                $cid = $this->path . '/' . $databasename . '/' . $qitems['tablename'];
                 if (!isset($tblcache[$cid]))
-                    $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $qitems['tablename'], $this->path,$this->params);
+                    $tblcache[$cid] = XMETATable::xmetadbTable($databasename, $qitems['tablename'], $this->path, $this->params);
                 $tbl = &$tblcache[$cid];
-                $fields = explode(",", $qitems['fields']);
-                $values = explode(",", $qitems['values']);
+                $fields = array_map('trim', explode(",", $qitems['fields']));
+                $values = $this->splitValues($qitems['values']);
                 $recordstoinsert = array();
-                if (count($fields) == count($values))
+                if (count($fields) === count($values))
                 {
                     for ($i = 0; $i < count($fields); $i++)
                     {
-                        $recordstoinsert[$fields[$i]] = preg_replace("/^'/", "", preg_replace("/'$/s", "", preg_replace('/^"/s', "", preg_replace('/"$/s', "", $values[$i]))));
+                        $recordstoinsert[$fields[$i]] = $values[$i];
                     }
                 }
                 else
-                    return "xmetadb: syntax error";
+                    return "xmetadb: syntax error (fields/values count mismatch)";
                 return $tbl->InsertRecord($recordstoinsert);
             }
         }
@@ -227,13 +281,11 @@ class XMETADatabase
                     $qitems['min'] = $dt3[2];
                     $qitems['length'] = $dt3[3];
                 }
-                //order by
-                if (preg_match("/(.*)(i:limit|)ORDER BY(.*)(i:limit|)/i", $rightselect, $dt2))
+                // ORDER BY: capture everything after ORDER BY, strip trailing LIMIT if present
+                if (preg_match("/ORDER BY\s+(.+)/i", $rightselect, $dt2))
                 {
-                    $tt = $this->iExplode(" limit ", $dt2[3]);
-                    $tt = $tt[0];
-                    $tmpwhere = $dt2[1];
-                    $qitems['orderby'] = trim(ltrim($tt));
+                    $tt = $this->iExplode(" LIMIT ", $dt2[1]);
+                    $qitems['orderby'] = trim($tt[0]);
                 }
                 //dprint_r($qitems);
                 $allrecords = $this->getrecords($qitems, $tbl);
@@ -295,13 +347,11 @@ class XMETADatabase
                     $qitems['min'] = $dt3[2];
                     $qitems['length'] = $dt3[3];
                 }
-                //order by
-                if (preg_match("/(.*)(i:limit|)ORDER BY(.*)(i:limit|)/i", $rightselect, $dt2))
+                // ORDER BY: capture everything after ORDER BY, strip trailing LIMIT if present
+                if (preg_match("/ORDER BY\s+(.+)/i", $rightselect, $dt2))
                 {
-                    $tt = $this->iExplode(" limit ", $dt2[3]);
-                    $tt = $tt[0];
-                    $tmpwhere = $dt2[1];
-                    $qitems['orderby'] = trim(ltrim($tt));
+                    $tt = $this->iExplode(" LIMIT ", $dt2[1]);
+                    $qitems['orderby'] = trim($tt[0]);
                 }
                 $allrecords = $this->getrecords($qitems, $tbl);
                 if (!is_array($allrecords))
@@ -370,7 +420,7 @@ class XMETADatabase
                 {
                     if (!isset($tbl_t->fields[$fieldget]))
                     {
-                        echo "unknow field $fieldget in table $tablename";
+                        trigger_error("xmetadb: unknown field '$fieldget' in table '$tablename'", E_USER_WARNING);
                         return false;
                     }
                 }
@@ -422,10 +472,10 @@ class XMETADatabase
 
                 try
                 {
-                    //dprint_r("if ($where2) {".'$ok=true;'."} ");
-                    @eval("if ($where2) {" . '$ok=true;' . "} ");
+                    eval("if ($where2) {" . '$ok=true;' . "} ");
                 } catch (ParseError $e)
                 {
+                    trigger_error("xmetadb WHERE eval error: " . $e->getMessage(), E_USER_WARNING);
                     return false;
                 }
             }
