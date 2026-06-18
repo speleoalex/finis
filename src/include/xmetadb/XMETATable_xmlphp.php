@@ -566,8 +566,9 @@ class XMETATable_xmlphp extends stdClass
         }
         $oldfiles = glob("$path/$databasename/$tablename/*.php");
         xmetadb_remove_dir_rec("$path/$databasename/$tablename");
+        mkdir("$path/$databasename/$tablename"); // recreate data directory so locks still work
         $this->ClearCachefile();
-        foreach ($oldfiles as $oldfile)
+        foreach ((array)$oldfiles as $oldfile)
             xmetadb_readDatabase($oldfile, $this->xmlfieldname, false, false);
         return true;
     }
