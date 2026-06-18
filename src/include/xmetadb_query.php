@@ -1,2 +1,2 @@
 <?php
-include_once __DIR__ . "/xmetadb_query/xmetadb_query_core.php";
+include_once __DIR__ . "/xmetadb/XMETADatabase.php";

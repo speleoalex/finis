@@ -22,19 +22,7 @@ class XMETADatabase
     }
     function encode_preg($str)
     {
-        $str = str_replace('\\', '\\\\', $str);
-        $str = str_replace('/', '\\/', $str);
-        $str = str_replace('(', '\\(', $str);
-        $str = str_replace(')', '\\)', $str);
-        $str = str_replace('^', '\\^', $str);
-        $str = str_replace('$', '\\$', $str);
-        $str = str_replace('*', '\\*', $str);
-        $str = str_replace('+', '\\+', $str);
-        $str = str_replace('?', '\\?', $str);
-        $str = str_replace('[', '\\[', $str);
-        $str = str_replace(']', '\\]', $str);
-        $str = str_replace('|', '\\|', $str);
-        return $str;
+        return preg_quote($str, '/');
     }
     /**
      * Parser SQL
