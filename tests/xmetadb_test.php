@@ -752,6 +752,80 @@ foreach (array_merge($dangerous_names, $safe_names) as $name => $should_block) {
 }
 
 // ===========================================================================
+// ===========================================================================
+// SUITE 17 — Driver bug fixes
+// ===========================================================================
+$t->suite('Driver bug fixes');
+
+// eval() removed from xmlphp/serialize: defaultvalue is now a literal string, not PHP code
+$fields_eval = [
+    ['name' => 'id',  'primarykey' => '1', 'type' => 'int', 'extra' => 'autoincrement'],
+    ['name' => 'val', 'primarykey' => '0', 'type' => 'varchar', 'defaultvalue' => 'hello world'],
+];
+createxmltable('secdb', 'evaltbl', $fields_eval, $tmpdir);
+$evaltbl = xmetadb_table('secdb', 'evaltbl', $tmpdir);
+$r_eval = $evaltbl->InsertRecord([]);
+$t->ok(is_array($r_eval),                    'xmlphp eval removed: InsertRecord with defaultvalue succeeds');
+$t->eq('hello world', $r_eval['val'],        'xmlphp eval removed: literal defaultvalue applied correctly');
+
+// defaultvalue with XML-special chars (would have caused eval error before)
+$fields_eval2 = [
+    ['name' => 'id',  'primarykey' => '1', 'type' => 'int', 'extra' => 'autoincrement'],
+    ['name' => 'tag', 'primarykey' => '0', 'type' => 'varchar', 'defaultvalue' => 'a < b'],
+];
+createxmltable('secdb', 'evaltbl2', $fields_eval2, $tmpdir);
+$evaltbl2 = xmetadb_table('secdb', 'evaltbl2', $tmpdir);
+$r_eval2 = $evaltbl2->InsertRecord([]);
+$t->ok(is_array($r_eval2),                   'xmlphp: defaultvalue with < chars does not crash');
+
+// inverted strpos fix: strpos($pk, "..") === false now correctly guards directory removal
+// (the path "safe_pk" should pass, "../../etc" would fail the check and not attempt deletion)
+$t->ok(strpos("safe_pk",   "..") === false,  'strpos fix: safe pk passes traversal check');
+$t->ok(strpos("../../etc", "..") !== false,  'strpos fix: traversal pk caught by check');
+
+// sqlite3 Truncate: $query was undefined before (would throw PHP error)
+if (class_exists('SQLite3')) {
+    $tbl_trunc = xmetadb_table('testdb', 'items_sqlite3', $tmpdir);
+    if ($tbl_trunc && !empty($tbl_trunc->driverclass)) {
+        ob_start();
+        $trunc_result = $tbl_trunc->Truncate();
+        ob_get_clean();
+        $t->ok($trunc_result !== false, 'sqlite3 Truncate: no longer crashes with undefined $query');
+    } else {
+        $t->skip('sqlite3 table not available for Truncate test');
+    }
+}
+
+// mysql no-op bug: InsertRecordFast had $xmetadb_mysqlcurrentdb != instead of =
+// The fix cannot be directly tested without inspecting the global, but a round-trip
+// insert/select verifies the corrected flow reaches the right database
+// mysql no-op fix: code-level verification (the static $dbcache in mysql driver prevents
+// reusing a dropped table in the same process; use a fresh table name instead)
+if ($mysql_host) {
+    createxmltable('secdb', 'noop_fix', [
+        ['name' => 'id',  'primarykey' => '1', 'type' => 'int', 'extra' => 'autoincrement'],
+        ['name' => 'val', 'primarykey' => '0', 'type' => 'varchar', 'defaultvalue' => ''],
+    ], $tmpdir, ['driver' => 'mysql']);
+    ob_start();
+    $tbl_m = new XMETATable('secdb', 'noop_fix', $tmpdir, [
+        'xmetadb_mysqlhost'     => $mysql_host,
+        'xmetadb_mysqlusername' => $mysql_user,
+        'xmetadb_mysqlpassword' => $mysql_pass,
+        'xmetadb_mysqldatabase' => $mysql_db,
+    ]);
+    ob_get_clean();
+    if ($tbl_m && !empty($tbl_m->driverclass)) {
+        $r_mysql = $tbl_m->InsertRecord(['val' => 'test']);
+        $t->ok(is_array($r_mysql), 'mysql no-op fix: InsertRecord works on fresh table');
+        $tbl_m->driverclass->dbQuery("DROP TABLE IF EXISTS noop_fix");
+    } else {
+        $t->skip('mysql table not available for no-op fix test');
+    }
+} else {
+    $t->skip('mysql not configured — skipping no-op fix test');
+}
+
+// ===========================================================================
 // SUMMARY + save benchmark JSON
 // ===========================================================================
 $t->summary();

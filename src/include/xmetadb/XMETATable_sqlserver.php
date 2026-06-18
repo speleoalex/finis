@@ -237,7 +237,7 @@ class XMETATable_sqlserver extends stdClass
                     }
                 }
                 $query.=" NOT NULL ";
-                if (empty($field['extra']) || $field['extra']=!"autoincrement")
+                if (empty($field['extra']) || $field['extra'] != "autoincrement")
                 {
                     $query.="DEFAULT('')";
                 }
@@ -696,7 +696,7 @@ class XMETATable_sqlserver extends stdClass
      */
     function Truncate()
     {
-        $result=$this->dbQuery("truncate ".$this->sqltable);
+        $result=$this->dbQuery("TRUNCATE TABLE ".$this->sqltablename);
         if (!$result)
         {
             return false;

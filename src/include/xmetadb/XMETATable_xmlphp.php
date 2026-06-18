@@ -136,7 +136,8 @@ class XMETATable_xmlphp extends stdClass
             $rc = implode("|", $restr);
         if ($restr && is_string($restr))
         {
-            die("TODO xmetadb: not yet implemented function for this driver");
+            trigger_error("xmetadb xmlphp driver: raw SQL WHERE string not supported; use array filter", E_USER_WARNING);
+            return [];
         }
 
         // file cache ---->
@@ -407,13 +408,8 @@ class XMETATable_xmlphp extends stdClass
             }
             if ((!isset($values[$f->name]) || $values[$f->name] === null) && (isset($this->fields[$f->name]->defaultvalue) && $this->fields[$f->name]->defaultvalue != ""))
             {
-                $dv = $this->fields[$f->name]->defaultvalue;
-                $fname = $f->name;
-                $rv = "";
-                eval("\$rv=\"$dv\";");
-                $rv = str_replace("\\", "\\\\", $rv);
-                $rv = str_replace("'", "\\'", $rv);
-                eval("\$values" . "['$fname'] = '$rv' ;");
+                // Assign default value directly — no eval() to prevent code injection via descriptor.
+                $values[$f->name] = $this->fields[$f->name]->defaultvalue;
             }
         }
         if (!isset($values[$this->primarykey]) || $values[$this->primarykey] == "")
@@ -595,7 +591,7 @@ class XMETATable_xmlphp extends stdClass
         if (!file_exists($oldfile))
             return false;
         if (preg_match("/\\/$/si", $this->datafile))
-            if (!strpos($pkvalue, "..") !== false && file_exists("{$this->datafile}$pkvalue/") && is_dir("{$this->datafile}$pkvalue/"))
+            if (strpos($pkvalue, "..") === false && file_exists("{$this->datafile}$pkvalue/") && is_dir("{$this->datafile}$pkvalue/"))
                 xmetadb_remove_dir_rec("{$this->datafile}$pkvalue");
         $this->ClearCachefile();
         $n = xmetadb_readDatabase($oldfile, $this->xmlfieldname, false, false);

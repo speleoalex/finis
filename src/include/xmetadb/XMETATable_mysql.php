@@ -158,7 +158,7 @@ class XMETATable_mysql extends stdClass
             if (!empty($_FN['xmetadb_timezone']))
             {
                 try{
-                    $this->conn->query("SET time_zone = '{$_FN['xmetadb_timezone']}'");
+                    $this->conn->query("SET time_zone = '" . $this->conn->real_escape_string($_FN['xmetadb_timezone']) . "'");
 
                 }catch (Exception $e)
                 {
@@ -633,7 +633,7 @@ class XMETATable_mysql extends stdClass
             if (!$this->conn)
                 die($this->conn->error);
             #$this->conn->select_db ($this->mysqldatabasename);
-            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '$pvalue'";
+            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string($pvalue) . "'";
             $result = $this->dbQuery($query);
             if (!isset($result[0]))
             {
@@ -884,9 +884,9 @@ class XMETATable_mysql extends stdClass
                 $query .= ");";
             }
             global $xmetadb_mysqlcurrentdb;
-            if ($xmetadb_mysqlcurrentdb != $this->mysqldatabasename && $this->conn->select_db($this->mysqldatabasename, $this->conn))
+            if ($xmetadb_mysqlcurrentdb != $this->mysqldatabasename && $this->conn->select_db($this->mysqldatabasename))
             {
-                $xmetadb_mysqlcurrentdb != $this->mysqldatabasename;
+                $xmetadb_mysqlcurrentdb = $this->mysqldatabasename;
             }
             if (!$this->conn->query($query))
             {
@@ -1048,7 +1048,7 @@ class XMETATable_mysql extends stdClass
             $and = "";
             foreach ($restr as $h => $v)
             {
-                $query .= " $and $h LIKE '$v' ";
+                $query .= " $and `$h` LIKE '" . $this->conn->real_escape_string($v) . "' ";
                 $and = "AND";
             }
         }

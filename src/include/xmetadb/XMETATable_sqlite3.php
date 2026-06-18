@@ -444,7 +444,7 @@ class XMETATable_sqlite3 extends stdClass
         {
             if (!$this->conn)
                 die("error connection");
-            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '$pvalue'";
+            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . SQLite3::escapeString($pvalue) . "'";
             $result = $this->dbQuery($query);
             if (!isset($result[0]))
             {
@@ -517,7 +517,7 @@ class XMETATable_sqlite3 extends stdClass
     {
         if (!$this->conn)
             die("error truncate");
-        $result = $this->dbQuery($query);
+        $result = $this->dbQuery("DELETE FROM {$this->sqltable}");
         if (!$result)
         {
             echo $this->sqlite_error;
@@ -705,7 +705,7 @@ class XMETATable_sqlite3 extends stdClass
             $and = "";
             foreach ($restr as $h => $v)
             {
-                $query .= " $and $h LIKE '$v' ";
+                $query .= " $and $h LIKE '" . SQLite3::escapeString($v) . "' ";
                 $and = "AND";
             }
         }

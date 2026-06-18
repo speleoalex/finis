@@ -311,13 +311,8 @@ class XMETATable_serialize  extends stdClass
                 }
             if ((!isset($values[$f->name]) || $values[$f->name]=== null) && (isset($this->fields[$f->name]->defaultvalue) && $this->fields[$f->name]->defaultvalue!= ""))
             {
-                $dv=$this->fields[$f->name]->defaultvalue;
-                $fname=$f->name;
-                $rv="";
-                eval("\$rv=$dv;");
-                $rv=str_replace("\\","\\\\",$rv);
-                $rv=str_replace("'","\\'",$rv);
-                eval("\$values"."['$fname'] = '$rv' ;");
+                // Assign default value directly — no eval() to prevent code injection via descriptor.
+                $values[$f->name] = $this->fields[$f->name]->defaultvalue;
             }
         }
         if (!isset($values[$this->primarykey]) || $values[$this->primarykey]== "")
@@ -356,7 +351,7 @@ class XMETATable_serialize  extends stdClass
         $dirold=dirname($old)."/".basename($old,".php");
         if (!file_exists($old))
             return false;
-        if (!strpos($pkvalue,"..")!== false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
+        if (strpos($pkvalue, "..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
             xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
         $this->ClearCachefile();
         @ unlink($old);
