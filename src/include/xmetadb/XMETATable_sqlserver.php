@@ -248,7 +248,7 @@ class XMETATable_sqlserver extends \stdClass
             $query.=") ;";
             if (!$this->dbQuery($query))
             {
-                die("sqlservererror".__LINE__);
+                trigger_error("SQL Server error at line " . __LINE__, E_USER_WARNING); return false;
             }
             $dbcache['tables'][$this->sqldatabasename]=$this->dbQuery("SELECT * FROM information_schema.tables");
 
@@ -266,6 +266,7 @@ class XMETATable_sqlserver extends \stdClass
         $xmlfield=$this->fields;
         $result=$dbcache[$this->sqldatabasename][$this->sqltablename]['describe'];
         $exists=false;
+        $sql_fields = array();
         if ($result)
         {
             foreach($result as $tmp)
@@ -293,7 +294,6 @@ class XMETATable_sqlserver extends \stdClass
             if (!isset($sql_fields[$fieldname]) && $fieldvalues->type!= "innertable")
             {
                 $field=get_object_vars($fieldvalues);
-                echo "add field $fieldname";
                 $query="ALTER TABLE ".$this->sqltablename." ADD [$fieldname] ";
                 $field['size']=isset($field['size']) ? $field['size'] : "";
                 switch($field['type'])
@@ -327,8 +327,7 @@ class XMETATable_sqlserver extends \stdClass
                 }
                 if (!$this->dbQuery($query))
                 {
-                    die("sqlservererror".__LINE__);
-                    return false;
+                    trigger_error("SQL Server error at line " . __LINE__, E_USER_WARNING); return false;
                 }
                 $flag_tablechanged=true;
             }
@@ -341,9 +340,8 @@ class XMETATable_sqlserver extends \stdClass
     }
 
     /**
-     * 
-     * @param type $query
-     * @return boolean
+     * @param string $query
+     * @return array|bool
      */
     function dbQuery($query)
     {
@@ -363,7 +361,7 @@ class XMETATable_sqlserver extends \stdClass
             if (empty($this->conn))
             {
                 if (!function_exists("sqlsrv_connect"))
-                    die("sqlsrv_connect not exists");
+                { trigger_error("sqlsrv_connect function not available", E_USER_WARNING); return false; }
                 //$db['server'] = $dbserver;
                 $serverName=$db['server'];
                 $connectionInfo=array("UID"=>$db['user'],
@@ -376,8 +374,7 @@ class XMETATable_sqlserver extends \stdClass
                 $conn=sqlsrv_connect($serverName,$connectionInfo);
                 if ($conn === false)
                 {
-                    echo "Unable to connect {$db['server']}.</br>";
-                    die(print_r(sqlsrv_errors(),true));
+                    trigger_error("Unable to connect: " . $db['server'] . " " . print_r(sqlsrv_errors(), true), E_USER_WARNING); return false;
                 }
 
                 $this->conn=$conn;
@@ -395,9 +392,7 @@ class XMETATable_sqlserver extends \stdClass
             $error=sqlsrv_errors();
             if ($result === false && $error!= "")
             {
-                echo "Error in executing query.\n$query\n";
-                echo "Error:";
-                print_r($error);
+                trigger_error("SQL Server query error: " . print_r($error, true), E_USER_WARNING);
                 return false;
             }
 
@@ -421,7 +416,8 @@ class XMETATable_sqlserver extends \stdClass
                 $link=mssql_connect($connectionstring,$db['user'],$db['password']);
                 if (!$link)
                 {
-                    die('Connection to server failed');
+                    trigger_error("SQL Server mssql_connect failed", E_USER_WARNING);
+                    return false;
                 }
                 $this->conn=$link;
             }
@@ -590,9 +586,8 @@ class XMETATable_sqlserver extends \stdClass
     }
 
     /**
-     * 
-     * @param type $pvalue
-     * @return type
+     * @param string $pvalue
+     * @return array|null|false
      */
     function MakeQueryPk($pvalue)
     {
@@ -693,7 +688,7 @@ class XMETATable_sqlserver extends \stdClass
     /**
      * truncate table
      *
-     * @return unknown
+     * @return bool
      */
     function Truncate()
     {
@@ -724,7 +719,6 @@ class XMETATable_sqlserver extends \stdClass
 
         if ($this->conn)
         {
-            $seldb=true;
             $query="INSERT INTO ".$this->sqltablename." (";
             if (!is_array($this->primarykey) && !isset($values[$this->primarykey]) && empty($this->fields[$this->primarykey]->autoincrement_db_side))
                 $values[$this->primarykey]="";
@@ -893,8 +887,8 @@ class XMETATable_sqlserver extends \stdClass
      * GetNumRecords
      * return records count
      * 
-     * @param type $restr
-     * @return type 
+     * @param array|string|null $restr
+     * @return int
      */
     function GetNumRecords($restr=null)
     {
@@ -922,8 +916,8 @@ class XMETATable_sqlserver extends \stdClass
 
     /**
      *
-     * @param type $values
-     * @param type $oldvalues 
+     * @param array $values
+     * @param array|null $oldvalues
      */
     function gestfiles($values,$oldvalues=null)
     {
@@ -932,9 +926,9 @@ class XMETATable_sqlserver extends \stdClass
 
     /**
      *
-     * @param type $recordvalues
-     * @param type $recordkey
-     * @return type 
+     * @param array $recordvalues
+     * @param string $recordkey
+     * @return string|false
      */
     function get_thumb($recordvalues,$recordkey)
     {
@@ -995,11 +989,8 @@ class XMETATable_sqlserver extends \stdClass
  * 
  * @global type $xmetadb_mssqldatabase
  * @global type $xmetadb_mssqlusername
- * @global type $xmetadb_mssqlpassword
- * @global type $xmetadb_mssqlhost
- * @global type $xmetadb_mssqlport
- * @param type $tablename
- * @param type $path
+ * @param string $tablename
+ * @param string $path
  * @return boolean
  */
 function xmetadb_sqlserver_CreateTableIfNotExistsFromDb($tablename,$path="misc/fndatabase",$xmltablename="")
@@ -1096,8 +1087,8 @@ sys.columns cref
 
 /**
  *
- * @param type $query
- * @return type 
+ * @param string $query
+ * @return array|bool
  */
 function xmetadb_sqlserver_dbQuery($query,$assoc_numeric=false)
 {
@@ -1118,7 +1109,10 @@ function xmetadb_sqlserver_dbQuery($query,$assoc_numeric=false)
     if (!function_exists("mssql_query"))
     {
         if (!function_exists("sqlsrv_connect"))
-            die("sqlsrv_connect not exists");
+        {
+            trigger_error("sqlsrv_connect function not available", E_USER_WARNING);
+            return false;
+        }
         if ($conn === false)
         {
             $db['server']=$dbserver;
@@ -1131,9 +1125,8 @@ function xmetadb_sqlserver_dbQuery($query,$assoc_numeric=false)
             $conn=sqlsrv_connect($serverName,$connectionInfo);
             if ($conn === false)
             {
-                echo "Unable to connect {$db['server']}.</br>";
-                DB_JsRedirect("index.php");
-                die(print_r(sqlsrv_errors(),true));
+                trigger_error("Unable to connect to SQL Server: " . $db['server'] . " " . print_r(sqlsrv_errors(), true), E_USER_WARNING);
+                return false;
             }
         }
 //        sqlsrv_configure("WarningsReturnAsErrors",0);
@@ -1164,12 +1157,8 @@ function xmetadb_sqlserver_dbQuery($query,$assoc_numeric=false)
             $error=sqlsrv_errors();
             if ($result === false && $error!= "")
             {
-                echo "Error in executing query.\n$query\n";
-                echo "Error:";
-                print_r($error);
+                trigger_error("SQL Server query error: " . print_r($error, true), E_USER_WARNING);
                 return false;
-                /*            print_r($error);
-                  die(); */
             }
 
             $rows=array();
@@ -1201,9 +1190,8 @@ function xmetadb_sqlserver_dbQuery($query,$assoc_numeric=false)
         }
         if (!$conn || !mssql_select_db($db['dbname'],$conn))
         {
-            DB_JsRedirect("index.php");
-
-            die('Unable to connect or select database!');
+            trigger_error("Unable to connect or select SQL Server database", E_USER_WARNING);
+            return false;
         }
         $result=@mssql_query($query);
         if (!$result)

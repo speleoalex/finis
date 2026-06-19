@@ -381,7 +381,7 @@ class XMETATable_xmlphp extends \stdClass
                 $this->dbunlock();
                 return "error:table is locked";
             }
-            usleep(rand(1, 500));
+            \usleep(\rand(1, 500));
         }
         if (!$this->dblock())
         {
@@ -501,8 +501,8 @@ class XMETATable_xmlphp extends \stdClass
     }
 
     /**
-     * 
-     * @return type
+     *
+     * @return bool
      */
     function dbIsLocked()
     {
@@ -512,7 +512,8 @@ class XMETATable_xmlphp extends \stdClass
         {
             if (!empty($_GET['debug']))
             {
-                die("table is locked " . $this->tablename);
+                trigger_error("table is locked " . $this->tablename, E_USER_WARNING);
+                return false;
             }
 
             return true;
@@ -521,8 +522,8 @@ class XMETATable_xmlphp extends \stdClass
     }
 
     /**
-     * 
-     * @return type
+     *
+     * @return bool
      */
     function dblock()
     {
@@ -537,8 +538,8 @@ class XMETATable_xmlphp extends \stdClass
     }
 
     /**
-     * 
-     * @return type
+     *
+     * @return bool
      */
     function dbunlock()
     {
@@ -825,7 +826,7 @@ class XMETATable_xmlphp extends \stdClass
             $newfilestring = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<?php exit(0);?>\n" . trim(ltrim($newfilestring));
             if (!is_writable($old))
             {
-                echo ("$old is readonly,I can't update");
+                trigger_error("$old is readonly, cannot update", E_USER_WARNING);
                 return ("$old is readonly,I can't update");
             }
             $handle = fopen($old, "w");

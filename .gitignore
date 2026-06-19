@@ -1,3 +1,4 @@
+/private/
 /nbproject/private/
 /nbproject/
 /doc/appunti_da_ordinare.md
@@ -31,3 +32,6 @@ LOCAL_DEV.md
 /examples/fullcms/sections/
 /examples/fullcms/themes/
 /examples/website/languages/
+/examples/fntest/
+/tests/
+/src/test_parser_cron.php

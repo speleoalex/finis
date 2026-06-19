@@ -121,7 +121,8 @@ function FN_ManageLogin()
         }
     }
     //-------------------captcha-----------------------------------------------<
-    $rememberlogin = FN_GetParam("rememberlogin", $_POST);
+    $rememberlogin  = FN_GetParam("rememberlogin", $_POST);
+    $justLoggedIn   = false;
     if ($fnlogin == "login" && $fnuser != "" && $fnpwd != "")
     {
         if (empty($_FN['username_case_sensitive']))
@@ -129,6 +130,7 @@ function FN_ManageLogin()
         if ($captcha_ok && FN_VerifyUserPassword($fnuser, $fnpwd))
         {
             FN_Login($fnuser, $rememberlogin);
+            $justLoggedIn = true;
         }
         else
         {
@@ -137,7 +139,10 @@ function FN_ManageLogin()
         }
     }
     $_FN['user'] = FN_GetParam("fnuser", $_COOKIE);
-    if (!FN_CheckUser() || $fnlogin == "logout")
+    // Skip the session check on the very request that performed login:
+    // FN_Login() already set the cookies; re-checking immediately would race
+    // against the browser not yet having sent back the new cookie.
+    if (!$justLoggedIn && (!FN_CheckUser() || $fnlogin == "logout"))
     {
         FN_Logout();
     }
@@ -414,7 +419,7 @@ function FN_Login($fnuser, $rememberlogin = false)
     global $_FN;
     $password = Fn_GetPassword($fnuser);
     $us = FN_GetUser($fnuser, false);
-    if ($us['active'] == 1)
+    if (is_array($us) && $us['active'] == 1)
     {
 //---------------------url cookie---------------------------------------------->
         global $_FN;
@@ -429,15 +434,20 @@ function FN_Login($fnuser, $rememberlogin = false)
             $_FN['urlcookie'] = $urlcookie;
         }
 //---------------------url cookie----------------------------------------------<
-        if (empty($_FN['remember_login']) || $rememberlogin == "")
+        // setcookie() is a no-op in CLI mode (no HTTP context)
+        if (empty($_FN['consolemode']))
         {
-            setcookie("fnuser", $fnuser, 0, $_FN['urlcookie']);
-            setcookie("secid", md5($fnuser . $password), 0, $_FN['urlcookie']);
-        }
-        else
-        {
-            setcookie("fnuser", $fnuser, time() + 99999999, $_FN['urlcookie']);
-            setcookie("secid", md5($fnuser . $password), time() + 99999999, $_FN['urlcookie']);
+            $expires = (empty($_FN['remember_login']) || $rememberlogin == "")
+                ? 0
+                : time() + 99999999;
+            $cookieOpts = [
+                'expires'  => $expires,
+                'path'     => $_FN['urlcookie'],
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ];
+            setcookie("fnuser", $fnuser, $cookieOpts);
+            setcookie("secid",  md5($fnuser . $password), $cookieOpts);
         }
         FN_Log("User $fnuser login (function FN_Login).");
         $_FN['user'] = $_COOKIE['fnuser'] = $fnuser;
@@ -459,31 +469,32 @@ function FN_Login($fnuser, $rememberlogin = false)
  */
 function FN_Logout()
 {
-//---------------------url cookie---------------------------------------------->
     global $_FN;
-    $forcelogout = true;
-    if ($forcelogout)
-    {
-        $urlcookie = FN_GetParam("PHP_SELF", $_SERVER);
-        $path = pathinfo($urlcookie);
-        $urlcookie = $path["dirname"] . "/";
-        $urlcookie = str_replace("\\", "/", $urlcookie);
-        if ($urlcookie == "" || $urlcookie == "\\" || $urlcookie == "//")
-            $urlcookie = "/";
-        setcookie("secid", "", 0, $urlcookie);
-        setcookie("fnuser", "", 0, $urlcookie);
-        setcookie("secid", "", 0, "/");
-        setcookie("fnuser", "", 0, "/");
-    }
-//---------------------url cookie----------------------------------------------<
-
-    setcookie("secid", "", 0, $_FN['urlcookie']);
-    setcookie("fnuser", "", 0, $_FN['urlcookie']);
-    setcookie("secid", "", 0, "/");
-    setcookie("fnuser", "", 0, "/");
     $_FN['user'] = "";
     unset($_COOKIE['fnuser']);
     unset($_COOKIE['secid']);
+
+    // setcookie() is a no-op in CLI mode
+    if (!empty($_FN['consolemode'])) return;
+
+//---------------------url cookie---------------------------------------------->
+    // Determine the path used by this application
+    $urlcookie = $_FN['urlcookie'] ?? '';
+    if (empty($urlcookie))
+    {
+        $self      = FN_GetParam("PHP_SELF", $_SERVER);
+        $urlcookie = rtrim(pathinfo($self, PATHINFO_DIRNAME), '/\\') . '/';
+        $urlcookie = str_replace("\\", "/", $urlcookie);
+        if ($urlcookie == "" || $urlcookie == "/" || $urlcookie == "//")
+            $urlcookie = "/";
+    }
+//---------------------url cookie----------------------------------------------<
+
+    $clearOpts = ['expires' => 1, 'httponly' => true, 'samesite' => 'Lax'];
+    foreach ([$urlcookie, '/'] as $path) {
+        setcookie("fnuser", "", $clearOpts + ['path' => $path]);
+        setcookie("secid",  "", $clearOpts + ['path' => $path]);
+    }
 }
 
 /**

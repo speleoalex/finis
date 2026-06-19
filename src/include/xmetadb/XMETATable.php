@@ -516,8 +516,8 @@ class XMETATable extends \stdClass
     }
 
     /**
-     * 
-     * @return type
+     *
+     * @return int
      */
     function GetLastUpdateTime()
     {
@@ -587,7 +587,7 @@ class XMETATable extends \stdClass
                 $unirecid = array();
                 foreach ($this->primarykey as $pkk)
                 {
-                    $unirecid[$pkk] = $values[$this->$pkk];
+                    $unirecid[$pkk] = $values[$pkk];
                 }
             }
         }

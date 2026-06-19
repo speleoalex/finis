@@ -32,7 +32,7 @@ class XMETATable_sqlite extends \stdClass
     {
         if (!class_exists("SQLiteDatabase"))
         {
-            die("class SQLiteDatabase doesn't exists");
+            trigger_error("class SQLiteDatabase does not exist", E_USER_WARNING); return;
         }
         $this->xmltable=&$xmltable;
         $this->tablename=& $xmltable->tablename;
@@ -153,7 +153,7 @@ class XMETATable_sqlite extends \stdClass
                 $query .= ")";
                 if (!$this->dbQuery($query))
                 {
-                    echo("error:".$this->sqlite_error);
+                    trigger_error("SQLite CREATE TABLE error: " . $this->sqlite_error, E_USER_WARNING);
                 }
                 // transfer xml data into sqlite
                 $tmpRecords=xmetadb_readDatabase("$path/".$databasename."/".$tablename,$tablename,false,false);
@@ -180,7 +180,7 @@ class XMETATable_sqlite extends \stdClass
             }
             else
             {
-                echo $this->sqlite_error;
+                trigger_error("SQLite PRAGMA error: " . $this->sqlite_error, E_USER_WARNING);
                 return false;
             }
             $toalter=false;
@@ -244,7 +244,7 @@ class XMETATable_sqlite extends \stdClass
                 $query .= ")";
                 if (!$this->dbQuery($query))
                 {
-                    echo("error:".$this->sqlite_error);
+                    trigger_error("SQLite ALTER TABLE error: " . $this->sqlite_error, E_USER_WARNING);
                 }
                 // transfer xml data into sqlite
                 //rebuild connection
@@ -259,7 +259,7 @@ class XMETATable_sqlite extends \stdClass
         }
         else
         {
-            echo ($error);
+            trigger_error("SQLite open error: " . $error, E_USER_WARNING);
             return false;
         }
         return true;
@@ -382,7 +382,7 @@ class XMETATable_sqlite extends \stdClass
         }
         if (!isset($this->conn) || !$this->conn)
         {
-            echo ($this->sqlite_error);
+            trigger_error("SQLite connection error: " . $this->sqlite_error, E_USER_WARNING);
             return false;
         }
         $q=$this->conn->query($query,SQLITE_ASSOC,$this->sqlite_error);
@@ -441,7 +441,10 @@ class XMETATable_sqlite extends \stdClass
         if ($this->connection)
         {
             if (!$this->conn)
-                die("error connection");
+            {
+                trigger_error("SQLite connection error", E_USER_WARNING);
+                return false;
+            }
             $query="SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '$pvalue'";
             $result=$this->dbQuery($query);
             if (!isset($result[0]))
@@ -487,7 +490,10 @@ class XMETATable_sqlite extends \stdClass
         if ($this->connection)
         {
             if (!$this->conn)
-                die(sqlite_error());
+            {
+                trigger_error("SQLite error: " . $this->sqlite_error, E_USER_WARNING);
+                return false;
+            }
             $pkey=$this->primarykey;
             if ($this->fields[$this->primarykey]->type == "int")
                 $query="DELETE FROM {$this->sqltable} WHERE $pkey LIKE ".$pkvalue;
@@ -496,7 +502,7 @@ class XMETATable_sqlite extends \stdClass
             $result=$this->dbQuery($query);
             if (!$result)
             {
-                echo $this->sqlite_error;
+                trigger_error("SQLite DELETE error: " . $this->sqlite_error, E_USER_WARNING);
                 return false;
             }
             if (strpos($pkvalue,"..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
@@ -514,11 +520,14 @@ class XMETATable_sqlite extends \stdClass
     function Truncate()
     {
         if (!$this->conn)
-            die("error truncate");
+        {
+            trigger_error("SQLite TRUNCATE error: " . $this->sqlite_error, E_USER_WARNING);
+            return false;
+        }
         $result=$this->dbQuery("truncate ".$this->sqltable);
         if (!$result)
         {
-            echo $this->sqlite_error;
+            trigger_error("SQLite TRUNCATE error: " . $this->sqlite_error, E_USER_WARNING);
             return false;
         }
         return true;
@@ -536,7 +545,6 @@ class XMETATable_sqlite extends \stdClass
         {
             if ($this->conn)
             {
-                $seldb=true;
                 $query="INSERT INTO ".$this->sqltable." (";
                 if (!isset($values[$this->primarykey]))
                     $values[$this->primarykey]="";
@@ -592,7 +600,7 @@ class XMETATable_sqlite extends \stdClass
             $ret=$this->dbQuery($query);
             if (!$ret)
             {
-                echo ("error insert");
+                trigger_error("SQLite INSERT error: " . $this->sqlite_error, E_USER_WARNING);
                 return false;
             }
 

@@ -63,6 +63,8 @@ class XMETATable_mysql extends \stdClass
         
         
         $this->params = $params;
+        if (!is_array($params))
+            $params = [];
         $this->mysqlfields = array();
         $this->nullfields = array();
         if (is_array($params))
@@ -138,7 +140,7 @@ class XMETATable_mysql extends \stdClass
         global $xmetadb_mysqlconnection;
         if (!$xmetadb_mysqlconnection)
         {
-            $xmetadb_mysqlconnection = new \mysqli($mysql['host'], $mysql['user'], $mysql['password']);
+            $xmetadb_mysqlconnection = new \mysqli($mysql['host'], $mysql['user'], $mysql['password'], "", (int)$mysql['port']);
         }
         
         if ($xmetadb_mysqlconnection)
@@ -177,7 +179,6 @@ class XMETATable_mysql extends \stdClass
 
             if (!$exists)
             {
-                $result = $this->conn->query("SHOW databases");
                 $exists = false;
                 global $xmetadb_mysqlcurrentdb;
                 if ($xmetadb_mysqlcurrentdb == $this->mysqldatabasename)
@@ -200,7 +201,7 @@ class XMETATable_mysql extends \stdClass
                 {
                     if (false == $this->conn->query("CREATE DATABASE {$mysql['database']}"))
                     {
-                        echo ($this->conn->error);
+                        trigger_error("MySQL CREATE DATABASE failed: " . $this->conn->error, E_USER_WARNING);
                         return;
                     }
                 }
@@ -215,15 +216,7 @@ class XMETATable_mysql extends \stdClass
                 //dprint_r($result);
                 foreach ($result as $tmp)
                 {
-                    if (empty($tmp['Tables_in_' . $this->mysqldatabasename]))
-                    {
-                        dprint_r("Table:" . $this->tablename);
-                        dprint_r("mysqldatabasename:".$this->mysqldatabasename);
-                        dprint_r("databasename:".$this->databasename);
-                       
-                        
-                    }
-                    elseif ($tmp['Tables_in_' . $this->mysqldatabasename] == $this->sqltable)
+                    if ($tmp['Tables_in_' . $this->mysqldatabasename] == $this->sqltable)
                         $exists = true;
                 }
             }
@@ -288,19 +281,13 @@ class XMETATable_mysql extends \stdClass
                     }
                     else
                     {
-                        if ($default == "''" && $field['type'] == "datetime" && empty($field["mysql_default"]))
+                        if (!empty($field["mysql_default"]))
                         {
+                            $query .= " DEFAULT {$field["mysql_default"]} ";
                         }
                         else
                         {
-                            if (!empty($field["mysql_default"]))
-                            {
-                                $query .= " DEFAULT {$field["mysql_default"]} ";
-                            }
-                            else
-                            {
-                                $query .= " DEFAULT $default ";
-                            }
+                            $query .= " DEFAULT $default ";
                         }
                     }
                     if (!empty($field["mysql_on_update"]))
@@ -319,7 +306,8 @@ class XMETATable_mysql extends \stdClass
                 if (!$this->dbQuery($query))
                 {
                     error_log($query . " " . __FILE__);
-                    die($this->conn->error);
+                    trigger_error("MySQL CREATE TABLE failed: " . $this->conn->error, E_USER_WARNING);
+                    return false;
                 }
 
 
@@ -340,6 +328,7 @@ class XMETATable_mysql extends \stdClass
             $xmlfield = $this->fields;
             $result = $dbcache[$this->mysqldatabasename][$sqltable]['describe'];
             $exists = false;
+            $mysql_fields = array();
             if ($result)
             {
                 foreach ($result as $tmp)
@@ -449,7 +438,7 @@ class XMETATable_mysql extends \stdClass
         }
         else
         {
-            echo ($this->conn->error);
+            trigger_error("MySQL connection failed", E_USER_WARNING);
             return false;
         }
         return true;
@@ -473,7 +462,6 @@ class XMETATable_mysql extends \stdClass
         {
             $fields = array();
         }
-        $tablename = $this->tablename;
         if (!$fields)
         {
             foreach ($this->fields as $ff => $vv)
@@ -511,6 +499,7 @@ class XMETATable_mysql extends \stdClass
             $query .= " ORDER BY ";
             $sepOrder = "";
             $order = explode(",", $order);
+            $orders = array();
             foreach ($order as $v)
             {
                 $newmode = "ASC";
@@ -564,7 +553,8 @@ class XMETATable_mysql extends \stdClass
     /**
      * dbQuery
      *
-     * @param string query
+     * @param string $query
+     * @return array|bool|null
      */
     function dbQuery($query)
     {
@@ -572,7 +562,7 @@ class XMETATable_mysql extends \stdClass
         {
             if (!isset($this->conn) || !$this->conn)
             {
-                echo ($this->conn->error);
+                echo "MySQL connection not available";
                 return false;
             }
             global $xmetadb_mysqlcurrentdb;
@@ -630,13 +620,15 @@ class XMETATable_mysql extends \stdClass
      */
     function GetRecordByPk($pvalue)
     {
-        $tablename = $this->tablename;
         $pkey = $this->primarykey;
         // if data is on a database --->
         if ($this->connection && !empty($pkey))
         {
             if (!$this->conn)
-                die($this->conn->error);
+            {
+                trigger_error("MySQL connection not available", E_USER_WARNING);
+                return false;
+            }
             #$this->conn->select_db ($this->mysqldatabasename);
             $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string($pvalue) . "'";
             $result = $this->dbQuery($query);
@@ -653,7 +645,8 @@ class XMETATable_mysql extends \stdClass
 
     /**
      * convert NULL in ""
-     * @param $res
+     * @param array $res
+     * @return array
      */
     function fix_null($res)
     {
@@ -678,9 +671,8 @@ class XMETATable_mysql extends \stdClass
     /**
      * DelRecord
      * Deletes a record.
-     * @param string $unirecid
-     * <b>$values[$this->primarykey] must be present</b>
-     * @return array just inserted record or null
+     * @param string $pkvalue primary key value
+     * @return bool
      * */
     function DelRecord($pkvalue)
     {
@@ -690,7 +682,10 @@ class XMETATable_mysql extends \stdClass
         if ($this->connection)
         {
             if (!$this->conn)
-                die($this->conn->error);
+            {
+                trigger_error("MySQL connection not available", E_USER_WARNING);
+                return false;
+            }
             $pkey = $this->primarykey;
             if ($this->fields[$this->primarykey]->type == "int")
                 $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE " . $pkvalue;
@@ -699,7 +694,7 @@ class XMETATable_mysql extends \stdClass
             $result = $this->dbQuery($query);
             if (!$result)
             {
-                echo $this->conn->error;
+                trigger_error("MySQL DELETE failed: " . $this->conn->error, E_USER_WARNING);
                 return false;
             }
             if (strpos($pkvalue, "..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
@@ -712,16 +707,19 @@ class XMETATable_mysql extends \stdClass
     /**
      * truncate table
      *
-     * @return unknown
+     * @return bool
      */
     function Truncate()
     {
         if (!$this->conn)
-            die($this->conn->error);
+        {
+            trigger_error("MySQL connection not available", E_USER_WARNING);
+            return false;
+        }
         $result = $this->dbQuery("truncate " . $this->sqltable);
         if (!$result)
         {
-            echo $this->conn->error;
+            trigger_error("MySQL TRUNCATE failed: " . $this->conn->error, E_USER_WARNING);
             return false;
         }
         return true;
@@ -737,67 +735,59 @@ class XMETATable_mysql extends \stdClass
     {
         if (!empty($this->conn))
         {
-
-            // if ($this->conn)
+            $query = "INSERT INTO `" . $this->sqltable . "` (";
+            if (!isset($values[$this->primarykey]))
+                $values[$this->primarykey] = "";
+            $tf = array();
+            foreach ($values as $k => $v)
             {
-                $seldb = true;
-                $query = "INSERT INTO `" . $this->sqltable . "` (";
-                if (!isset($values[$this->primarykey]))
-                    $values[$this->primarykey] = "";
-                $n = count($values);
-                $tf = array();
-                foreach ($values as $k => $v)
+                if (isset($this->fields[$k]))
                 {
-                    if (isset($this->fields[$k]))
+                    //------autoincrement--->
+                    if (isset($this->fields[$k]->extra) && $this->fields[$k]->extra == "autoincrement")
                     {
-                        //------autoincrement--->
-                        if (isset($this->fields[$k]->extra) && $this->fields[$k]->extra == "autoincrement")
+                        if (!isset($this->fields[$k]->nativeautoincrement) || $this->fields[$k]->nativeautoincrement != 1)
                         {
-                            if (!isset($this->fields[$k]->nativeautoincrement) || $this->fields[$k]->nativeautoincrement != 1)
+                            if (!isset($values[$k]) || $values[$k] == "")
                             {
-                                if (!isset($values[$k]) || $values[$k] == "")
-                                {
-                                    $newid = $this->GetAutoincrement($k);
-                                    $values[$k] = $newid;
-                                    $v = $newid;
-                                    $this->maxautoincrement[$k] = $newid;
-                                }
-                            }
-                        }
-                        //------autoincrement---<
-                        $tf[] = "`$k`";
-                    }
-                }
-                $query .= implode(",", $tf);
-                $query .= ") VALUES (";
-                $tf = array();
-                foreach ($values as $k => $v)
-                {
-                    if (isset($this->fields[$k])) // 'IF' ADDED BY DANIELE FRANZA 28/03/2009
-                    {
-                        if (isset($this->mysqlfields[$k]['Null']) && $this->mysqlfields[$k]['Null'] == "YES" && $v == "")
-                        {
-                            $tf[] = "NULL";
-                        }
-                        else
-                        {
-                            if ($this->fields[$k]->type == "int" && $v !== '' && $v !== NULL)
-                                $tf[] = $v;
-                            else
-                            {
-                                $tf[] = "'" . $this->conn->real_escape_string($v) . "'";
+                                $newid = $this->GetAutoincrement($k);
+                                $values[$k] = $newid;
+                                $v = $newid;
+                                $this->maxautoincrement[$k] = $newid;
                             }
                         }
                     }
+                    //------autoincrement---<
+                    $tf[] = "`$k`";
                 }
-                $query .= implode(",", $tf);
-                $query .= ");";
             }
+            $query .= implode(",", $tf);
+            $query .= ") VALUES (";
+            $tf = array();
+            foreach ($values as $k => $v)
+            {
+                if (isset($this->fields[$k]))
+                {
+                    if (isset($this->mysqlfields[$k]['Null']) && $this->mysqlfields[$k]['Null'] == "YES" && $v == "")
+                    {
+                        $tf[] = "NULL";
+                    }
+                    else
+                    {
+                        if ($this->fields[$k]->type == "int" && $v !== '' && $v !== NULL)
+                            $tf[] = $v;
+                        else
+                            $tf[] = "'" . $this->conn->real_escape_string($v) . "'";
+                    }
+                }
+            }
+            $query .= implode(",", $tf);
+            $query .= ")";
 
             $ret = $this->dbQuery($query);
             if (!$ret)
             {
-                echo ($this->conn->error);
+                trigger_error("MySQL INSERT failed: " . $this->conn->error, E_USER_WARNING);
                 return false;
             }
             if (!isset($values[$this->primarykey]) || $values[$this->primarykey] == "")
@@ -819,76 +809,69 @@ class XMETATable_mysql extends \stdClass
      * */
     function InsertRecordFast($values)
     {
-        if ($this->connection)
+        if (!$this->connection || !$this->conn)
+            return false;
+
+        $query = "INSERT INTO `" . $this->sqltable . "` (";
+        if (!isset($values[$this->primarykey]))
+            $values[$this->primarykey] = "";
+        $tf = array();
+        foreach ($values as $k => $v)
         {
-            if ($this->conn)
+            if (isset($this->fields[$k]))
             {
-                $seldb = true;
-                $query = "INSERT INTO `" . $this->sqltable . "` (";
-                if (!isset($values[$this->primarykey]))
-                    $values[$this->primarykey] = "";
-                $n = count($values);
-                $tf = array();
-                foreach ($values as $k => $v)
+                //------autoincrement--->
+                if (isset($this->fields[$k]->extra) && $this->fields[$k]->extra == "autoincrement")
                 {
-                    if (isset($this->fields[$k]))
+                    if (!isset($this->fields[$k]->nativeautoincrement) || $this->fields[$k]->nativeautoincrement != 1)
                     {
-                        //------autoincrement--->
-                        if (isset($this->fields[$k]->extra) && $this->fields[$k]->extra == "autoincrement")
+                        if (!isset($values[$k]) || $values[$k] == "")
                         {
-                            if (!isset($this->fields[$k]->nativeautoincrement) || $this->fields[$k]->nativeautoincrement != 1)
-                            {
-                                if (!isset($values[$k]) || $values[$k] == "")
-                                {
-                                    $newid = $this->GetAutoincrement($k);
-                                    $values[$k] = $newid;
-                                    $v = $newid;
-                                    $this->maxautoincrement[$k] = $newid;
-                                }
-                            }
-                        }
-                        //------autoincrement---<
-                        $tf[] = "`$k`";
-                    }
-                }
-                $query .= implode(",", $tf);
-                $query .= ") VALUES (";
-                $tf = array();
-                foreach ($values as $k => $v)
-                {
-                    if (isset($this->fields[$k])) // 'IF' ADDED BY DANIELE FRANZA 28/03/2009
-                    {
-                        if ($this->mysqlfields[$k]['Null'] == "YES" && $v == "")
-                        {
-                            $tf[] = "NULL";
-                        }
-                        else
-                        {
-                            if ($this->fields[$k]->type == "int")
-                                $tf[] = $v;
-                            else
-                            {
-                                $tf[] = "'" . $this->conn->real_escape_string($v) . "'";
-                            }
+                            $newid = $this->GetAutoincrement($k);
+                            $values[$k] = $newid;
+                            $v = $newid;
+                            $this->maxautoincrement[$k] = $newid;
                         }
                     }
                 }
-                $query .= implode(",", $tf);
-                $query .= ");";
+                //------autoincrement---<
+                $tf[] = "`$k`";
             }
-            global $xmetadb_mysqlcurrentdb;
-            if ($xmetadb_mysqlcurrentdb != $this->mysqldatabasename && $this->conn->select_db($this->mysqldatabasename))
-            {
-                $xmetadb_mysqlcurrentdb = $this->mysqldatabasename;
-            }
-            if (!$this->conn->query($query))
-            {
-                echo ($this->conn->error);
-                return false;
-            }
-            return true;
         }
-        return false;
+        $query .= implode(",", $tf);
+        $query .= ") VALUES (";
+        $tf = array();
+        foreach ($values as $k => $v)
+        {
+            if (isset($this->fields[$k]))
+            {
+                if ($this->mysqlfields[$k]['Null'] == "YES" && $v == "")
+                {
+                    $tf[] = "NULL";
+                }
+                else
+                {
+                    if ($this->fields[$k]->type == "int")
+                        $tf[] = $v;
+                    else
+                        $tf[] = "'" . $this->conn->real_escape_string($v) . "'";
+                }
+            }
+        }
+        $query .= implode(",", $tf);
+        $query .= ");";
+
+        global $xmetadb_mysqlcurrentdb;
+        if ($xmetadb_mysqlcurrentdb != $this->mysqldatabasename && $this->conn->select_db($this->mysqldatabasename))
+        {
+            $xmetadb_mysqlcurrentdb = $this->mysqldatabasename;
+        }
+        if (!$this->conn->query($query))
+        {
+            trigger_error("MySQL INSERT failed: " . $this->conn->error, E_USER_WARNING);
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -933,9 +916,9 @@ class XMETATable_mysql extends \stdClass
                         else
                         {
                             if ($this->fields[$k]->type == "int")
-                                $query .= addslashes($value);
+                                $query .= $this->conn->real_escape_string($value);
                             else
-                                $query .= "'" . addslashes($value) . "'";
+                                $query .= "'" . $this->conn->real_escape_string($value) . "'";
                         }
                         if ($n-- > 1)
                             $query .= ",";
@@ -963,8 +946,8 @@ class XMETATable_mysql extends \stdClass
 
     /**
      *
-     * @param type $values
-     * @return type 
+     * @param array $values
+     * @return array|string|false
      */
     function UpdateRecordFast($values)
     {
@@ -984,7 +967,7 @@ class XMETATable_mysql extends \stdClass
                 }
                 $n = count($values2);
                 if ($n == 0) // nothing to update
-                    return $this->GetRecordByPk($pvalue);;
+                    return $this->GetRecordByPk($pvalue);
                 foreach ($values2 as $k => $value)
                 {
                     if (isset($this->fields[$k]))
@@ -1029,8 +1012,8 @@ class XMETATable_mysql extends \stdClass
      * GetNumRecords
      * return records count
      * 
-     * @param type $restr
-     * @return type 
+     * @param array|string|null $restr
+     * @return int
      */
     function GetNumRecords($restr = null)
     {
@@ -1058,8 +1041,8 @@ class XMETATable_mysql extends \stdClass
 
     /**
      *
-     * @param type $values
-     * @param type $oldvalues 
+     * @param array $values
+     * @param array|null $oldvalues
      */
     function gestfiles($values, $oldvalues = null)
     {
@@ -1068,9 +1051,9 @@ class XMETATable_mysql extends \stdClass
 
     /**
      *
-     * @param type $recordvalues
-     * @param type $recordkey
-     * @return type 
+     * @param array $recordvalues
+     * @param string $recordkey
+     * @return string|false
      */
     function get_thumb($recordvalues, $recordkey)
     {
@@ -1151,11 +1134,12 @@ function xml_to_sql($databasename, $tablename, $xmlpath, $connection, $dropold =
     global $xmetadb_mysqlconnection;
     if (!$xmetadb_mysqlconnection)
     {
-        $xmetadb_mysqlconnection = @mysql_connect($connection['host'], $connection['user'], $connection['password']);
+        $port = !empty($connection['port']) ? (int)$connection['port'] : 3306;
+        $xmetadb_mysqlconnection = new \mysqli($connection['host'], $connection['user'], $connection['password'], "", $port);
     }
-    if (!$xmetadb_mysqlconnection)
+    if (!$xmetadb_mysqlconnection || $xmetadb_mysqlconnection->connect_error)
     {
-        echo $this->conn->error;
+        echo $xmetadb_mysqlconnection ? $xmetadb_mysqlconnection->connect_error : "MySQL connection failed";
         return false;
     }
     // modify the properties of the xml table

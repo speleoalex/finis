@@ -110,7 +110,8 @@ class XMETATable_serialize  extends \stdClass
             $rc=implode("|",$restr);
         if ($restr && is_string($restr))
         {
-            die("TODO xmetadb: not yet implemented function for this driver");
+            trigger_error("TODO xmetadb: not yet implemented function for this driver", E_USER_WARNING);
+            return false;
         }
 
         $cacheindex=$rc.$min.$length.$order.$reverse.$fields;
@@ -119,6 +120,7 @@ class XMETATable_serialize  extends \stdClass
           return $this->records[md5($cacheindex)];
           } */
         // file cache ---->
+        $cachefile = '';
         if ($this->usecachefile== 1)
         {
             if (!file_exists("$path/".$databasename."/cache"))
@@ -423,6 +425,7 @@ class XMETATable_serialize  extends \stdClass
             if (!file_exists($old))
                 return false;
             $readok=false;
+            $oldvalues=null;
             for($i=0; $i < _MAX_FILE_ACCESS_ATTEMPTS; $i++)
             {
                 $oldvalues=readSerialDatabase($old);

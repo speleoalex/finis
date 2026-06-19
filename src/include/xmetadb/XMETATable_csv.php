@@ -26,6 +26,7 @@ class XMETATable_csv
     var $records;
     var $maxautoincrement;
     var $_csvReadCache;
+    var $numrecordscache;
 
     function __construct(&$xmltable)
     {
@@ -43,6 +44,7 @@ class XMETATable_csv
         $this->records=array();
         $this->maxautoincrement = [];
         $this->_csvReadCache = [];
+        $this->numrecordscache = [];
         $this->xmldescriptor=&$xmltable->xmldescriptor;
 
         // properties relative to xml files
@@ -150,7 +152,8 @@ class XMETATable_csv
             $rc=implode("|",$restr);
         if ($restr && is_string($restr))
         {
-            die("TODO xmetadb: not yet implemented function for this driver");
+            trigger_error("TODO xmetadb: not yet implemented function for this driver", E_USER_WARNING);
+            return false;
         }
 
         $cacheindex=$rc.$min.$length.$order.$reverse.$fields;

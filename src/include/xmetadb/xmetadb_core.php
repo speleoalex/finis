@@ -19,6 +19,10 @@ if (!function_exists('FN_GetParam')) {
     /**
      * Retrieve a value from a variable array (default: $_REQUEST).
      * Used by XMETATable::sendFileToClient() to read HTTP parameters.
+     * @param string|int $key
+     * @param array|false $var
+     * @param string $type
+     * @return mixed
      */
     function FN_GetParam($key, $var = false, $type = '') {
         if ($var === false) { $var = isset($_REQUEST) ? $_REQUEST : []; }
@@ -244,7 +248,7 @@ function xmetadb_create_thumb($filename, $max, $max_h = "", $max_w = "")
         $max_w = $max;
     if (!function_exists("getimagesize"))
     {
-        echo "<br />" . _FNNOGDINSTALL;
+        trigger_error("GD libraries are not installed.", E_USER_WARNING);
         return;
     }
     $new_height = $new_width = 0;
@@ -303,15 +307,11 @@ function xmetadb_create_thumb($filename, $max, $max_h = "", $max_w = "")
     {
         $new_width = $width;
         $new_height = $height;
-        //return;
     }
-
-    //die("h=$new_height w=$new_width");
     // Load
     $thumb = imagecreatetruecolor($new_width, $new_height);
     $white = imagecolorallocate($thumb, 255, 255, 255);
     $size = getimagesize($filename);
-    //	dprint_r(IMAGETYPE_WBMP);
     try
     {
         switch ($size[2])
@@ -549,6 +549,7 @@ function addxmltablefield($databasename, $tablename, $field, $path = ".", $force
     if (!file_exists($old))
         return null;
     $readok = false;
+    $oldfilestring = '';
     for ($i = 0; $i < 3; $i++)
     {
         $oldfilestring = file_get_contents($old);
@@ -736,11 +737,12 @@ function get_xml_single_element($elem, $xml)
  */
 function xmetadb_array_sort_by_key($data, $order, $desc = false)
 {
-
     $mode = "asc";
     if ($desc)
         $mode = "desc";
     $order = explode(",", $order);
+    $orders = array();
+    $newret = array();
     foreach ($order as $v)
     {
         $newmode = $mode;
@@ -793,6 +795,8 @@ function xmetadb_array_natsort_by_key($data, $order, $desc = false)
     if ($desc)
         $mode = "desc";
     $order = explode(",", $order);
+    $orders = array();
+    $newret = array();
     foreach ($order as $v)
     {
         $newmode = $mode;
@@ -859,11 +863,11 @@ function xmetadb_NatSort_callback($a, $b)
 /**
  *
  * @staticvar boolean $tables
- * @param type $databasename
- * @param type $tablename
- * @param type $path
- * @param type $params
- * @return XMETATable 
+ * @param string $databasename
+ * @param string $tablename
+ * @param string $path
+ * @param array|bool $params
+ * @return XMETATable
  */
 function xmetadb_table($databasename, $tablename, $path = "misc", $params = false)
 {
@@ -871,9 +875,9 @@ function xmetadb_table($databasename, $tablename, $path = "misc", $params = fals
 }
 
 /**
- * 
- * @param type $image
- * @param type $filename
+ *
+ * @param GdImage $image
+ * @param string $filename
  */
 function xmetadb_image_fix_orientation(&$image, $filename)
 {

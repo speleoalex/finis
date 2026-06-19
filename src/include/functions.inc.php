@@ -1691,10 +1691,15 @@ function FN_Install($path, $force = false)
     global $_FN;
     $path_site = str_replace("/fndatabase/", "/{$_FN['database']}/", $path);
     $path_site = preg_replace('/^misc\//', "{$_FN['datadir']}/", $path_site);
-    if (!file_exists("{$_FN['src_application']}/$path_site") || $force == true) {
+    // When $_FN['datadir'] is absolute, $path_site is already absolute;
+    // do not prepend src_application in that case.
+    $dest = (str_starts_with($path_site, '/') || str_starts_with($path_site, '\\'))
+        ? $path_site
+        : "{$_FN['src_application']}/$path_site";
+    if (!file_exists($dest) || $force == true) {
         // First try FINIS core install path
         if (file_exists("{$_FN['src_finis']}/include/install/$path")) {
-            FN_Copy("{$_FN['src_finis']}/include/install/$path", "{$_FN['src_application']}/$path_site");
+            FN_Copy("{$_FN['src_finis']}/include/install/$path", $dest);
             return;
         }
         // Then try extensions paths
@@ -1705,7 +1710,7 @@ function FN_Install($path, $force = false)
                 $extension_install_path = rtrim($extension_path, '/') . "/$path";
                 if (file_exists($extension_install_path))
                 {
-                    FN_Copy($extension_install_path, "{$_FN['src_application']}/$path_site");
+                    FN_Copy($extension_install_path, $dest);
                     return;
                 }
             }

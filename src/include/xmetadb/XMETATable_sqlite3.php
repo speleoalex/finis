@@ -88,15 +88,15 @@ class XMETATable_sqlite3 extends \stdClass
             $xmltable->connection = $sqlite;
             $this->connection = & $xmltable->connection;
         }
-//		try
+        try
         {
             $this->conn = new \SQLite3($sqlite['filename'], SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
         }
-//		catch(Exception $e)
-//		{
-//			dprint_r($e);
-//			$this->conn = false;
-//		}
+        catch(\Exception $e)
+        {
+            trigger_error($e->getMessage(), E_USER_WARNING);
+            $this->conn = false;
+        }
         if ($this->conn)
         {
 
@@ -115,49 +115,45 @@ class XMETATable_sqlite3 extends \stdClass
             if (!$exists)
             {
                 $fields = $this->fields;
-                $query = "CREATE TABLE {$this->sqltable} (";
-                $n = count($fields);
+                $coldefs = array();
                 foreach ($fields as $field)
                 {
                     $field = get_object_vars($field);
                     if (!isset($field['type']) || $field['type'] == "string")
                         $field['type'] = "varchar";
-                    $query .= "'" . $field['name'] . "' ";
+                    if ($field['type'] == "innertable")
+                        continue;
                     $field['size'] = isset($field['size']) ? $field['size'] : "";
-                    switch ($field['type'])
+                    $isPrimary = isset($field['primarykey']) && $field['primarykey'] == "1";
+                    $isAutoincrement = isset($field['extra']) && $field['extra'] == "autoincrement" && $field['type'] == "int";
+                    $coldef = "[" . $field['name'] . "] ";
+                    if ($isPrimary && $isAutoincrement)
                     {
-                        case "innertable" :
-                            break;
-                        case "text" :
-                        case "html" :
-                            $query .= " TEXT";
-                            break;
-                        case "int" :
-                            $query .= " INT";
-                            break;
-                        default : // force everything to varchar
-                            $query .= " VARCHAR";
-                            $field['size'] = "255";
-                            break;
+                        $coldef .= "INTEGER PRIMARY KEY AUTOINCREMENT";
                     }
-                    if ($field['size'] != "")
-                        $query .= "(" . $field['size'] . ")";
-                    $query .= " ";
-                    if (isset($field['extra']) && $field['extra'] == "autoincrement")
+                    else
                     {
-                        if ($field['type'] == "int")
+                        switch ($field['type'])
                         {
-                            $query .= " AUTO_INCREMENT ";
+                            case "text" :
+                            case "html" :
+                                $coldef .= "TEXT";
+                                break;
+                            case "int" :
+                                $coldef .= "INTEGER";
+                                break;
+                            default :
+                                $coldef .= "TEXT";
+                                if ($field['size'] != "")
+                                    $coldef .= "(" . $field['size'] . ")";
+                                break;
                         }
+                        if ($isPrimary)
+                            $coldef .= " PRIMARY KEY";
                     }
-                    if (isset($field['primarykey']) && $field['primarykey'] == "1")
-                    {
-                        $query .= "  PRIMARY KEY ";
-                    }
-                    if ($n-- > 1)
-                        $query .= ",";
+                    $coldefs[] = $coldef;
                 }
-                $query .= ")";
+                $query = "CREATE TABLE {$this->sqltable} (" . implode(", ", $coldefs) . ")";
                 if (!$this->dbQuery($query))
                 {
                     echo("error:" . $this->sqlite_error);
@@ -174,6 +170,7 @@ class XMETATable_sqlite3 extends \stdClass
             $xmlfield = $this->fields;
             $result = $this->dbQuery("PRAGMA table_info(" . $this->sqltable . "); ");
             $exists = false;
+            $sqlite_fields = array();
 
             if ($result)
             {
@@ -198,7 +195,6 @@ class XMETATable_sqlite3 extends \stdClass
                 if (!isset($sqlite_fields[$fieldname]) && $fieldvalues->type != "innertable")
                 {
                     $field = get_object_vars($fieldvalues);
-                    echo "add field $fieldname";
                     $query = "ALTER TABLE " . $this->sqltable . " ADD COLUMN $fieldname ";
                     $field['size'] = isset($field['size']) ? $field['size'] : "";
                     switch ($field['type'])
@@ -221,7 +217,7 @@ class XMETATable_sqlite3 extends \stdClass
                     if (isset($field['extra']) && $field['extra'] == "autoincrement")
                     {
                         if ($field['type'] == "int")
-                            $query .= " AUTO_INCREMENT ";
+                            $query .= " AUTOINCREMENT ";
                     }
 
                     if (!$this->dbQuery($query))
@@ -277,47 +273,34 @@ class XMETATable_sqlite3 extends \stdClass
                 $and = "AND";
             }
         }
-        if (is_string($restr))
+        if (is_string($restr) && trim($restr) !== "")
         {
             $query .= " WHERE $restr";
         }
 
-        if ($order !== false && $order !== "" && isset($this->fields[$order]))
+        if ($order !== false && $order !== "")
         {
-            $query .= " ORDER BY  $order";
-        }
-        else
-        {
-            if ($order !== false && $order !== "")
+            $query .= " ORDER BY ";
+            $sepOrder = "";
+            $order = explode(",", $order);
+            $orders = array();
+            foreach ($order as $v)
             {
-                $query .= " ORDER BY ";
-                $sepOrder = "";
-                $order = explode(",", $order);
-                foreach ($order as $v)
+                $newmode = $reverse ? "DESC" : "ASC";
+                $newmodes = explode(":", $v);
+                if (!empty($newmodes[1]))
+                    $newmode = $newmodes[1];
+                $orders[$newmodes[0]] = $newmode;
+            }
+            foreach ($orders as $orderField => $mode)
+            {
+                if (isset($this->fields[$orderField]))
                 {
-                    $newmode = "ASC";
-                    $newmodes = explode(":", $v);
-                    if (!empty($newmodes[1]))
-                        $newmode = $newmodes[1];
-                    $orders[$newmodes[0]] = $newmode;
-                }
-                foreach ($orders as $order => $mode)
-                {
-                    if (isset($this->fields[$order]))
-                    {
-                        $query .= "$sepOrder `$order`";
-                        $sepOrder = ",";
-                        $query .= " $mode";
-                    }
+                    $query .= "$sepOrder [$orderField]";
+                    $sepOrder = ",";
+                    $query .= " $mode";
                 }
             }
-        }
-
-
-
-        if ($reverse)
-        {
-            $query .= " DESC";
         }
         if ($min !== false)
         {
@@ -412,7 +395,8 @@ class XMETATable_sqlite3 extends \stdClass
         }
         else
         {
-            die("error in $query");
+            trigger_error("SQLite3 query error: " . $this->conn->lastErrorMsg(), E_USER_WARNING);
+            return false;
         }
         $this->sqlite_error = $this->conn->lastErrorMsg();
         return $res;
@@ -535,70 +519,68 @@ class XMETATable_sqlite3 extends \stdClass
     {
         if ($this->connection)
         {
-            if ($this->conn)
+            if (!$this->conn)
+                return false;
+
+            $query = "INSERT INTO " . $this->sqltable . " (";
+            if (!isset($values[$this->primarykey]))
+                $values[$this->primarykey] = "";
+            $tf = array();
+            foreach ($values as $k => $v)
             {
-                $seldb = true;
-                $query = "INSERT INTO " . $this->sqltable . " (";
-                if (!isset($values[$this->primarykey]))
-                    $values[$this->primarykey] = "";
-                $n = count($values);
-                $tf = array();
-                foreach ($values as $k => $v)
+                if (isset($this->fields[$k]))
                 {
-                    if (isset($this->fields[$k]))
+                    //------autoincrement--->
+                    if (isset($this->fields[$k]->extra) && $this->fields[$k]->extra == "autoincrement")
                     {
-                        //------autoincrement--->
-                        if (isset($this->fields[$k]->extra) && $this->fields[$k]->extra == "autoincrement")
+                        if (!isset($this->fields[$k]->nativeautoincrement) || $this->fields[$k]->nativeautoincrement != 1)
                         {
-                            if (!isset($this->fields[$k]->nativeautoincrement) || $this->fields[$k]->nativeautoincrement != 1)
+                            if (!isset($values[$k]) || $values[$k] == "")
                             {
-                                if (!isset($values[$k]) || $values[$k] == "")
-                                {
-                                    $newid = $this->GetAutoincrement($k);
-                                    $values[$k] = $newid;
-                                    $v = $newid;                                    
-                                }
-                                else
-                                {
-                                    $this->maxautoincrement = array();
-                                }
+                                $newid = $this->GetAutoincrement($k);
+                                $values[$k] = $newid;
+                                $v = $newid;
                             }
-                        }
-                        //------autoincrement---<
-                        $tf[] = "'$k'";
-                    }
-                }
-                $query .= implode(",", $tf);
-                $query .= ") VALUES (";
-                $tf = array();
-                foreach ($values as $k => $v)
-                {
-                    if (isset($this->fields[$k])) // 'IF' ADDED BY DANIELE FRANZA 28/03/2009
-                    {
-                        if (isset($this->sqlitefields[$k]['notnull']) && $this->sqlitefields[$k]['notnull'] != "0" && $v == "")
-                        {
-                            $tf[] = "NULL";
-                        }
-                        else
-                        {
-                            if ($this->fields[$k]->type == "int")
-                                $tf[] = $v;
                             else
                             {
-                                $v = \SQLite3::escapeString($v);
-                                $tf[] = "'$v'";
+                                $this->maxautoincrement = array();
                             }
                         }
                     }
+                    //------autoincrement---<
+                    $tf[] = "[$k]";
                 }
-                $query .= implode(",", $tf);
-                $query .= ");";
             }
+            $query .= implode(",", $tf);
+            $query .= ") VALUES (";
+            $tf = array();
+            foreach ($values as $k => $v)
+            {
+                if (isset($this->fields[$k]))
+                {
+                    if (isset($this->sqlitefields[$k]['notnull']) && $this->sqlitefields[$k]['notnull'] == "0" && $v == "")
+                    {
+                        $tf[] = "NULL";
+                    }
+                    else
+                    {
+                        if ($this->fields[$k]->type == "int")
+                            $tf[] = intval($v);
+                        else
+                        {
+                            $v = \SQLite3::escapeString($v);
+                            $tf[] = "'$v'";
+                        }
+                    }
+                }
+            }
+            $query .= implode(",", $tf);
+            $query .= ");";
 
             $ret = $this->dbQuery($query);
             if (!$ret)
             {
-                echo ("error insert");
+                trigger_error("SQLite3 insert error: " . $this->conn->lastErrorMsg(), E_USER_WARNING);
                 return false;
             }
 
@@ -647,7 +629,7 @@ class XMETATable_sqlite3 extends \stdClass
                     if (isset($this->fields[$k]))
                     {
                         $query .= "[$k]=";
-                        if ($this->sqlitefields[$k]['notnull'] != "0" && $value == "")
+                        if (isset($this->sqlitefields[$k]['notnull']) && $this->sqlitefields[$k]['notnull'] == "0" && $value == "")
                         {
                             $query .= "NULL";
                         }
@@ -692,8 +674,8 @@ class XMETATable_sqlite3 extends \stdClass
      * GetNumRecords
      * return records count
      * 
-     * @param type $restr
-     * @return type 
+     * @param array|string|null $restr
+     * @return int
      */
     function GetNumRecords($restr = null)
     {
@@ -721,8 +703,8 @@ class XMETATable_sqlite3 extends \stdClass
 
     /**
      *
-     * @param type $values
-     * @param type $oldvalues 
+     * @param array $values
+     * @param array|null $oldvalues
      */
     function gestfiles($values, $oldvalues = null)
     {
@@ -731,9 +713,9 @@ class XMETATable_sqlite3 extends \stdClass
 
     /**
      *
-     * @param type $recordvalues
-     * @param type $recordkey
-     * @return type 
+     * @param array $recordvalues
+     * @param string $recordkey
+     * @return string|false 
      */
     function get_thumb($recordvalues, $recordkey)
     {
