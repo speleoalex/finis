@@ -1588,7 +1588,8 @@ function FN_GetOpenAuthProviders()
     $recs = $table->GetRecords(array("enabled" => 1));
     if ($recs) {
         foreach ($recs as $k => $rec) {
-            $recs[$k]['urlimage'] = $table->getFilePath($rec, "avatar");
+            $filepath = $table->getFilePath($rec, "avatar");
+            $recs[$k]['urlimage'] = $filepath ? $_FN['siteurl'] . $filepath : false;
             $recs[$k]['url'] = $_FN['siteurl'] . "{$_FN['selfscript']}?fnloginprovider=" . $rec['id'];
         }
     }

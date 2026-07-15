@@ -411,6 +411,7 @@ function FN_CloseAdminSection()
  */
 function FN_HtmlEditSection($section)
 {
+    global $_FN;
     ob_start();
     $sectionvalues = FN_GetSectionValues($section); {
         if (!empty($sectionvalues['type'])) {
