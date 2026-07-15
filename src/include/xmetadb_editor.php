@@ -333,6 +333,17 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
     $enabledelete = isset($params['enabledelete']) ? $params['enabledelete'] : true;
     $enableedit = isset($params['enableedit']) ? $params['enableedit'] : true;
     $enablenew = isset($params['enablenew']) ? $params['enablenew'] : true;
+    // === SICUREZZA (fix 2026-07, report assistance 2026-07-15): backstop universale.
+    // Nessuna operazione di scrittura per utenti NON autenticati, qualunque sia il chiamante
+    // dell'editor (dbview e sezioni che lo istanziano direttamente: licenses, coordinate_types,
+    // geological_formations, ...). Blocca i crawler (es. Amazonbot). I permessi piu' fini
+    // (gruppi/record) restano gestiti dai chiamanti (es. FNDBVIEW::CanEditRecords). ===
+    global $_FN;
+    if (empty($_FN['user'])) {
+        $enabledelete = false;
+        $enableedit = false;
+        $enablenew = false;
+    }
     $enableexport = isset($params['enableexport']) ? $params['enableexport'] : false;
     $textexport = isset($params['textexport']) ? $params['textexport'] : "";
     $reverse = isset($params['defaultorderdesc']) ? $params['defaultorderdesc'] : false;

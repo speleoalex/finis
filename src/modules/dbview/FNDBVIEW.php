@@ -299,7 +299,7 @@ class FNDBVIEW
             $usergroups = FN_GetUser($_FN['user']);
             $usergroups = isset($usergroups['group']) ? explode(",", $usergroups['group']) : array("");
 
-            $wherequery .= "  groupview LIKE ''";
+            $wherequery .= "  (groupview LIKE '' OR groupview IS NULL)";
             $or = " OR";
             foreach ($usergroups as $usergroup) {
                 if ($usergroup != "") {
@@ -1025,6 +1025,9 @@ class FNDBVIEW
 
         $forcelang = isset($_GET['forcelang']) ? $_GET['forcelang'] : $_FN['lang'];
         $row = $Table->xmltable->GetRecordByPrimaryKey($id_record);
+        if (!is_array($row)) {
+            return "";
+        }
         //-------statistiche---------------------->>
         if ($config['enable_statistics'] == 1) {
             if (isset($row['view']) && $row['view'] != $row[$Table->xmltable->primarykey]) {
@@ -1372,6 +1375,9 @@ select_allcke = function(el){
      */
     function Toolbar($config, $row)
     {
+        if (!is_array($row)) {
+            return array();
+        }
         global $_FN;
         $ret = array();
         $tables = explode(",", $config['tables']);
@@ -1571,7 +1577,34 @@ select_allcke = function(el){
         if (!$this->IsAdminRecord($row))
             die(FN_Translate("you may not do that"));
 
-        //hide record 
+        // === PROTEZIONE CSRF (fix 2026-07): la cancellazione avviene SOLO via POST con token valido.
+        // Su GET (o senza token) mostra una pagina di conferma con form POST: un bot/prefetcher che
+        // segue il link di cancellazione NON elimina nulla. Vedi report assistance 2026-07-15 §8.1. ===
+        $secret = FN_GetUserSessionValue('fn_csrf_secret');
+        if (empty($secret)) {
+            $secret = bin2hex(function_exists('random_bytes') ? random_bytes(16) : pack('N*', mt_rand(), mt_rand(), mt_rand(), mt_rand()));
+            FN_SetUserSessionValue('fn_csrf_secret', $secret);
+        }
+        $expected = hash_hmac('sha256', "del|" . $tablename . "|" . $id_record, $secret);
+        $isPost = (isset($_SERVER['REQUEST_METHOD']) && strtoupper($_SERVER['REQUEST_METHOD']) === 'POST');
+        $tokenOk = $isPost && isset($_POST['confirmdelete']) && isset($_POST['fn_csrf'])
+            && hash_equals($expected, (string) $_POST['fn_csrf']);
+        if (!$tokenOk) {
+            $action = $this->MakeLink(array("op" => "del", "id" => $id_record));
+            $cancel = $this->MakeLink(array("op" => null));
+            $html .= "<div class=\"fn_delete_confirm\">";
+            $html .= "<p>" . FN_Translate("Are you sure you want to delete this item?") . "</p>";
+            $html .= "<form method=\"post\" action=\"" . $action . "\">";
+            $html .= "<input type=\"hidden\" name=\"fn_csrf\" value=\"" . htmlspecialchars($expected) . "\" />";
+            $html .= "<input type=\"hidden\" name=\"confirmdelete\" value=\"1\" />";
+            $html .= "<button type=\"submit\">" . FN_Translate("delete") . "</button> ";
+            $html .= "<a href=\"" . $cancel . "\">" . FN_Translate("cancel") . "</a>";
+            $html .= "</form></div>";
+            return $html;
+        }
+        // === fine protezione CSRF ===
+
+        //hide record
         if (!empty($config['hide_on_delete'])) {
             if (!isset($Table->fields['recorddeleted'])) {
                 $tfield['name'] = "recorddeleted";
@@ -1772,6 +1805,18 @@ set_changed();
                 $params['maxrows'] = $innertablemaxrows;
                 $params['enablenew'] = (!isset($v["enablenew"]) || $v["enablenew"] == 1);
                 $params['enabledelete'] = (!empty($v["enabledelete"]));
+
+                // Sicurezza (fix 2026-07): consenti le operazioni di scrittura dell'editor annidato
+                // solo a chi ha i permessi di scrittura sulla sezione. CanEditRecords() restituisce
+                // false per l'utente anonimo (blocca i crawler come Amazonbot). Stesso criterio del
+                // gate a monte in dbview/section.php.
+                if (!$this->CanEditRecords())
+                {
+                    $params['enabledelete'] = 0;
+                    $params['enableedit'] = 0;
+                    $params['enablenew'] = 0;
+                }
+
                 $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/forminner.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/forminner.tp.html" : FN_FromTheme("{$this->moddir}/forminner.tp.html", false);
                 $templateInner = file_get_contents($tplfile);
                 $params['layout_template'] = $templateInner;

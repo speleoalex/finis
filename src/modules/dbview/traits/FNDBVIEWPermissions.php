@@ -140,6 +140,27 @@ trait FNDBVIEWPermissions
     }
 
     /**
+     * Check if user can edit/write records in this section (permesso di scrittura generale).
+     * Ritorna false per l'utente anonimo: usata per inibire le operazioni di scrittura
+     * (edit/new/del/updaterecord) a chi non ha i permessi (es. crawler come Amazonbot).
+     * @return bool
+     */
+    function CanEditRecords()
+    {
+        global $_FN;
+        if (FN_IsAdmin())
+            return true;
+        $config = $this->config;
+        if ($_FN['user'] != "" && $config['groupadmin'] != "" && FN_UserInGroup($_FN['user'], $config['groupadmin']))
+            return true;
+        if ($_FN['user'] != "" && $config['groupinsert'] != "" && FN_UserInGroup($_FN['user'], $config['groupinsert']))
+            return true;
+        if ($_FN['user'] != "" && $config['groupinsert'] == "")
+            return true;
+        return false;
+    }
+
+    /**
      * Check if user can view records
      * @param array $config
      * @return bool

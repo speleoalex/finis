@@ -153,6 +153,16 @@ else
 //-----------------------------principale ------------------------------------->
     if ($dbview->CanViewRecords())
     {
+        // Sicurezza (fix 2026-07, report assistance 2026-07-15): le operazioni di SCRITTURA
+        // richiedono i permessi corretti. Lo switch era protetto solo da CanViewRecords(), che su
+        // contenuti pubblici (groupview vuoto) ritorna true anche per l'anonimo: cosi' un crawler
+        // (es. Amazonbot) poteva raggiungere op=edit/op=del. Se l'utente non puo' scrivere si forza
+        // la sola visualizzazione.
+        $writeops = array("edit", "new", "del", "updaterecord", "insertrecord", "users", "admingroups", "offlineform");
+        if (in_array($op, $writeops, true) && !$dbview->CanEditRecords())
+        {
+            $op = "view";
+        }
         switch ($op)
         {
             case "offlineform":
