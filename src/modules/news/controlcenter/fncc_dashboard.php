@@ -15,13 +15,13 @@ $config = FN_LoadConfig("{$_FN['src_finis']}/modules/news/config.php");
 $DB = new XMETADatabase($_FN['database'], $_FN['datadir'],$_FN);
 //published
 echo "<b>".FN_i18n("news statistics").":</b><br />";
-$allnews = $DB->query("SELECT unirecid,status FROM {$config['tablename']} WHERE status LIKE '1' ");
+$allnews = $DB->query("SELECT id,status FROM {$config['tablename']} WHERE status LIKE '1' ");
 $published = is_array($allnews)?count($allnews):0;
 //unpublished
-$allnews = $DB->query("SELECT unirecid,status FROM {$config['tablename']} WHERE status LIKE '0' AND guestnews LIKE '' ");
+$allnews = $DB->query("SELECT id,status FROM {$config['tablename']} WHERE status LIKE '0' AND guestnews LIKE '' ");
 $unpublished = is_array($allnews)?count($allnews):0;
 //signed
-$allnews = $DB->query("SELECT unirecid,status FROM {$config['tablename']} WHERE status LIKE '0' AND guestnews <> '' ");
+$allnews = $DB->query("SELECT id,status FROM {$config['tablename']} WHERE status LIKE '0' AND guestnews <> '' ");
 $signed = is_array($allnews)?count($allnews):0;
 echo "<a href=\"controlcenter.php?mod={$_FN['mod']}&op=edit&opt=rnt_ccnf_section_{$_FN['mod']}\">" . FN_i18n("published news") . "</a> : $published <br />";
 if ( $unpublished > 0 )

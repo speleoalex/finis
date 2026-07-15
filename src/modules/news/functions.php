@@ -936,7 +936,7 @@ if (!defined("FNNEWS_FUNCTIONS"))
             $all = $this->ReadVarFromCache("allnews{$_FN['mod']}");
             if ($all == false)
             {
-                $DB = new XMETADatabase("fndatabase", $_FN['datadir']);
+                $DB = new XMETADatabase("fndatabase", $_FN['datadir'], $_FN);
                 $all = $DB->query("SELECT * FROM $tablename WHERE status LIKE '1' ORDER BY date DESC");
                 $this->SaveToCache("allnews{$_FN['mod']}", $all);
             }
@@ -1096,7 +1096,7 @@ if (!defined("FNNEWS_FUNCTIONS"))
             $tablename = "";
             $conf = FN_LoadConfig();
             $tablename = $conf['tablename'];
-            $DB = new XMETADatabase("fndatabase", $_FN['datadir']);
+            $DB = new XMETADatabase("fndatabase", $_FN['datadir'], $_FN);
             $all = $this->GetListNews();
             foreach ($_FN['listlanguages'] as $llang)
             {
@@ -1182,7 +1182,7 @@ if (!defined("FNNEWS_FUNCTIONS"))
         function CreateGoogleSitemap()
         {
             global $_FN;
-            $DB = new XMETADatabase("fndatabase", $_FN['datadir']);
+            $DB = new XMETADatabase("fndatabase", $_FN['datadir'], $_FN);
             $all = $DB->query("SELECT * FROM {$this->config['tablename']} WHERE status LIKE '1'");
             $newstoprint = array();
             foreach ($_FN['listlanguages'] as $llang)
@@ -1234,7 +1234,7 @@ if (!defined("FNNEWS_FUNCTIONS"))
         function CountSigNews()
         {
             $tablename = $this->tablename;
-            $news = FN_XMETADBQuery("SELECT unirecid FROM $tablename WHERE status LIKE '0' AND  guestnews <> '' ");
+            $news = FN_XMETADBQuery("SELECT id FROM $tablename WHERE status LIKE '0' AND  guestnews <> '' ");
             if (!is_array($news))
                 return 0;
             return (count($news));

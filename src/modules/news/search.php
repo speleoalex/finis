@@ -29,7 +29,7 @@ function FNSEARCH_module_news($tosearch_array, $method, $sectionvalues,$maxres)
         $DB = new XMETADatabase($_FN['database'], $_FN['datadir'],$_FN);
 
 	//--search query ---------------------------------------------------------->
-	$query = "SELECT unirecid,title,summary,txtid FROM $tablename WHERE  ";
+	$query = "SELECT id,title,summary,txtid FROM $tablename WHERE  ";
 	$tmpmethod = "";
 	foreach ($Table->fields as $fieldstoread => $fieldvalues)
 	{
