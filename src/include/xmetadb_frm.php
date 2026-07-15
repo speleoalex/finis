@@ -1273,18 +1273,26 @@ $frm_endgroupfooter
             //	$fieldform_values['options'] = $this->LoadOptions($fieldform_values, $values);
             if (isset($fieldform_values['view_group']) && $fieldform_values['view_group'] != "")
             {
-                $gtitle = $fieldform_values['view_group'];
-                $gtitle_i18n = XMETADB_i18n($fieldform_values['view_group']);
-                if (isset($fieldform_values['view_group_i18n']) && $fieldform_values['view_group_i18n'] != "")
+                $show_heading = ($oldval != "");
+                if (!$show_heading && isset($fieldform_values['frm_assoc']) && $fieldform_values['frm_assoc'] != ""
+                    && isset($values[$fieldform_values['frm_assoc']])
+                    && $values[$fieldform_values['frm_assoc']] != "")
+                    $show_heading = true;
+                if ($show_heading)
                 {
-                    $gtitle_i18n = XMETADB_i18n($fieldform_values['view_group_i18n']);
+                    $gtitle = $fieldform_values['view_group'];
+                    $gtitle_i18n = XMETADB_i18n($fieldform_values['view_group']);
+                    if (isset($fieldform_values['view_group_i18n']) && $fieldform_values['view_group_i18n'] != "")
+                    {
+                        $gtitle_i18n = XMETADB_i18n($fieldform_values['view_group_i18n']);
+                    }
+                    if (!empty($this->templateviewGroups[$gtitle]))
+                        $_name_group = str_replace("{groupname}", $gtitle, $this->templateviewGroups[$gtitle]);
+                    else
+                        $_name_group = str_replace("{groupname}", $gtitle, $tpobject->templateviewGroup);
+                    $_tile_group = str_replace("{grouptitle}", $gtitle_i18n, $_name_group);
+                    $htmlitems .= $_tile_group;
                 }
-                if (!empty($this->templateviewGroups[$gtitle]))
-                    $_name_group = str_replace("{groupname}", $gtitle, $this->templateviewGroups[$gtitle]);
-                else
-                    $_name_group = str_replace("{groupname}", $gtitle, $tpobject->templateviewGroup);
-                $_tile_group = str_replace("{grouptitle}", $gtitle_i18n, $_name_group);
-                $htmlitems .= $_tile_group;
             }
 
             //----foreignkey---->>
@@ -1437,7 +1445,7 @@ $frm_endgroupfooter
                     $htmlitem = str_replace("{input}", $this->EncodeValue($html), $htmlitem);
                 }
             }
-            if (isset($fieldform_values['view_endgroup']))
+            if (isset($fieldform_values['view_endgroup']) && $htmlitem != "")
             {
                 if (!empty($this->templateviewEndGroups[$gtitle]))
                 {

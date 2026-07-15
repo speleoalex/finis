@@ -153,7 +153,7 @@ class XMETATable_mysql extends \stdClass
 
             try
             {
-                $this->conn->query("SET character_set_results = 'utf8', character_set_client = 'utf8', character_set_connection = 'utf8', character_set_database = 'utf8', character_set_server = 'utf8'");
+                $this->conn->query("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'");
             } catch (\Exception $e)
             {
                 

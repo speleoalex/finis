@@ -143,10 +143,15 @@ class XMETADatabase
                 }
                 //---pulisco where ----<
                 //limit a,b
-                if (preg_match("/(.+)LIMIT ([0-9]+),([0-9]+)/i", $rightselect, $dt3))
+                if (preg_match("/LIMIT ([0-9]+),([0-9]+)/i", $rightselect, $dt3))
                 {
-                    $qitems['min'] = $dt3[2];
-                    $qitems['length'] = $dt3[3];
+                    $qitems['min'] = $dt3[1];
+                    $qitems['length'] = $dt3[2];
+                }
+                elseif (preg_match("/LIMIT ([0-9]+)/i", $rightselect, $dt3))
+                {
+                    $qitems['min'] = 0;
+                    $qitems['length'] = $dt3[1];
                 }
                 // ORDER BY: capture everything after ORDER BY, strip trailing LIMIT if present
                 if (preg_match("/ORDER BY\s+(.+)/i", $rightselect, $dt2))
@@ -277,10 +282,15 @@ class XMETADatabase
                 }
                 //---pulisco where ----<
                 //limit a,b
-                if (preg_match("/(.+)LIMIT ([0-9]+),([0-9]+)/i", $rightselect, $dt3))
+                if (preg_match("/LIMIT ([0-9]+),([0-9]+)/i", $rightselect, $dt3))
                 {
-                    $qitems['min'] = $dt3[2];
-                    $qitems['length'] = $dt3[3];
+                    $qitems['min'] = $dt3[1];
+                    $qitems['length'] = $dt3[2];
+                }
+                elseif (preg_match("/LIMIT ([0-9]+)/i", $rightselect, $dt3))
+                {
+                    $qitems['min'] = 0;
+                    $qitems['length'] = $dt3[1];
                 }
                 // ORDER BY: capture everything after ORDER BY, strip trailing LIMIT if present
                 if (preg_match("/ORDER BY\s+(.+)/i", $rightselect, $dt2))
@@ -343,10 +353,15 @@ class XMETADatabase
                 }
                 //---pulisco where ----<
                 //limit a,b
-                if (preg_match("/(.+)LIMIT ([0-9]+),([0-9]+)/i", $rightselect, $dt3))
+                if (preg_match("/LIMIT ([0-9]+),([0-9]+)/i", $rightselect, $dt3))
                 {
-                    $qitems['min'] = $dt3[2];
-                    $qitems['length'] = $dt3[3];
+                    $qitems['min'] = $dt3[1];
+                    $qitems['length'] = $dt3[2];
+                }
+                elseif (preg_match("/LIMIT ([0-9]+)/i", $rightselect, $dt3))
+                {
+                    $qitems['min'] = 0;
+                    $qitems['length'] = $dt3[1];
                 }
                 // ORDER BY: capture everything after ORDER BY, strip trailing LIMIT if present
                 if (preg_match("/ORDER BY\s+(.+)/i", $rightselect, $dt2))
