@@ -794,6 +794,14 @@ function FN_ManageLoginWithOpenAuthentication()
         }
         $_FN['userimage'] = $user_image;
         FN_SetSessionValue("session_userimage", $user_image);
+        //go back to the page that started the login (eg. the checkout), if any.
+        //the url is stored server side in the session, it never comes from the request
+        $returnurl = FN_GetSessionValue("session_oauth_returnurl");
+        if (!empty($_FN['user']) && $returnurl)
+        {
+            FN_SetSessionValue("session_oauth_returnurl", "");
+            FN_Redirect($returnurl);
+        }
         return;
     }
     else

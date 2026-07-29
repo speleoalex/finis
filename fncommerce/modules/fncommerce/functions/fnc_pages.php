@@ -725,39 +725,46 @@ function print_payments()
 function print_login()
 {
     global $_FN, $_FNMESSAGE;
-    $op = FN_GetParam("op", $_GET, "flat");
+    //the cart form submits "op" by post, so it must be read from _REQUEST
+    $op = FN_GetParam("op", $_REQUEST, "flat");
     $opmod = FN_GetParam("opmod", $_GET, "flat");
     require_once("{$_FN['src_finis']}/modules/login/functions_login.php");
     switch ($opmod) {
         default:
-            echo "<div style=\"text-align:center\"><table width=\"100%\" cellpadding=\"5\" cellspacing=\"5\" border=\"0\">";
-            echo "<tr>";
-            echo "<td style=\"text-align:center\"><b>" . FN_Translate("if you are a registered user, login to the site") . ":</b></td>";
-            echo "<td style=\"text-align:center\"><b>" . FN_Translate("if you are a new customer please complete the form below") . "</b></td>";
-            echo "</tr><tr>";
-
-            echo "<td valign=\"top\" style=\"text-align:center\">";
-            //-------utente password---->
-            echo "<form method=\"post\" action=\"" . FN_RewriteLink("?mod=" . $_FN['mod'] . "&amp;op=$op&amp;fnlogin=login") . "\" >";
-            echo FN_i18n("username") . "<br /><input type=\"edit\" size=\"15\" name=\"username\" /><br />";
-            echo FN_i18n("password") . "<br /><input type=\"password\" size=\"15\" name=\"password\" /><br />";
-            echo "<br /><input type=\"submit\" value=\"" . FN_i18n("next") . " &gt;&gt;\" />";
-            echo "<br /><br /><b><a href=\"?mod=login&amp;op=rec_pass\">" . FN_Translate("password recovery") . "</a></b><br />";
-            echo "<br />";
-            echo "</form>";
+            //-------username/password and external providers (google, ...)---->
+            $urlformlogin = FN_RewriteLink("?mod={$_FN['mod']}&amp;op=$op&amp;fnlogin=login");
             $fnlogin = FN_GetParam("fnlogin", $_GET, "flat");
-            $fnuser = FN_GetParam("username", $_POST, "flat");
-            $fnpwd = FN_GetParam("password", $_POST, "flat");
-            if ($fnlogin == "login") {
-                echo "<br />" . FN_Translate("authentication failure") . "<br />";
+            if ($fnlogin == "login" && empty($_FN['login_error'])) {
+                $_FN['login_error'] = FN_Translate("authentication failure");
             }
-            //-------utente password----<
-
-            echo "</td>";
-            echo "<td valign=\"top\" style=\"text-align:center\">";
+            //after an external login (google, ...) come back to this order step
+            FN_SetSessionValue("session_oauth_returnurl", FN_RewriteLink("index.php?mod={$_FN['mod']}&op=$op", "&", true));
+            //the theme template also renders the oauth providers ({oauth_providers})
+            $tpllogin = FN_FromTheme("{$_FN['src_finis']}/modules/login/login.tp.html", false);
+            $tpllogin = file_exists($tpllogin) ? file_get_contents($tpllogin) : false;
+            if ($tpllogin) {
+                //registration is already shown in the column beside
+                $tpllogin = FN_TPL_ReplaceHtmlPart("register", "", $tpllogin);
+            }
+            echo "<div class=\"row\">";
+            echo "<div class=\"col-12 col-lg-6 mb-4\">";
+            echo "<div class=\"card h-100\">";
+            echo "<div class=\"card-header\"><b>" . FN_Translate("if you are a registered user, login to the site") . ":</b></div>";
+            echo "<div class=\"card-body\">" . FN_HtmlLoginForm($tpllogin, $urlformlogin) . "</div>";
+            echo "</div>";
+            echo "</div>";
+            //-------username/password and external providers (google, ...)----<
+            //-------registration of a new customer---->
+            echo "<div class=\"col-12 col-lg-6 mb-4\">";
+            echo "<div class=\"card h-100\">";
+            echo "<div class=\"card-header\"><b>" . FN_Translate("if you are a new customer please complete the form below") . "</b></div>";
+            echo "<div class=\"card-body\">";
             fnc_vis_reg();
-            echo "</td>";
-            echo "</tr></table></div>";
+            echo "</div>";
+            echo "</div>";
+            echo "</div>";
+            //-------registration of a new customer----<
+            echo "</div>";
             break;
         case "vis_reg":
             FNREG_ManageRegister();

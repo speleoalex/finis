@@ -854,6 +854,9 @@ function FNREG_ManageRegister($actionform = "")
     //----------------captcha---------------<
     //----------------conditions------------>
     $htmlconditions = "";
+    //the registration form has been submitted (same check used for the validation above):
+    //any other post (eg. the checkout steps) must not show the "accept" error
+    $registration_submitted = isset($_POST['email']) || isset($_POST[$username_field]);
     if (is_array($conditions) && count($conditions) > 0)
     {
         $tcond = FN_XMDBForm("fn_conditions");
@@ -884,7 +887,7 @@ function FNREG_ManageRegister($actionform = "")
             $tpvars_conditions_item['title_accept'] = FN_Translate("accept");
 
             $htmlconditions .= "<label><input $required  name=\"conditions_{$condition['id']}\" type=\"checkbox\" $ck/> " . FN_Translate("accept") . "</label>";
-            if (!empty($_POST) && empty($condition['optional']) && empty($_POST['conditions_' . $condition['id']]))
+            if ($registration_submitted && empty($condition['optional']) && empty($_POST['conditions_' . $condition['id']]))
             {
                 $htmlconditions .= " <span style=\"background-color:#ffffff;color:red\">" . FN_Translate("to register is required to accept") . "</span>";
                 $tpvars_conditions_item['error'] = FN_Translate("to register is required to accept");
