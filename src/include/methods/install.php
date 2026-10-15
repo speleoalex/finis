@@ -229,7 +229,7 @@ if (file_exists("{$_FN['datadir']}/firstinstall"))
                 $sections->UpdateRecord(array("position" => "0", "id" => $_FN['home_section'])); //($values,$pkey,$pvalue)
                 foreach ($_FN['listlanguages']as $l)
                 {
-                    if (file_exists("{$_FN['src_finis']}/include/install/section.$l.html") && !file_exists("home/section.$l.html"))
+                    if (file_exists("{$_FN['src_finis']}/include/install/section.$l.html") && !file_exists("{$_FN['src_application']}/sections/home/section.$l.html"))
                     {
                         FN_Copy("{$_FN['src_finis']}/include/install/section.$l.html", "{$_FN['src_application']}/sections/home/section.$l.html",true);
                     }
