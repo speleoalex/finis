@@ -82,6 +82,49 @@ class FNDBVIEW
             && !empty($xmltable->driverclass->sqltable);
     }
 
+    /**
+     * Quotes a column name so that fields named after an SQL reserved word
+     * (check, status, order, group, key...) do not raise a syntax error.
+     * The backquotes are added only when the query is executed natively by the
+     * database: the emulated xmetadb parser does not understand them and would
+     * fail to convert the WHERE clause.
+     *
+     * @param string $field
+     * @param bool $native query executed by a native SQL driver
+     * @return string
+     */
+    function QuoteField($field, $native)
+    {
+        $field = trim($field);
+        if (!$native || $field === "" || strpos($field, '`') !== false) {
+            return $field;
+        }
+        // Only plain identifiers are quoted: expressions/functions are left untouched
+        if (!preg_match('/^[a-zA-Z0-9_]+$/', $field)) {
+            return $field;
+        }
+        return "`$field`";
+    }
+
+    /**
+     * Quotes a comma separated list of column names (e.g. a field list or an ORDER BY).
+     *
+     * @param string $fields
+     * @param bool $native
+     * @return string
+     */
+    function QuoteFieldList($fields, $native)
+    {
+        if (!$native || $fields === "") {
+            return $fields;
+        }
+        $out = array();
+        foreach (explode(",", $fields) as $field) {
+            $out[] = $this->QuoteField($field, $native);
+        }
+        return implode(",", $out);
+    }
+
     function Init()
     {
         global $_FN;
@@ -195,6 +238,9 @@ class FNDBVIEW
         $search_partfields = $config['search_partfields'] != "" ? explode(",", $config['search_partfields']) : array();
         $search_fields = $config['search_fields'] != "" ? explode(",", $config['search_fields']) : array();
         $tablename = $config['tables'];
+        // Native path when requested by config or when the driver is SQL (push-down of LIMIT/COUNT/GROUP BY).
+        // Known here because column names must be backquoted only for the native path.
+        $native = (!empty($config['search_query_native_mysql']) || $this->TableSupportsNativeSql($tablename));
         $_navifatefilters = $_REQUEST;
         if (!empty($params['navigate_groups'])) {
             $_navifatefilters = $params['navigate_groups'];
@@ -252,7 +298,7 @@ class FNDBVIEW
                 $and = "";
                 foreach ($filters as $filter) {
                     // Escape the value: $k is a known form field, but the value comes from the request
-                    $query_filter .= "$and$k LIKE '" . addslashes($filter) . "'";
+                    $query_filter .= "$and" . $this->QuoteField($k, $native) . " LIKE '" . addslashes($filter) . "'";
                     $and = " OR ";
                 }
             }
@@ -280,7 +326,7 @@ class FNDBVIEW
         }
         //dprint_r($ftoread);
         $ftoread = array_unique($ftoread);
-        $ftoread = implode(",", $ftoread);
+        $ftoread = $this->QuoteFieldList(implode(",", $ftoread), $native);
 
         $query = "SELECT $ftoread FROM $tablename WHERE   ";
         $wherequery = "$query_filter";
@@ -299,11 +345,12 @@ class FNDBVIEW
             $usergroups = FN_GetUser($_FN['user']);
             $usergroups = isset($usergroups['group']) ? explode(",", $usergroups['group']) : array("");
 
-            $wherequery .= "  (groupview LIKE '' OR groupview IS NULL)";
+            $fgroupview = $this->QuoteField('groupview', $native);
+            $wherequery .= "  ($fgroupview LIKE '' OR $fgroupview IS NULL)";
             $or = " OR";
             foreach ($usergroups as $usergroup) {
                 if ($usergroup != "") {
-                    $wherequery .= "$or groupview LIKE '$usergroup' OR groupview LIKE '%$usergroup' OR groupview LIKE '$usergroup%' ";
+                    $wherequery .= "$or $fgroupview LIKE '$usergroup' OR $fgroupview LIKE '%$usergroup' OR $fgroupview LIKE '$usergroup%' ";
                     $or = "OR";
                     $exists_group = true;
                 }
@@ -324,7 +371,7 @@ class FNDBVIEW
         }
 
         if (isset($t->xmltable->fields['recorddeleted'])) {
-            $wherequery .= "$and recorddeleted <> '1'";
+            $wherequery .= "$and " . $this->QuoteField('recorddeleted', $native) . " <> '1' ";
             $and = "AND";
         }
         if ($config['appendquery'] != "") {
@@ -367,7 +414,7 @@ class FNDBVIEW
                                     if (isset($fk_item[$fieldvalues->fk_link_field])) {
                                         $exists_tmp = true;
                                         $vv = str_replace("'", "\\'", $fk_item[$fieldvalues->fk_link_field]);
-                                        $findtextquery_tmp .= "$m $fieldstoread = '$vv'";
+                                        $findtextquery_tmp .= "$m " . $this->QuoteField($fieldstoread, $native) . " = '$vv'";
                                         $m = " OR ";
                                     }
                                 }
@@ -376,11 +423,11 @@ class FNDBVIEW
                                     $findtextquery_tmp = "";
                                 $tmpmethod = $method;
                             } else {
-                                $findtextquery_tmp = " $tmpmethod (" . $fieldstoread . " LIKE '%" . addslashes($f) . "%') ";
+                                $findtextquery_tmp = " $tmpmethod (" . $this->QuoteField($fieldstoread, $native) . " LIKE '%" . addslashes($f) . "%') ";
                             }
                             $findtextquery .= $findtextquery_tmp;
                         } else {
-                            $findtextquery .= " $tmpmethod " . $fieldstoread . " LIKE '%" . addslashes($f) . "%' ";
+                            $findtextquery .= " $tmpmethod " . $this->QuoteField($fieldstoread, $native) . " LIKE '%" . addslashes($f) . "%' ";
                         }
                         $tmpmethod = $method;
                     }
@@ -406,7 +453,7 @@ class FNDBVIEW
                     $ogetid = "s_opt_{$option}_{$tablename}_{$c['value']}";
                     $sopt = FN_GetParam($ogetid, $params, "html");
                     if ($sopt != "") {
-                        $checkquery .= " $tmet $option LIKE '$ovalue' ";
+                        $checkquery .= " $tmet " . $this->QuoteField($option, $native) . " LIKE '$ovalue' ";
                         $tmet = "OR";
                     }
                 }
@@ -425,7 +472,7 @@ class FNDBVIEW
                 $getmin = FN_GetParam("min_$min", $params, "html");
                 if ($getmin != "") {
                     $getmin = intval($getmin);
-                    $minquery .= " $tmet $min > $getmin ";
+                    $minquery .= " $tmet " . $this->QuoteField($min, $native) . " > $getmin ";
                     $tmet = "AND";
                 }
             }
@@ -443,7 +490,7 @@ class FNDBVIEW
                 $get_sfield = FN_GetParam("sfield_$sfield", $params, "html");
                 if ($get_sfield != "") {
                     //                    $sfquery.=" $tmet ($sfield LIKE '$get_sfield' OR $sfield LIKE '$get_sfield.%') ";
-                    $sfquery .= " $tmet ($sfield LIKE '$get_sfield') ";
+                    $sfquery .= " $tmet (" . $this->QuoteField($sfield, $native) . " LIKE '" . addslashes($get_sfield) . "') ";
                     $tmet = "AND";
                 }
             }
@@ -460,7 +507,7 @@ class FNDBVIEW
             if (isset($_tables[$tablename]->formvals[$sfield])) {
                 $get_sfield = FN_GetParam("spfield_$sfield", $params, "html");
                 if ($get_sfield != "") {
-                    $sfquery .= " $tmet $sfield LIKE '%$get_sfield%' ";
+                    $sfquery .= " $tmet " . $this->QuoteField($sfield, $native) . " LIKE '%" . addslashes($get_sfield) . "%' ";
                     $tmet = "AND";
                 }
             }
@@ -475,14 +522,15 @@ class FNDBVIEW
             if (!$this->IsAdmin()) {
 
                 if ($_FN['user'] != "") {
-                    $wherequery .= "$and (username LIKE '{$_FN['user']}' OR username LIKE '%,{$_FN['user']}' OR username LIKE '%,{$_FN['user']},%' OR username LIKE '%,{$_FN['user']}') ";
+                    $fusername = $this->QuoteField('username', $native);
+                    $wherequery .= "$and ($fusername LIKE '{$_FN['user']}' OR $fusername LIKE '%,{$_FN['user']}' OR $fusername LIKE '%,{$_FN['user']},%' OR $fusername LIKE '%,{$_FN['user']}') ";
 
 
                     $listusers = FN_XMDBTable("fieldusers");
                     $MyRecords = $listusers->GetRecords(array("tablename" => $tablename, "username" => $_FN['user']));
                     if (is_array($MyRecords)) {
                         foreach ($MyRecords as $MyRecord) {
-                            $wherequery .= "OR {$_tables[$tablename]->xmltable->primarykey} = '{$MyRecord['table_unirecid']}'";
+                            $wherequery .= "OR " . $this->QuoteField($_tables[$tablename]->xmltable->primarykey, $native) . " = '{$MyRecord['table_unirecid']}'";
                         }
                     }
                 }
@@ -497,7 +545,7 @@ class FNDBVIEW
         foreach ($groups as $group) {
             if (isset($_navifatefilters["nv_{$group}"])) {
                 $navigate = FN_GetParam("nv_{$group}", $_navifatefilters);
-                $groupquery .= "$tmet $group LIKE '" . addslashes($navigate) . "' ";
+                $groupquery .= "$tmet " . $this->QuoteField($group, $native) . " LIKE '" . addslashes($navigate) . "' ";
                 $tmet = "AND";
             }
         }
@@ -511,7 +559,7 @@ class FNDBVIEW
             $wherequery = "1";
         $orderquery = "";
         if ($order != "") {
-            $orderquery .= " ORDER BY $order";
+            $orderquery .= " ORDER BY " . $this->QuoteFieldList($order, $native);
             if ($desc != "")
                 $orderquery .= " DESC";
         }
@@ -523,8 +571,7 @@ class FNDBVIEW
             'order' => $orderquery,
             'order_field' => $order,
             'order_desc' => ($desc != ""),
-            // Native path when requested by config or when the driver is SQL (push-down of LIMIT/COUNT/GROUP BY)
-            'native' => (!empty($config['search_query_native_mysql']) || $this->TableSupportsNativeSql($tablename)),
+            'native' => $native,
         );
     }
 
@@ -714,7 +761,8 @@ class FNDBVIEW
             if ($group == "") {
                 continue;
             }
-            $query = "SELECT $group AS g, COUNT(*) AS C FROM {$xmltable->driverclass->sqltable} WHERE {$qinfo['where']} GROUP BY $group";
+            $qgroup = $this->QuoteField($group, true);
+            $query = "SELECT $qgroup AS g, COUNT(*) AS C FROM {$xmltable->driverclass->sqltable} WHERE {$qinfo['where']} GROUP BY $qgroup";
             $query = str_replace(array("\n", "\r"), "", $query);
             $res = $xmltable->driverclass->dbQuery($query);
             if (is_array($res)) {
@@ -1404,9 +1452,12 @@ select_allcke = function(el){
             $where = $qinfo['where'];
             $cv = addslashes($row[$of]);
             $cpk = addslashes($id_record);
+            // Quoted names for the SQL text; $of/$pk stay plain, they are used as array keys
+            $qof = $this->QuoteField($of, true);
+            $qpk = $this->QuoteField($pk, true);
             // Total-order predicates (field, pk); "before"/"after" relative to the current record
-            $smaller = "(($of < '$cv') OR ($of = '$cv' AND $pk < '$cpk'))";
-            $greater = "(($of > '$cv') OR ($of = '$cv' AND $pk > '$cpk'))";
+            $smaller = "(($qof < '$cv') OR ($qof = '$cv' AND $qpk < '$cpk'))";
+            $greater = "(($qof > '$cv') OR ($qof = '$cv' AND $qpk > '$cpk'))";
             if (!empty($qinfo['order_desc'])) {
                 // Descending order: "before" = greater values, "after" = smaller values
                 $before = $greater;
@@ -1424,21 +1475,21 @@ select_allcke = function(el){
             $cres = $xmltable->driverclass->dbQuery($cntq);
             $position = (isset($cres[0]['C']) ? intval($cres[0]['C']) : 0) + 1;
             // next: first record after the current one; if missing, wrap to the first of the list
-            $nq = "SELECT $pk FROM $sqltable WHERE ($where) AND $after ORDER BY $of $dir, $pk $dir LIMIT 0,1";
+            $nq = "SELECT $qpk FROM $sqltable WHERE ($where) AND $after ORDER BY $qof $dir, $qpk $dir LIMIT 0,1";
             $nres = $xmltable->driverclass->dbQuery($nq);
             if (isset($nres[0][$pk])) {
                 $next = $nres[0][$pk];
             } else {
-                $fres = $xmltable->driverclass->dbQuery("SELECT $pk FROM $sqltable WHERE ($where) ORDER BY $of $dir, $pk $dir LIMIT 0,1");
+                $fres = $xmltable->driverclass->dbQuery("SELECT $qpk FROM $sqltable WHERE ($where) ORDER BY $qof $dir, $qpk $dir LIMIT 0,1");
                 $next = isset($fres[0][$pk]) ? $fres[0][$pk] : "";
             }
             // prev: first record before the current one (reverse order); if missing, wrap to the last
-            $pq = "SELECT $pk FROM $sqltable WHERE ($where) AND $before ORDER BY $of $revdir, $pk $revdir LIMIT 0,1";
+            $pq = "SELECT $qpk FROM $sqltable WHERE ($where) AND $before ORDER BY $qof $revdir, $qpk $revdir LIMIT 0,1";
             $pres = $xmltable->driverclass->dbQuery($pq);
             if (isset($pres[0][$pk])) {
                 $prev = $pres[0][$pk];
             } else {
-                $lres = $xmltable->driverclass->dbQuery("SELECT $pk FROM $sqltable WHERE ($where) ORDER BY $of $revdir, $pk $revdir LIMIT 0,1");
+                $lres = $xmltable->driverclass->dbQuery("SELECT $qpk FROM $sqltable WHERE ($where) ORDER BY $qof $revdir, $qpk $revdir LIMIT 0,1");
                 $prev = isset($lres[0][$pk]) ? $lres[0][$pk] : "";
             }
         } else {

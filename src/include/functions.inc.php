@@ -1694,7 +1694,9 @@ function FN_Install($path, $force = false)
     $path_site = preg_replace('/^misc\//', "{$_FN['datadir']}/", $path_site);
     // When $_FN['datadir'] is absolute, $path_site is already absolute;
     // do not prepend src_application in that case.
-    $dest = (str_starts_with($path_site, '/') || str_starts_with($path_site, '\\'))
+    // No str_starts_with(): it only exists from PHP 8.0 and the server may run PHP 7.x
+    $first_char = substr($path_site, 0, 1);
+    $dest = ($first_char === '/' || $first_char === '\\')
         ? $path_site
         : "{$_FN['src_application']}/$path_site";
     if (!file_exists($dest) || $force == true) {
