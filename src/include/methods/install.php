@@ -225,6 +225,7 @@ if (file_exists("{$_FN['datadir']}/firstinstall"))
             $err = array();
             if (FN_CountUsers() == 0)
             {
+                FN_SyncSectionsFromDefaults(); // languages chosen in step 2: fill title_<lang> of the sections
                 $sections = FN_XMDBTable("fn_sections");
                 $sections->UpdateRecord(array("position" => "0", "id" => $_FN['home_section'])); //($values,$pkey,$pvalue)
                 foreach ($_FN['listlanguages']as $l)

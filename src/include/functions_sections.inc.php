@@ -312,6 +312,64 @@ function FN_GetAllSectionTypes()
 }
 
 /**
+ * Fill the empty per-language titles and descriptions of the sections stored
+ * in the database with the values of sections/<id>/default.xml.php.
+ * Sections are imported at the first request, so when the site languages are
+ * chosen later (install wizard) the title_<lang> columns of the new languages
+ * are empty and the menu shows the folder names.
+ *
+ * @global array $_FN
+ * @return int number of updated sections
+ */
+function FN_SyncSectionsFromDefaults()
+{
+    global $_FN;
+    $table = FN_XMDBTable("fn_sections");
+    $all = $table ? $table->GetRecords() : false;
+    if (!is_array($all))
+        return 0;
+    $updated = 0;
+    foreach ($all as $section)
+    {
+        $file = "{$_FN['src_application']}/sections/{$section['id']}/default.xml.php";
+        if (!file_exists($file))
+            continue;
+        $default = xmetadb_xml2array(file_get_contents($file), "fn_sections");
+        if (!isset($default[0]) || !is_array($default[0]))
+            continue;
+        $default = $default[0];
+        $new = array();
+        foreach ($_FN['listlanguages'] as $l)
+        {
+            foreach (array("title", "description") as $f)
+            {
+                if (empty($section["{$f}_$l"]) && !empty($default["{$f}_$l"]))
+                    $new["{$f}_$l"] = $default["{$f}_$l"];
+            }
+        }
+        if (empty($section['title']))
+        {
+            $k = "title_{$_FN['lang_default']}";
+            if (!empty($new[$k]))
+                $new['title'] = $new[$k];
+            elseif (!empty($section[$k]))
+                $new['title'] = $section[$k];
+            elseif (!empty($default['title']))
+                $new['title'] = $default['title'];
+        }
+        if (count($new) > 0)
+        {
+            $new['id'] = $section['id'];
+            $table->UpdateRecord($new);
+            $updated++;
+        }
+    }
+    if ($updated > 0)
+        FN_OnSitemapChange();
+    return $updated;
+}
+
+/**
  * Init Sections
  *
  * @global array $_FN
@@ -773,9 +831,11 @@ function FN_GetSectionsTree($section = "")
     $section['active'] = true;
     $tree[] = $section;
     $parents = array();
-    while ($section['parent'] != "")
+    while (!empty($section['parent']))
     {
         $section = FN_GetSectionValues($section['parent']);
+        if (!is_array($section)) // parent section does not exist
+            break;
         $section['active'] = "";
         if (in_array($section['id'], $parents))
             break;
