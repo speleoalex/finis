@@ -421,7 +421,7 @@ Pages : <!-- start pages --><!-- start page --><a href=\"{pagelink}\">{pagetitle
         $pk = $params['edit_single_record'];
     }
     $page = isset($_GET["page_$postgetkey"]) ? htmlspecialchars($_GET["page_$postgetkey"]) : "";
-    if ($page == "")
+    if ($page == "" || intval($page) < 1)
         $page = 1;
 
     $order = isset($_GET["order_$postgetkey"]) ? htmlspecialchars($_GET["order_$postgetkey"]) : "";

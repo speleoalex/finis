@@ -240,10 +240,10 @@ function EnableDisable($primarykey, $TableUsers)
     }
     $values = $TableUsers->xmltable->GetRecordByPrimaryKey($primarykey);
     $opt = FN_GetParam("opt", $_GET);
-    $filter = FN_GetParam("filter__xdb_fn_users", $_GET);
+    $filter = FN_GetParam("filter__xdb_{$TableUsers->tablename}", $_GET);
     if ($filter)
     {
-        $filter = "&amp;filter__xdb_fn_users=" . urlencode($filter);
+        $filter = "&amp;filter__xdb_{$TableUsers->tablename}=" . urlencode($filter);
     }
     if ($get_restr)
     {
@@ -255,17 +255,21 @@ function EnableDisable($primarykey, $TableUsers)
         $gopt = "&amp;opt=$opt";
     }
     $page = FN_GetParam("page___xdb_{$TableUsers->tablename}", $_GET, "int");
-    if ($page != "")
+    if ($page > 1)
     {
         $page = "&amp;page___xdb_{$TableUsers->tablename}=$page";
+    }
+    else
+    {
+        $page = "";
     }
     $htmlsendmail = "";
     if (function_exists("FN_SendMailWelcome"))
         $htmlsendmail = "<input type=\"checkbox\" name=\"sendwelcomemessage\" value=\"1\"/>" . FN_Translate("send welcome message");
     if ($values["{$TableUsers->fieldname_active}"] != 1)
-        return "<form action=\"" . ("?fnapp=controlcenter&mod={$_FN['mod']}&amp;filter__xdb_fn_users=$filter$page$gopt$get_restr") . "\" method=\"post\">&#x1F534;<input name=\"{$TableUsers->fieldname_active}\" value=\"1\" type=\"hidden\"/><input name=\"userid\" value=\"$primarykey\" type=\"hidden\"/><button type=\"submit\">" . FN_Translate("enable") . "</button>$htmlsendmail</form>";
+        return "<form action=\"" . ("?fnapp=controlcenter&mod={$_FN['mod']}$filter$page$gopt$get_restr") . "\" method=\"post\">&#x1F534;<input name=\"{$TableUsers->fieldname_active}\" value=\"1\" type=\"hidden\"/><input name=\"userid\" value=\"$primarykey\" type=\"hidden\"/><button type=\"submit\">" . FN_Translate("enable") . "</button>$htmlsendmail</form>";
     else
-        return "<form action=\"" . ("?fnapp=controlcenter&mod={$_FN['mod']}&amp;filter__xdb_fn_users=$filter$page$gopt$get_restr") . "\" method=\"post\">&#128309;<input name=\"{$TableUsers->fieldname_active}\" value=\"0\" type=\"hidden\"/><input name=\"userid\" value=\"$primarykey\" type=\"hidden\"/><button type=\"submit\">" . FN_Translate("disable") . "</button></form>";
+        return "<form action=\"" . ("?fnapp=controlcenter&mod={$_FN['mod']}$filter$page$gopt$get_restr") . "\" method=\"post\">&#128309;<input name=\"{$TableUsers->fieldname_active}\" value=\"0\" type=\"hidden\"/><input name=\"userid\" value=\"$primarykey\" type=\"hidden\"/><button type=\"submit\">" . FN_Translate("disable") . "</button></form>";
 }
 
 ?>

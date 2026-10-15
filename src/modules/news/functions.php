@@ -40,9 +40,13 @@ if (!defined("FNNEWS_FUNCTIONS"))
             $sig = "&amp;signews=1";
         }
         $page = FN_GetParam("page___xdb_{$Tablenews->tablename}", $_GET, "int");
-        if ($page != "")
+        if ($page > 1)
         {
             $page = "&amp;page___xdb_{$Tablenews->tablename}=$page";
+        }
+        else
+        {
+            $page = "";
         }
         if ($itemnews['status'] != 1)
             return "<form action=\"" . ("?mod={$_FN['mod']}&amp;mode=edit$page$sig$gopt") . "\" method=\"post\"><input name=\"pubnewsid\" value=\"$idnews\" type=\"hidden\"/><button type=\"submit\">" . FN_Translate("publish") . "</button></form>";
