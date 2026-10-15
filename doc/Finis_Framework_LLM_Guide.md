@@ -372,3 +372,36 @@ $high_level_users = FN_XMETADBQuery($query);
 *   `fn_groups`: Stores user groups.
 *   `fn_sections`: Stores information about the pages of the site.
 *   `fn_settings`: Stores application settings.
+*   `fn_log`: Event log (`FN_LogEvent($event, $context)`), the `user` column is `$_FN['user']`.
+
+## API keys and MCP server
+
+Every user can have a personal API key (`apikey` field of `fn_users`, 48 hex chars,
+`frm_show=0`). It is created on demand and shown only to its owner in the profile pages
+(control center `users_and_groups/profile` and the login module `op=editreg`), with a
+"Regenerate API key" button. Helpers in `src/include/auth/local.php`:
+
+*   `FN_GetUserApiKey($user, $generate = true)`, `FN_GenerateApiKey($user)`
+*   `FN_GetRequestApiKey()`: reads `Authorization: Bearer <key>` or `X-Api-Key`
+*   `FN_GetUserByApiKey($apikey)`, `FN_LoginByApiKey($apikey)` (sets `$_FN['user']`,
+    `$_FN['uservalues']` and `$_FN['auth_method'] = "apikey"`)
+*   `FN_ProfileApiKey($user, &$tplvars)`: fills `{apikey}`, `{apikey_message}`, `{mcp_url}`
+    for the profile templates and handles the `regenerate_apikey` POST
+*   `FN_EnsureUserApiKeyField()`: adds the field to an old `fn_users.php` definition
+
+`FN_ManageLogin()` tries the API key when no cookie session exists, so any request
+(`fnapp=api`, `fnapp=mcp`, ...) can be authenticated with the header.
+
+`src/include/methods/mcp.php` (`index.php?fnapp=mcp`) is an MCP server (JSON-RPC 2.0,
+Streamable HTTP, POST only) that accepts **only** API key authentication and runs every
+tool as the key owner: permission checks use `FN_IsAdmin()`, `FN_UserCanEditSection()`,
+`FN_UserCanEditBlock()`, `FN_CanModifyFile()`, and mutations call
+`FN_LogEvent($msg, "mcp")` so `fn_log.user` is the real user. Tools are registered with
+`FN_MCP_AddTool($name, $description, $inputSchema, $callback)`; a tool throws
+`FN_MCP_Fail($message)` to return an error. Applications add their own tools in
+`{src_application}/include/mcp_tools.php`. Content written by `set_section_content`,
+`set_block_content` and `create_section` goes through `FN_MCP_LocalizeLinks()`
+(= `FN_RewriteLinksAbsoluteToLocal($content, "sections/$id")`), the same conversion the
+editor applies on save: absolute URLs of the site become relative links; page links must
+be written as `index.php?mod=<id>` (rewritten by the template engine at render time).
+Full documentation: `doc/en_mcp_guide.md`.

@@ -75,6 +75,13 @@
         <frm_show>0</frm_show>
     </field>
     <field>
+        <name>apikey</name>
+        <frm_i18n>API key</frm_i18n>
+        <frm_show>0</frm_show>
+        <frm_allowupdate>0</frm_allowupdate>
+        <size>128</size>
+    </field>
+    <field>
         <name>active</name>
         <frm_i18n>user enabled</frm_i18n>
         <type>check</type>

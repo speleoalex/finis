@@ -259,6 +259,10 @@ function FNREG_ManageEditRegister($user = "")
     {
         unset($_FN['return']['uservalues']['password']);
     }
+    if (isset($_FN['return']['uservalues']['apikey']))
+    {
+        unset($_FN['return']['uservalues']['apikey']);
+    }
     $form->SetLayout("table");
     if ($user == "")
         $user = $_FN['user'];
@@ -268,6 +272,10 @@ function FNREG_ManageEditRegister($user = "")
     {
         return;
     }
+    //---------------API key (MCP and API clients)---------------------------->
+    $apikeyvars = array();
+    FN_ProfileApiKey($user, $apikeyvars);
+    //---------------API key (MCP and API clients)----------------------------<
     $_FN['return']['fields'] = $form->formvals;
     $_FN['return']['uservalues'] = $newvalues;
     $reg_ok = false;
@@ -385,7 +393,7 @@ function FNREG_ManageEditRegister($user = "")
         {
             $templateForm = file_get_contents($tplfile);
         }
-        $tplvars = $_FN;
+        $tplvars = array_merge($_FN, $apikeyvars);
         $tplvars['text_on_update_fail'] = "";
         $tplvars['text_on_update_ok'] = "";
         $tplvars['text_on_insert_fail'] = "";

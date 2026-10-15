@@ -102,6 +102,9 @@ function FNCC_ManageEditRegister($user = "", $formaction = "", $urlcancel = "", 
 
     $form->SetLayout("table");
     $oldvalues = FN_GetUser($user);
+    //---------------API key (MCP and API clients)---------------------------->
+    FN_ProfileApiKey($user, $tplvars);
+    //---------------API key (MCP and API clients)----------------------------<
     $newvalues = $oldvalues;
     $_FN['return']['fields'] = $form->formvals;
     $_FN['return']['uservalues'] = $newvalues;
@@ -211,6 +214,10 @@ function FNCC_ManageEditRegister($user = "", $formaction = "", $urlcancel = "", 
     if (isset($_FN['return']['uservalues']['password']))
     {
         unset($_FN['return']['uservalues']['password']);
+    }
+    if (isset($_FN['return']['uservalues']['apikey']))
+    {
+        unset($_FN['return']['uservalues']['apikey']);
     }
 }
 

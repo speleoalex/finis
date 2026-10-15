@@ -44,6 +44,17 @@
     <!-- end_endgroup -->
 
     <!-- end_contents -->
+    <!-- if {apikey} -->
+    <div class="form-group row">
+        <label class="col-sm-2 col-form-label">{i18n:API key}:</label>
+        <div class="col-sm-10">
+            <input type="text" class="form-control" readonly="readonly" value="{apikey}" onclick="this.select()" />
+            <small class="form-text text-muted">{i18n:MCP endpoint}: <code>{mcp_url}</code></small>
+            <button class="btn btn-secondary btn-sm" type="submit" name="regenerate_apikey" value="1" onclick="return confirm('{i18n:regenerate the API key? The clients that use the current key will stop working}')">{i18n:Regenerate API key}</button>
+            <!-- if {apikey_message} --><span class="text-success">{apikey_message}</span><!-- end if {apikey_message} -->
+        </div>
+    </div>
+    <!-- end if {apikey} -->
     <div class="form-group row">
         <div class="col-sm-12">
             <input name="updateuser" value="1" type="hidden" />

@@ -18,6 +18,17 @@
         <!-- endgroup -->
         <!-- end_endgroup -->
         <!-- end_contents -->
+        <!-- if {apikey} -->
+        <tr>
+            <td valign="top">{i18n:API key}</td>
+            <td valign="top">
+                <input type="text" readonly="readonly" value="{apikey}" onclick="this.select()" style="width:100%;max-width:30em" />
+                <br /><small>{i18n:MCP endpoint}: <code>{mcp_url}</code></small>
+                <br /><button type="submit" name="regenerate_apikey" value="1" onclick="return confirm('{i18n:regenerate the API key? The clients that use the current key will stop working}')">{i18n:Regenerate API key}</button>
+                <!-- if {apikey_message} --><span style="color:green">{apikey_message}</span><!-- end if {apikey_message} -->
+            </td>
+        </tr>
+        <!-- end if {apikey} -->
         <tr>
             <td colspan="2" style="text-align: center">
                 <input name="updateuser" value="1" type="hidden" />

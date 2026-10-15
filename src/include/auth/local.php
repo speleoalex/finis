@@ -146,6 +146,16 @@ function FN_ManageLogin()
     {
         FN_Logout();
     }
+    //-------------------API key (MCP and API clients)------------------------>
+    if ($_FN['user'] == "")
+    {
+        $apikey = FN_GetRequestApiKey();
+        if ($apikey != "")
+        {
+            FN_LoginByApiKey($apikey);
+        }
+    }
+    //-------------------API key (MCP and API clients)------------------------<
 }
 
 /**
@@ -836,4 +846,242 @@ function generateSecurePassword($length = 12)
     }
 
     return $password;
+}
+
+//------------------------------- API key ------------------------------------->
+
+/**
+ * Make sure the installed fn_users table definition contains the apikey field.
+ * Installations created before the field existed copied an older definition:
+ * once the field is appended, the SQL drivers add the column automatically.
+ *
+ * @global array $_FN
+ * @return bool true when the field is available
+ */
+function FN_EnsureUserApiKeyField()
+{
+    global $_FN;
+    static $checked = null;
+    if ($checked !== null)
+        return $checked;
+    $checked = false;
+    $form = FN_GetUserForm();
+    if (isset($form->xmltable->fields['apikey']))
+    {
+        $checked = true;
+        return true;
+    }
+    $definition = "{$_FN['datadir']}/{$_FN['database']}/fn_users.php";
+    if (!file_exists($definition) || !is_writable($definition))
+        return false;
+    $xml = file_get_contents($definition);
+    if (strpos($xml, "<name>apikey</name>") === false)
+    {
+        $field = "    <field>\n"
+            . "        <name>apikey</name>\n"
+            . "        <frm_i18n>API key</frm_i18n>\n"
+            . "        <frm_show>0</frm_show>\n"
+            . "        <frm_allowupdate>0</frm_allowupdate>\n"
+            . "        <size>128</size>\n"
+            . "    </field>\n";
+        $pos = strrpos($xml, "</tables>");
+        if ($pos === false)
+            return false;
+        $xml = substr($xml, 0, $pos) . $field . substr($xml, $pos);
+        if (false === FN_Write($xml, $definition))
+            return false;
+    }
+    // the field is loaded by the table definition at the next request
+    $checked = true;
+    return true;
+}
+
+/**
+ * Read the API key sent by the client in the HTTP headers.
+ * Accepted headers: "Authorization: Bearer <key>" and "X-Api-Key: <key>".
+ *
+ * @return string the API key or an empty string
+ */
+function FN_GetRequestApiKey()
+{
+    $authorization = "";
+    foreach (array("HTTP_AUTHORIZATION", "REDIRECT_HTTP_AUTHORIZATION") as $k)
+    {
+        if (!empty($_SERVER[$k]))
+        {
+            $authorization = $_SERVER[$k];
+            break;
+        }
+    }
+    if ($authorization == "" && function_exists("apache_request_headers"))
+    {
+        $headers = apache_request_headers();
+        if (is_array($headers))
+        {
+            foreach ($headers as $k => $v)
+            {
+                if (strtolower($k) == "authorization")
+                    $authorization = $v;
+            }
+        }
+    }
+    if ($authorization != "" && preg_match('/^\s*Bearer\s+(\S+)\s*$/i', $authorization, $m))
+    {
+        return $m[1];
+    }
+    if (!empty($_SERVER['HTTP_X_API_KEY']))
+    {
+        return trim($_SERVER['HTTP_X_API_KEY']);
+    }
+    return "";
+}
+
+/**
+ * Generate a new random API key for a user and store it in fn_users.
+ * The key replaces the previous one, so old clients stop working.
+ *
+ * @global array $_FN
+ * @param string $user username
+ * @return string the new API key, empty string on failure
+ */
+function FN_GenerateApiKey($user)
+{
+    global $_FN;
+    if ($user == "" || !FN_GetUser($user, false))
+        return "";
+    FN_EnsureUserApiKeyField();
+    try
+    {
+        $apikey = bin2hex(random_bytes(24));
+    }
+    catch (Exception $e)
+    {
+        $apikey = hash("sha256", uniqid("", true) . mt_rand() . $user);
+    }
+    $table = FN_GetUserForm();
+    $result = $table->xmltable->UpdateRecordBypk(array("apikey" => $apikey), $table->xmltable->primarykey, $user);
+    if (!is_array($result))
+        return "";
+    FN_GetUser($user, false);
+    FN_LogEvent("API key regenerated for user $user", "apikey");
+    return $apikey;
+}
+
+/**
+ * Return the API key of a user, generating it when it does not exist yet.
+ *
+ * @param string $user username
+ * @param bool $generate create the key when missing
+ * @return string the API key or an empty string
+ */
+function FN_GetUserApiKey($user, $generate = true)
+{
+    $uservalues = FN_GetUser($user, false);
+    if (!$uservalues)
+        return "";
+    if (!empty($uservalues['apikey']))
+        return $uservalues['apikey'];
+    if ($generate)
+        return FN_GenerateApiKey($user);
+    return "";
+}
+
+/**
+ * Find the active user owning an API key.
+ *
+ * @param string $apikey
+ * @return array|null user values or null when the key is unknown
+ */
+function FN_GetUserByApiKey($apikey)
+{
+    $apikey = trim("$apikey");
+    // keys are hexadecimal strings, refuse anything else before querying
+    if (!preg_match('/^[a-f0-9]{32,128}$/i', $apikey))
+        return null;
+    FN_EnsureUserApiKeyField();
+    $users = FN_GetUsers(array("apikey" => $apikey));
+    if (!is_array($users) || count($users) != 1)
+        return null;
+    $uservalues = reset($users);
+    if (empty($uservalues['username']) || empty($uservalues['apikey']))
+        return null;
+    // the filter of some drivers is not case sensitive: compare again
+    if (!hash_equals("{$uservalues['apikey']}", $apikey))
+        return null;
+    if (empty($uservalues['active']) || $uservalues['active'] != 1)
+        return null;
+    return $uservalues;
+}
+
+/**
+ * Authenticate the current request with an API key: the user becomes the
+ * current user ($_FN['user']) exactly as after a cookie login, but no cookie
+ * is sent and no session is created. Operations performed afterwards are
+ * logged and authorized with the identity of the key owner.
+ *
+ * @global array $_FN
+ * @param string $apikey
+ * @return bool
+ */
+function FN_LoginByApiKey($apikey)
+{
+    global $_FN;
+    $uservalues = FN_GetUserByApiKey($apikey);
+    if (!$uservalues)
+    {
+        $_FN['login_error'] = FN_Translate("invalid API key");
+        return false;
+    }
+    $_FN['user'] = $uservalues['username'];
+    $_FN['uservalues'] = $uservalues;
+    $_FN['auth_method'] = "apikey";
+    FN_GetUser($_FN['user'], false);
+    return true;
+}
+
+/**
+ * Shared logic of the profile editors (control center and login module):
+ * handles the "regenerate_apikey" POST, creates the key when missing and
+ * fills the template variables used by the API key block of the form.
+ * The key is shown only to its owner.
+ *
+ * @global array $_FN
+ * @param string $user username being edited
+ * @param array $tplvars template variables (modified by reference)
+ * @return void
+ */
+function FN_ProfileApiKey($user, &$tplvars)
+{
+    global $_FN;
+    $tplvars['apikey'] = "";
+    $tplvars['apikey_message'] = "";
+    $tplvars['mcp_url'] = FN_GetMcpUrl();
+    if ($user == "" || $user != $_FN['user'])
+        return;
+    if (!empty($_POST['regenerate_apikey']))
+    {
+        // the regenerate button is inside the profile form: do not save the profile
+        unset($_POST['updateuser']);
+        $apikey = FN_GenerateApiKey($user);
+        if ($apikey != "")
+            $tplvars['apikey_message'] = FN_Translate("the API key has been regenerated");
+        else
+            $tplvars['apikey_message'] = FN_Translate("error");
+    }
+    $tplvars['apikey'] = FN_GetUserApiKey($user, true);
+}
+
+/**
+ * Return the absolute URL of the MCP endpoint of this site.
+ *
+ * @global array $_FN
+ * @return string
+ */
+function FN_GetMcpUrl()
+{
+    global $_FN;
+    $siteurl = isset($_FN['siteurl']) ? $_FN['siteurl'] : "";
+    if ($siteurl != "" && substr($siteurl, -1) != "/")
+        $siteurl .= "/";
+    return $siteurl . "index.php?fnapp=mcp";
 }
