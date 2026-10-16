@@ -151,30 +151,47 @@ class XMETATable_mysql extends \stdClass
                 $this->mysqldatabasename = $this->databasename;
             }
 
-            try
+            // session settings: once per connection, not once per table
+            static $initializedconn = null;
+            if ($initializedconn !== $this->conn)
             {
-                $this->conn->query("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'");
-            } catch (\Exception $e)
-            {
-                
-            }
-            if (!empty($_FN['xmetadb_timezone']))
-            {
-                try{
-                    $this->conn->query("SET time_zone = '" . $this->conn->real_escape_string($_FN['xmetadb_timezone']) . "'");
-
-                }catch (\Exception $e)
+                $initializedconn = $this->conn;
+                try
                 {
-                    trigger_error($e, E_USER_WARNING);
+                    $this->conn->query("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'");
+                } catch (\Exception $e)
+                {
+                    
+                }
+                if (!empty($_FN['xmetadb_timezone']))
+                {
+                    try{
+                        $this->conn->query("SET time_zone = '" . $this->conn->real_escape_string($_FN['xmetadb_timezone']) . "'");
+
+                    }catch (\Exception $e)
+                    {
+                        trigger_error($e, E_USER_WARNING);
+                    }
                 }
             }
-            try
+            global $xmetadb_mysqlcurrentdb;
+            if ($xmetadb_mysqlcurrentdb === $this->mysqldatabasename)
             {
-                $this->conn->select_db($this->mysqldatabasename);
                 $exists = true;
-            } catch (\Exception $e)
+            }
+            else
             {
-                $exists = false;
+                try
+                {
+                    $exists = $this->conn->select_db($this->mysqldatabasename);
+                } catch (\Exception $e)
+                {
+                    $exists = false;
+                }
+                if ($exists)
+                {
+                    $xmetadb_mysqlcurrentdb = $this->mysqldatabasename;
+                }
             }
 
             if (!$exists)
@@ -206,10 +223,32 @@ class XMETATable_mysql extends \stdClass
                     }
                 }
             }
-            $exists = false;
-            if (empty($dbcache['tables'][$this->mysqldatabasename]))
+            // Cross-request schema cache (APCu): the DESCRIBE result of a
+            // table already in sync with its descriptor. The key includes the
+            // descriptor content, so editing the descriptor runs the sync
+            // again; the TTL bounds how long a table dropped or altered
+            // outside xmetadb goes unnoticed. FN_ClearCache() empties it.
+            $schemattl = isset($_FN['xmetadb_mysql_schema_cache_ttl']) ? intval($_FN['xmetadb_mysql_schema_cache_ttl']) : 600;
+            $schemacachekey = "mysqlschema_" . xmetadb_cache_hash($mysql['host'] . "|" . $mysql['port'] . "|" . $this->mysqldatabasename . "|" . $sqltable . "|" . $xml);
+            $schemafromapcu = false;
+            if ($schemattl > 0 && empty($dbcache[$this->mysqldatabasename][$sqltable]['describe']))
+            {
+                $describe = xmetadb_cache_fetch($schemacachekey, $schemafromapcu);
+                if ($schemafromapcu && is_array($describe) && count($describe) > 0)
+                {
+                    $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $describe;
+                }
+                else
+                {
+                    $schemafromapcu = false;
+                }
+            }
+            // a table already described (in this request or in the cache) exists
+            $schemacached = !empty($dbcache[$this->mysqldatabasename][$sqltable]['describe']);
+            $exists = $schemacached;
+            if (!$schemacached && empty($dbcache['tables'][$this->mysqldatabasename]))
                 $dbcache['tables'][$this->mysqldatabasename] = $this->dbQuery("SHOW tables");
-            $result = $dbcache['tables'][$this->mysqldatabasename];
+            $result = $schemacached ? false : $dbcache['tables'][$this->mysqldatabasename];
 
             if ($result)
             {
@@ -434,6 +473,10 @@ class XMETATable_mysql extends \stdClass
                 }
             }
             $this->mysqlfields = $mysql_fields;
+            if ($schemattl > 0 && !$schemafromapcu)
+            {
+                xmetadb_cache_store($schemacachekey, $dbcache[$this->mysqldatabasename][$sqltable]['describe'], $schemattl);
+            }
             //--synchronize fields ---<
         }
         else
