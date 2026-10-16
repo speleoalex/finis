@@ -1538,13 +1538,18 @@ function FN_Redirect($url)
 }
 
 /**
- * 
+ * Empties the cross-request cache: the files in misc/_cache and, when
+ * FN_GetGlobalVarValue() keeps it in APCu, the APCu store as well.
  */
 function FN_ClearCache()
 {
     global $_FN;
     FN_RemoveDir("{$_FN['datadir']}/_cache");
     mkdir("{$_FN['datadir']}/_cache");
+    if (function_exists('apcu_clear_cache'))
+    {
+        apcu_clear_cache();
+    }
 }
 
 /**
