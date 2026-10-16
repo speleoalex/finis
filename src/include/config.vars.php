@@ -16,3 +16,5 @@ $_FN['datadir'] = "misc";
 $_FN['default_auth_method'] = "local";
 //default driver: xmlphp,sqlite3,sqlite,csv,serialize,mysql,mssql
 $_FN['default_database_driver'] = "xmlphp";
+//home section that overrides the control center setting (empty = use the setting)
+$_FN['home_section_force'] = "";

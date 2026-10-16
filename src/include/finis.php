@@ -150,6 +150,10 @@ $configvars = array(
 );
 $ignore = array("script_path", "datadir", "return", "timestart", "consolemode", "filesystempath", "charset_lang", "default_database_driver", "section_header_footer", "FN_SendMail", "frameworkmode", "selfscript");
 FN_LoadVarsFromTable($_FN, "fn_settings", $configvars, $ignore);
+// a deployment can pin the home section in config.vars.local.php
+// ($_FN['home_section_force']): it wins over the value saved from the control center
+if (!empty($_FN['home_section_force']))
+    $_FN['home_section'] = $_FN['home_section_force'];
 
 
 //----------------------------------timezone----------------------------------->
