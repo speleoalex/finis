@@ -1951,9 +1951,9 @@ $frm_endgroupfooter
                         $showfields = explode(",", $field['fk_show_field']);
                         $value = "";
                         $sep = "";
+                        $tvalue = XMETAFKLookup::GetRecord($tablefk, $field['fk_link_field'], $rec[$field['name']], $showfields);
                         foreach ($showfields as $showfield)
                         {
-                            $tvalue = $tablefk->GetRecord(array($field['fk_link_field'] => $rec[$field['name']]));
                             if (isset($tvalue["{$showfield}_{$this->lang}"]) && $tvalue["{$showfield}_{$this->lang}"] != "")
                                 $value .= $sep . $tvalue["{$showfield}_{$this->lang}"];
                             elseif (isset($tvalue["{$showfield}_en"]) && $tvalue["{$showfield}_en"] != "")

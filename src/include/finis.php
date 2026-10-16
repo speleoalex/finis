@@ -173,7 +173,12 @@ $_FN['self'] = FN_GetParam("PHP_SELF", $_SERVER);
 $_FN['selfscript'] = basename($_FN['self']);
 $_FN['user'] = "";
 $mod = basename(FN_GetParam("mod", $_GET));
-if (!file_exists("{$_FN['src_finis']}/sections/{$_FN['home_section']}"))
+// a home section may also live in the application's sections/ folder; it is
+// used only by index.php so that standalone scripts (exports, APIs) that treat
+// an empty "mod" as "use my default" keep working
+if (!file_exists("{$_FN['src_finis']}/sections/{$_FN['home_section']}")
+    && !(file_exists("{$_FN['src_application']}/sections/{$_FN['home_section']}")
+        && basename(FN_GetParam("SCRIPT_NAME", $_SERVER)) == "index.php"))
     $_FN['home_section'] = "";
 if ($mod == "")
 {

@@ -2541,11 +2541,10 @@ set_changed();
                     $groupcontentstitle = FN_Translate("---");
                 else {
                     if ($tablegroup && $pklink != "") {
-                        $restr = array($pklink => $group['name']);
-                        $t = $tablegroup->GetRecord($restr);
                         $ttitles = $groupname;
                         if (isset($Table->xmltable->fields[$groupname]->fk_show_field))
                             $ttitles = explode(",", $Table->xmltable->fields[$groupname]->fk_show_field);
+                        $t = XMETAFKLookup::GetRecord($tablegroup, $pklink, $group['name'], $ttitles);
                         $groupcontentstitle = "";
                         $sep = "";
                         foreach ($ttitles as $tt) {
