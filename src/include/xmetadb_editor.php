@@ -1701,8 +1701,8 @@ set_changed();
                                                 $fname_tmp_array = $row[$field['name']];
                                                 $fname_tmp_array = explode(",", $fname_tmp_array);
                                                 foreach ($fname_tmp_array as $fname_tmp) {
+                                                    $tvalue = XMETAFKLookup::GetRecord($tablefk, $field['fk_link_field'], $fname_tmp, $showfields);
                                                     foreach ($showfields as $showfield) {
-                                                        $tvalue = $tablefk->GetRecord(array($field['fk_link_field'] => $fname_tmp));
                                                         if (isset($tvalue["{$showfield}_{$lang}"]) && $tvalue["{$showfield}_{$lang}"] != "")
                                                             $value .= $sep . $tvalue["{$showfield}_{$lang}"];
                                                         elseif (isset($tvalue["{$showfield}_en"]) && $tvalue["{$showfield}_en"] != "")
