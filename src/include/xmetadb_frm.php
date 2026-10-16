@@ -676,6 +676,34 @@ $frm_endgroupfooter
             }
             else
             {
+                // read only the columns the options use (the link field, the shown fields
+                // and their translation, the image), not every column of the foreign
+                // table: for ctl_caves the long description texts made each read slow.
+                // An unknown link field keeps the old behaviour (every column).
+                $fk_fields = array();
+                if (isset($listoptionstabella->fields[$record['fk_link_field']]))
+                {
+                    $fk_fields[] = $record['fk_link_field'];
+                    foreach (explode(",", $record['fk_show_field']) as $showfield)
+                    {
+                        foreach (array($showfield, $showfield . "_$lang") as $f)
+                        {
+                            if (isset($listoptionstabella->fields[$f]))
+                                $fk_fields[] = $f;
+                        }
+                    }
+                    if (!empty($record['frm_show_image']) && isset($listoptionstabella->fields[$record['frm_show_image']]))
+                    {
+                        $fk_fields[] = $record['frm_show_image'];
+                        if (is_string($listoptionstabella->primarykey))
+                            $fk_fields[] = $listoptionstabella->primarykey;
+                    }
+                    $fk_fields = array_values(array_unique($fk_fields));
+                }
+                else
+                {
+                    $fk_fields = false;
+                }
                 $restr = false;
                 //esempio clausula su foreignkey
                 // $Table->formvals['periodo']['fk_filter_field']="id_procurement='1',Abilitato='True'";
@@ -708,7 +736,7 @@ $frm_endgroupfooter
                                 }
                             }
                         }
-                        $listoptions = $listoptionstabella->GetRecords($restr);
+                        $listoptions = XMETAFKLookup::GetRecords($listoptionstabella, $restr, $fk_fields);
                     }
                     else
                     {
@@ -717,7 +745,7 @@ $frm_endgroupfooter
                 }
                 else
                 {
-                    $listoptions = $listoptionstabella->GetRecords();
+                    $listoptions = XMETAFKLookup::GetRecords($listoptionstabella, false, $fk_fields);
                 }
             }
             $retopzioni = array();
