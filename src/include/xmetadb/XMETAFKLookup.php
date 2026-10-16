@@ -32,6 +32,9 @@ class XMETAFKLookup
     /** @var array tablekey => cachekey => array('rows'=>..., 'seen'=>int, 'all'=>bool) */
     private static $cache = array();
 
+    /** @var array tablekey => querykey => records (see GetRecords()) */
+    private static $records = array();
+
     /**
      * Returns the record of $table whose $linkfield matches $value,
      * like $table->GetRecord(array($linkfield => $value)).
@@ -83,6 +86,7 @@ class XMETAFKLookup
     static function Forget($table)
     {
         unset(self::$cache[self::TableKey($table)]);
+        unset(self::$records[self::TableKey($table)]);
     }
 
     /**
@@ -91,6 +95,34 @@ class XMETAFKLookup
     static function Clear()
     {
         self::$cache = array();
+        self::$records = array();
+    }
+
+    /**
+     * Returns $table->GetRecords($restr, false, false, false, false, $fields),
+     * reading the table only once per request for the same $restr and $fields.
+     *
+     * Used by the form options of foreign key fields: several fields (in one
+     * form or in different forms of the same page) often point to the same
+     * table, e.g. the four cave fields of the bibliography, and each one used
+     * to read the whole table again.
+     *
+     * @param XMETATable $table foreign table
+     * @param array|false $restr restriction, as for GetRecords()
+     * @param array $fields fields to read
+     * @return array|null
+     */
+    static function GetRecords($table, $restr, $fields)
+    {
+        if (!is_object($table))
+            return null;
+        $tablekey = self::TableKey($table);
+        $querykey = serialize(array($restr, $fields));
+        if (!isset(self::$records[$tablekey]) || !array_key_exists($querykey, self::$records[$tablekey]))
+        {
+            self::$records[$tablekey][$querykey] = $table->GetRecords($restr, false, false, false, false, $fields);
+        }
+        return self::$records[$tablekey][$querykey];
     }
 
     private static function TableKey($table)
