@@ -2,6 +2,7 @@
 namespace Xmetadb;
 
 include_once __DIR__ . "/XMETAField.php";
+include_once __DIR__ . "/XMETAFKLookup.php";
 
 /**
  * Classe per la gestione dei files xml per avere funzioni
@@ -512,6 +513,7 @@ class XMETATable extends \stdClass
 
     function SetLastUpdateTime()
     {
+        XMETAFKLookup::Forget($this);
         @touch("{$this->path}/{$this->databasename}/{$this->tablename}/updated");
     }
 
@@ -552,6 +554,7 @@ class XMETATable extends \stdClass
 
     function Truncate()
     {
+        XMETAFKLookup::Forget($this);
         return $this->driverclass ? $this->driverclass->Truncate() : null;
     }
 
