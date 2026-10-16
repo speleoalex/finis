@@ -434,6 +434,7 @@ class XMETADatabase
         $count = false;
         $countkey = "COUNT(*)";
         $aliases = array();
+        $selected = null; // source fields of a field list, null for *
         if ($select === "*")
         {
             $cols = array();
@@ -453,12 +454,14 @@ class XMETADatabase
         else
         {
             $cols = array();
+            $selected = array();
             foreach (explode(",", $select) as $part)
             {
                 if (!preg_match('/^\s*([A-Za-z_][A-Za-z0-9_]*)(\s+AS\s+([A-Za-z0-9_]+))?\s*$/i', $part, $m) || !isset($fields[$m[1]]))
                     return null;
                 $alias = !empty($m[3]) ? $m[3] : $m[1];
                 $aliases[] = $alias;
+                $selected[] = $m[1];
                 $cols[] = "`{$m[1]}` AS `$alias`";
             }
             $selectsql = implode(",", $cols);
@@ -483,11 +486,17 @@ class XMETADatabase
         {
             if (!preg_match('/^([A-Za-z_][A-Za-z0-9_]*)(\s+(ASC|DESC))?$/i', trim($qitems['orderby']), $m) || !isset($fields[$m[1]]))
                 return null;
+            // DISTINCT only when sorting the one selected field: MySQL refuses
+            // ORDER BY expressions outside the select list, and the PHP engine
+            // keeps ties in first-seen order, which SQL cannot reproduce
+            if ($distinct && $selected !== array($m[1]))
+                return null;
             $f = "`{$m[1]}`";
             $dir = (isset($m[3]) && strtoupper($m[3]) == "DESC") ? "DESC" : "ASC";
             $numeric = "$f REGEXP '^[[:space:]]*[-+]?([0-9]+[.]?[0-9]*|[.][0-9]+)([eE][-+]?[0-9]+)?[[:space:]]*$'";
             // ties keep the table order, as the PHP engine's stable sort does
-            $tie = (is_string($tbl->primarykey) && isset($fields[$tbl->primarykey])) ? ", `{$tbl->primarykey}`" : "";
+            // (with DISTINCT there are no ties: the sort keys only depend on the field)
+            $tie = (!$distinct && is_string($tbl->primarykey) && isset($fields[$tbl->primarykey])) ? ", `{$tbl->primarykey}`" : "";
             $sql .= " ORDER BY CASE WHEN IFNULL($f,'') = '' THEN 0 WHEN $numeric THEN 1 ELSE 2 END $dir,"
                 . " CASE WHEN $numeric THEN $f + 0 END $dir, IFNULL($f,'') $dir$tie";
         }
