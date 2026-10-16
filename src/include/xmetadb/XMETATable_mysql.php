@@ -722,6 +722,12 @@ class XMETATable_mysql extends \stdClass
             trigger_error("MySQL TRUNCATE failed: " . $this->conn->error, E_USER_WARNING);
             return false;
         }
+        // the ids start again from 1
+        $this->maxautoincrement = array();
+        if ($this->SequencesAvailable())
+        {
+            $this->dbQuery("DELETE FROM `fn_sequences` WHERE `seq_table` = '" . $this->conn->real_escape_string($this->sqltable) . "'");
+        }
         return true;
     }
 
@@ -1090,22 +1096,184 @@ class XMETATable_mysql extends \stdClass
      *
      * manages the autoincrement of a table field
      *
+     * The ids are VARCHAR without AUTO_INCREMENT, so the next one comes from a
+     * per-table counter in the fn_sequences table instead of a scan of the
+     * whole table on each insert. The counter is seeded once from the current
+     * highest numeric id and moved with an atomic UPDATE, so concurrent
+     * inserts never get the same id. It corrects itself: when the id it gives
+     * is already taken (rows inserted directly in the database) the table is
+     * scanned once and the counter moves past the highest id. Without the
+     * rights to create fn_sequences it falls back to the scan.
+     *
      * @param string field name
      * @return next available index
      */
     function GetAutoincrement($field)
     {
-        static $last = "";
+        if ($this->SequencesAvailable())
+        {
+            for ($try = 0; $try < 3; $try++)
+            {
+                $newid = $this->SequenceNext($field);
+                if ($newid === false)
+                {
+                    break;
+                }
+                if (!$this->AutoincrementTaken($field, $newid))
+                {
+                    return $newid;
+                }
+                $this->SyncAutoincrement($field);
+            }
+        }
         if (isset($this->maxautoincrement[$field]))
         {
             return $this->maxautoincrement[$field] + 1;
         }
-        // todo autoincrement offset SHOW VARIABLES;
-        $record = $this->dbQuery("SELECT MAX(CAST($field AS UNSIGNED)) AS $field FROM {$this->sqltable} WHERE $field NOT LIKE '%[a-z]%' ");
-        if (!isset($record[0][$field]))
-            return 1;
-        $max = $record[0][$field];
-        return intval($max) + 1;
+        return $this->GetMaxNumericId($field) + 1;
+    }
+
+    /**
+     * highest numeric value of the field (full scan), 0 when there is none
+     *
+     * @param string $field
+     * @return int
+     */
+    function GetMaxNumericId($field)
+    {
+        $record = $this->dbQuery("SELECT MAX(CAST(`$field` AS UNSIGNED)) AS maxid FROM `{$this->sqltable}` WHERE `$field` REGEXP '^[0-9]+$'");
+        if (!isset($record[0]['maxid']))
+            return 0;
+        return intval($record[0]['maxid']);
+    }
+
+    /**
+     * @param string $field
+     * @param int $id
+     * @return bool true when a record already has this id
+     */
+    function AutoincrementTaken($field, $id)
+    {
+        $record = $this->dbQuery("SELECT 1 AS taken FROM `{$this->sqltable}` WHERE `$field` = '" . intval($id) . "' LIMIT 1");
+        return !empty($record);
+    }
+
+    /**
+     * creates fn_sequences when missing
+     *
+     * @return bool false when the counters cannot be used
+     */
+    function SequencesAvailable()
+    {
+        static $available = array();
+        $db = $this->mysqldatabasename;
+        if (!isset($available[$db]))
+        {
+            $available[$db] = false;
+            // dbQuery() selects the database first
+            if ($this->conn && $this->dbQuery("SELECT 1") !== false)
+            {
+                // not dbQuery(): a user without the CREATE right is not an
+                // error to log on every insert, the scan is used instead
+                try
+                {
+                    $available[$db] = (bool) $this->conn->query("CREATE TABLE IF NOT EXISTS `fn_sequences` (
+                        `seq_table` VARCHAR(191) NOT NULL,
+                        `seq_field` VARCHAR(191) NOT NULL,
+                        `n` BIGINT UNSIGNED NOT NULL DEFAULT 0,
+                        PRIMARY KEY (`seq_table`, `seq_field`)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                } catch (\Exception $e)
+                {
+                    $available[$db] = false;
+                }
+            }
+        }
+        return $available[$db];
+    }
+
+    /**
+     * @param string $field
+     * @return string the WHERE condition of the field's counter
+     */
+    function SequenceWhere($field)
+    {
+        return "`seq_table` = '" . $this->conn->real_escape_string($this->sqltable) . "' AND `seq_field` = '" . $this->conn->real_escape_string($field) . "'";
+    }
+
+    /**
+     * moves the counter by one and returns it, seeding it from the table the
+     * first time
+     *
+     * @param string $field
+     * @return int|false
+     */
+    function SequenceNext($field)
+    {
+        for ($try = 0; $try < 2; $try++)
+        {
+            if (!$this->dbQuery("UPDATE `fn_sequences` SET `n` = LAST_INSERT_ID(`n` + 1) WHERE " . $this->SequenceWhere($field)))
+            {
+                return false;
+            }
+            if ($this->conn->affected_rows > 0)
+            {
+                // LAST_INSERT_ID(expr) in an UPDATE sets insert_id
+                return intval($this->conn->insert_id);
+            }
+            // no counter yet: seed it (a concurrent seed wins, both then
+            // move the same counter)
+            $this->dbQuery("INSERT IGNORE INTO `fn_sequences` (`seq_table`, `seq_field`, `n`) VALUES ('" . $this->conn->real_escape_string($this->sqltable) . "', '" . $this->conn->real_escape_string($field) . "', " . $this->GetMaxNumericId($field) . ")");
+        }
+        return false;
+    }
+
+    /**
+     * moves the counter past the highest numeric id in the table, e.g. after
+     * records were inserted directly in the database. Counters not seeded yet
+     * are left alone: they are seeded from the table on the first insert.
+     *
+     * @param string|false $field false for every autoincrement field
+     * @return array field => next id, for the counters that exist
+     */
+    function SyncAutoincrement($field = false)
+    {
+        $ret = array();
+        if (!$this->conn || !$this->SequencesAvailable())
+        {
+            return $ret;
+        }
+        $fields = array();
+        if ($field !== false)
+        {
+            $fields[] = $field;
+        }
+        else
+        {
+            foreach ($this->fields as $k => $f)
+            {
+                if (isset($f->extra) && $f->extra == "autoincrement" && (!isset($f->nativeautoincrement) || $f->nativeautoincrement != 1))
+                {
+                    $fields[] = $k;
+                }
+            }
+        }
+        foreach ($fields as $k)
+        {
+            $record = $this->dbQuery("SELECT `n` FROM `fn_sequences` WHERE " . $this->SequenceWhere($k));
+            if (empty($record))
+            {
+                continue;
+            }
+            $max = $this->GetMaxNumericId($k);
+            $this->dbQuery("UPDATE `fn_sequences` SET `n` = GREATEST(`n`, $max) WHERE " . $this->SequenceWhere($k));
+            $record = $this->dbQuery("SELECT `n` FROM `fn_sequences` WHERE " . $this->SequenceWhere($k));
+            if (isset($record[0]['n']))
+            {
+                $ret[$k] = intval($record[0]['n']) + 1;
+            }
+        }
+        return $ret;
     }
 }
 
