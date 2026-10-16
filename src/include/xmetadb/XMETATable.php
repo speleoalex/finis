@@ -497,6 +497,22 @@ class XMETATable extends \stdClass
         return $this->driverclass ? $this->driverclass->GetAutoincrement($field) : null;
     }
 
+    /**
+     * Moves the id counters past the highest id in the table, e.g. after
+     * records were inserted directly in the database (MySQL only).
+     *
+     * @param string|false $field false for every autoincrement field
+     * @return array field => next id
+     */
+    function SyncAutoincrement($field = false)
+    {
+        if ($this->driverclass && method_exists($this->driverclass, 'SyncAutoincrement'))
+        {
+            return $this->driverclass->SyncAutoincrement($field);
+        }
+        return array();
+    }
+
     function InsertRecord($values)
     {
         if (defined("XMETADB_DEBUG_FILE_LOG") && XMETADB_DEBUG_FILE_LOG)
