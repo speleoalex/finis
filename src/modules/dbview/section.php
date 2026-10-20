@@ -158,7 +158,9 @@ else
         // contenuti pubblici (groupview vuoto) ritorna true anche per l'anonimo: cosi' un crawler
         // (es. Amazonbot) poteva raggiungere op=edit/op=del. Se l'utente non puo' scrivere si forza
         // la sola visualizzazione.
-        $writeops = array("edit", "new", "del", "updaterecord", "insertrecord", "users", "admingroups", "offlineform");
+        // "offlineform" is not listed: it is a read-only download (GenOfflineUpdate checks
+        // CanViewRecord) and is the public channel to submit updates by email.
+        $writeops = array("edit", "new", "del", "updaterecord", "insertrecord", "users", "admingroups");
         if (in_array($op, $writeops, true) && !$dbview->CanEditRecords())
         {
             $op = "view";
