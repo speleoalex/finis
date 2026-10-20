@@ -742,7 +742,7 @@ class XMETATable extends \stdClass
         foreach ($newvalues as $key => $value)
         {
             $type = isset($this->fields[$key]) ? $this->fields[$key] : null;
-            if (isset($type->type) && ($type->type == 'file' || $type->type == 'image'))
+            if ($type !== null && xmetadb_is_file_field($type))
             {
                 // delete old file if a new one is being uploaded
                 $dirtable_oldvalue = false;

@@ -53,7 +53,12 @@ function xmetadb_frm($databasename, $tablename, $path = "misc", $lang = "en", $l
  * fk_show_field     : campo da visualizzare
  * title             : titolo
  * title_xx          : titolo tradotto
- * frm_type          : tipo di dato, file,image,text,string,check,html,password,separator(mostra solo il nome del campo)
+ * type              : SQL column type (varchar, char, text, mediumtext, longtext, int, tinyint,
+ *                     smallint, bigint, float, double, decimal, date, datetime, time, json);
+ *                     size = VARCHAR/CHAR length or DECIMAL "precision,scale". Any other value
+ *                     (string, check, image, ...) is a legacy widget name and creates VARCHAR(255)
+ * frm_type          : form widget (varchar, text, html, uppercase, check, radio, select, file,
+ *                     image, password, datetime, float, int, separator, ...); defaults to type
  * frm_help          : tooltip
  * frm_help_xx       : tooltip tradotto nella lingua xx
  * frm_checkon       : valore se il check ï¿½ settato
@@ -170,12 +175,7 @@ class FieldFrm extends stdClass
                     $classname = 'xmetadbfrm_field_' . $field['frm_type'];
                 else
                 {
-                    if (!empty($field['frm_type']) && isset($field['type']) && $field['type'] == "text")
-                        $classname = 'xmetadbfrm_field_text';
-                    elseif (!empty($field['frm_type']) && isset($field['type']) && $field['type'] == "file")
-                        $classname = 'xmetadbfrm_field_file';
-                    else
-                        $classname = 'xmetadbfrm_field_varchar';
+                    $classname = 'xmetadbfrm_field_varchar';
                 }
                 $param['fieldvalues'] = $field;
                 if (!class_exists($classname))
@@ -594,7 +594,7 @@ $frm_endgroupfooter
             }
             $tmp['options'] = &$options[$tmp['name'] . $tablename];
             if (!isset($tmp['frm_type']))
-                $tmp['frm_type'] = isset($tmp['type']) ? $tmp['type'] : "text";
+                $tmp['frm_type'] = isset($tmp['type']) ? xmetadb_default_frm_type($tmp['type']) : "text";
 
             $tmp['title'] = $this->i18n($record['name']);
 
@@ -1496,7 +1496,7 @@ $frm_endgroupfooter
         foreach ($this->formvals as $key => $value)
         {
 
-            if ((isset($value['type']) && ($value['type'] == 'check')) || (isset($value['frm_type']) && ($value['frm_type'] == 'check')))
+            if (xmetadb_frm_type($value) == 'check' || (isset($value['type']) && $value['type'] == 'check'))
             {
                 if (isset($_VAR["__check__$key"]) && !isset($_VAR["$key"]))
                 {
@@ -1512,7 +1512,7 @@ $frm_endgroupfooter
                 }
             }
             else
-            if (isset($value['type']) && ($value['type'] == 'image' || $value['type'] == 'file') && isset($_FILES[$key]['name']))
+            if (xmetadb_is_file_field($value) && isset($_FILES[$key]['name']))
             {
                 if (isset($_VAR["__isnull__$key"]) && $_VAR["__isnull__$key"] == "null")
                 {
@@ -1690,7 +1690,7 @@ $frm_endgroupfooter
                 $err .= $errsep . isset($errorMsg[$_FILES[$key]['error']]) ? XMETADB_i18n($errorMsg[$_FILES[$key]['error']]) : XMETADB_i18n("error");
                 $errsep = " - ";
             }
-            if ($value['type'] == 'image' && isset($_FILES[$key]['tmp_name']) && $_FILES[$key]['tmp_name'] != "")
+            if (xmetadb_frm_type($value) == 'image' && isset($_FILES[$key]['tmp_name']) && $_FILES[$key]['tmp_name'] != "")
             {
                 if (!function_exists("getimagesize"))
                     $err .= _FNNOGDINSTALL;
@@ -1707,7 +1707,7 @@ $frm_endgroupfooter
                 }
             }
             $skip_required_check = false;
-            if ($value['type'] == 'image' || $value['type'] == 'file')
+            if (xmetadb_is_file_field($value))
             {
                 if ($update == true)
                 {
@@ -1923,7 +1923,7 @@ $frm_endgroupfooter
             foreach ($this->formvals as $key => $field)
             {
                 $value = "";
-                if (!empty($field['type']) && $field['type'] == "image")
+                if (xmetadb_frm_type($field) == "image")
                 {
                     $ret['_url_' . $key] = $this->xmltable->get_file($rec, $field['name']);
                 }

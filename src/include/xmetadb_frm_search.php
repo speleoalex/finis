@@ -231,7 +231,7 @@ class xmetadb_searchform
         }
         foreach($this->xmetadb_frm->formvals as $key=> $value)
         {
-            if (isset($value['type'])&&($value['type']=='check'))
+            if (xmetadb_frm_type($value) == 'check')
             {
                 if (isset($postvalues["__check__$key"])&&!isset($postvalues["$key"]))
                 {

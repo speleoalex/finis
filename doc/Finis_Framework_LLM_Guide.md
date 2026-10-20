@@ -323,14 +323,14 @@ The table structure is defined in an XML format within each table file. The file
 ### Common Field Properties
 
 - `<name>`: The field name
-- `<type>`: The SQL data type (e.g., `check`, `decimal`, `datetime`, `image`)
-- `<frm_type>`: The form input type (e.g., `text`, `select`, `check`, `password`, `datetime`)
+- `<type>`: The SQL column type (`varchar`, `char`, `text`, `int`, `double`, `decimal`, `datetime`, `date`, ...). Legacy widget names (`string`, `check`, `image`) create `VARCHAR(255)`
+- `<frm_type>`: The form widget (e.g., `text`, `select`, `check`, `image`, `password`, `datetime`); defaults to `<type>`
 - `<frm_i18n>`: The translatable label for forms
 - `<frm_required>`: Whether the field is required in forms (1 or 0)
 - `<frm_show>`: Whether to show in forms (1 or 0)
 - `<frm_setonlyadmin>`: Only admins can set this field (1 or 0)
 - `<frm_allowupdate>`: Control update permissions (`0`, `1`, `onlyadmin`)
-- `<size>`: Maximum field size for VARCHAR fields
+- `<size>`: Length of VARCHAR/CHAR columns (default 255), `"precision,scale"` for DECIMAL
 - `<defaultvalue>`: Default value for the field
 - `<unique>`: Whether the field must be unique (1 or 0)
 - `<primarykey>`: Whether this is a primary key (1 or 0)

@@ -111,7 +111,7 @@ trait FNDBVIEWCRUD
                     break;
                 }
                 if (isset($newvalues[$k]) && $newvalues[$k] != "" && $oldvalues[$k] == $newvalues[$k] &&
-                    ($Table->xmltable->fields[$k]->type == "file" || $Table->xmltable->fields[$k]->type == "image")) {
+                    xmetadb_is_file_field($Table->xmltable->fields[$k])) {
                     $filename = $Table->xmltable->getFilePath($oldvalues, $k);
                     if (filesize($filename) != filesize($_FILES[$k]['tmp_name'])) {
                         $toupdate = true;
@@ -163,7 +163,7 @@ trait FNDBVIEWCRUD
         $tv = FN_XMDBTable($tablename . "_versions");
 
         foreach ($Table->xmltable->fields as $k => $v) {
-            if (($v->type == "file" || $v->type == "image") && $oldvalues[$k] != "") {
+            if (xmetadb_is_file_field($v) && $oldvalues[$k] != "") {
                 $oldfile = $Table->xmltable->getFilePath($oldvalues, $k);
                 $_FILES[$k]['name'] = $oldvalues[$k];
                 $_FILES[$k]['tmp_name'] = $oldfile;

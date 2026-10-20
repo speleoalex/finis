@@ -117,7 +117,7 @@ function FNCC_ManageEditRegister($user = "", $formaction = "", $urlcancel = "", 
         {
             foreach ($form->formvals as $key => $fieldvalue)
             {
-                if (isset($fieldvalue['type']) && ($fieldvalue['type'] == 'image' || $fieldvalue['type'] == 'file'))
+                if (xmetadb_is_file_field($fieldvalue))
                 {
                     if (isset($_FILES[$key]['name']))
                     {

@@ -384,7 +384,7 @@ class FNDBVIEW
         $findtextquery = "";
         $tmpmethod = "";
         foreach ($t->xmltable->fields as $fieldstoread => $fieldvalues) {
-            if ($fieldstoread != "insert" && $fieldstoread != "update" && $fieldstoread != "id" && $fieldstoread != "id" && $fieldvalues->type != "check") {
+            if ($fieldstoread != "insert" && $fieldstoread != "update" && $fieldstoread != "id" && $fieldstoread != "id" && xmetadb_frm_type($fieldvalues) != "check") {
                 foreach ($listfind as $f) {
                     if ($f != "") {
                         if (isset($fieldvalues->foreignkey) && isset($fieldvalues->fk_link_field)) {
