@@ -226,6 +226,13 @@ else
                 {
                     $html .= $dbview->UpdateRecord($Table); // esegue aggiornamento record
                 }
+                // Both branches render the edit form again: include the same
+                // section hook used by op=edit so the form keeps its additions
+                // (e.g. the record validator banner) after saving.
+                if (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/bottom_edit.php"))
+                {
+                    include ("{$_FN['src_application']}/sections/{$_FN['mod']}/bottom_edit.php");
+                }
                 break;
             case "insertrecord" : // esegue inserimento record
                 break;
