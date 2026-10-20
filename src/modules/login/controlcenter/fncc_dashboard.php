@@ -7,7 +7,7 @@
  */
 defined( '_FNEXEC' ) or die( 'Restricted access' );
 global $_FN;
-$DB = new XMETADatabase("fndatabase", $_FN['datadir']);
+$DB = new XMETADatabase($_FN['database'], $_FN['datadir'], FN_setCommonParams());
 //FN_LoadMessagesFolder("{$_FN['src_application']}/sections/login/");
 //published
 echo "<b>".FN_Translate("users").":</b><br />";

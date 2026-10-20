@@ -28,7 +28,7 @@ function FNSEARCH_module_dbview($tosearch_array,$method,$sectionvalues,$maxres)
     $dbview = new FNDBVIEW($config);
     $tablename=$config['tables'];
     $Table=FN_XMDBTable($tablename);
-    $DB=new XMETADatabase($_FN['database'],$_FN['datadir']);
+    $DB=new XMETADatabase($_FN['database'],$_FN['datadir'],FN_setCommonParams());
     //--search query ---------------------------------------------------------->
     $query="SELECT * FROM $tablename WHERE  ";
     $tmpmethod="";
