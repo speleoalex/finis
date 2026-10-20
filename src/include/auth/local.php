@@ -1010,7 +1010,39 @@ function FN_GetUserByApiKey($apikey)
         return null;
     if (empty($uservalues['active']) || $uservalues['active'] != 1)
         return null;
+    if (!FN_UserCanUseApiKey($uservalues))
+        return null;
     return $uservalues;
+}
+
+/**
+ * Tell whether a user may use an API key. By default everybody can; when
+ * $_FN['apikey_groups'] is set (comma separated groups) only the administrators
+ * and the members of those groups can: the key of the other users is refused
+ * and is not shown in the profile.
+ *
+ * @global array $_FN
+ * @param string|array $user username or user values
+ * @return bool
+ */
+function FN_UserCanUseApiKey($user)
+{
+    global $_FN;
+    if (empty($_FN['apikey_groups']))
+        return true;
+    $uservalues = is_array($user) ? $user : FN_GetUser($user, false);
+    if (empty($uservalues['username']))
+        return false;
+    if (!empty($uservalues['level']) && $uservalues['level'] >= 10)
+        return true;
+    $usergroups = array_map("trim", explode(",", isset($uservalues['group']) ? $uservalues['group'] : ""));
+    foreach (explode(",", $_FN['apikey_groups']) as $group)
+    {
+        $group = trim($group);
+        if ($group != "" && in_array($group, $usergroups))
+            return true;
+    }
+    return false;
 }
 
 /**
@@ -1057,6 +1089,8 @@ function FN_ProfileApiKey($user, &$tplvars)
     $tplvars['apikey_message'] = "";
     $tplvars['mcp_url'] = FN_GetMcpUrl();
     if ($user == "" || $user != $_FN['user'])
+        return;
+    if (!FN_UserCanUseApiKey($user))
         return;
     if (!empty($_POST['regenerate_apikey']))
     {

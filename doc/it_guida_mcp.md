@@ -39,6 +39,21 @@ Nelle installazioni esistenti il campo `apikey` viene aggiunto automaticamente a
 definizione della tabella `fn_users` (`FN_EnsureUserApiKeyField()`); con il driver MySQL
 la colonna viene creata alla prima scrittura.
 
+### Limitare le chiavi API ad alcuni utenti
+
+Di default ogni utente può usare la propria chiave. Per consentirla solo ad alcuni utenti
+si indicano i gruppi in `config.php` (o in un file `extra/*.inc.php` dell'applicazione):
+
+```php
+$_FN['apikey_groups'] = "mcp_users";   // gruppi separati da virgola, "" = tutti gli utenti
+```
+
+Da quel momento solo gli amministratori (livello 10) e i membri di quei gruppi possono
+usare una chiave API: le chiavi degli altri utenti sono rifiutate ovunque (endpoint MCP,
+accesso al sito con l'header) e la pagina del profilo non mostra né genera la chiave. Il
+controllo è `FN_UserCanUseApiKey($user)`. Per abilitare un utente basta aggiungerlo a uno
+dei gruppi.
+
 ## Endpoint
 
 ```
