@@ -693,7 +693,8 @@ function FNREG_ManageRegister($actionform = "")
     $newvalues['group'] = implode(",", $insgroup);
     $errors = array();
 
-    if (empty($_REQUEST['__NOSAVE']) && empty($_REQUEST['fnlogin']))
+    //the resend of the registration code (op=send_code) also posts the username: it is not a registration
+    if ($op != "send_code" && empty($_REQUEST['__NOSAVE']) && empty($_REQUEST['fnlogin']))
         if (isset($_POST['email']) || isset($_POST[$username_field]))
         {
 
