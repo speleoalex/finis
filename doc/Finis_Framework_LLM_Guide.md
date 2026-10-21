@@ -403,7 +403,9 @@ Helpers in `src/include/auth/local.php`; the login module
     session (`session_oauth_state`, single use) and refuses callbacks without it. When the
     provider returns `email_verified` or `verified_email`, it must be true. The return url
     `session_oauth_returnurl` is followed only if `FN_IsInternalUrl($url)` (under
-    `$_FN['siteurl']`, or relative without scheme).
+    `$_FN['siteurl']`, or relative without scheme). Session reads take `fnsid` from the url
+    first, writes only from the cookie: OAuth requests with a `fnsid` in the url that differs
+    from the cookie are refused, so another browser's state or access token is never used.
 *   **Random values**: tokens, captcha codes and generated passwords use `random_bytes` or
     `random_int`; do not use `rand`, `mt_rand` or `uniqid` for anything secret (the session
     id `fnsid` still comes from `uniqid`).
