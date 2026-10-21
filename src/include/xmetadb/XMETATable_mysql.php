@@ -713,7 +713,7 @@ class XMETATable_mysql extends \stdClass
                     }
                     else
                     {
-                        if ($this->fields[$k]->type == "int" && $v !== '' && $v !== NULL)
+                        if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$v"))
                             $tf[] = $v;
                         else
                             $tf[] = "'" . $this->conn->real_escape_string($v) . "'";
@@ -790,7 +790,7 @@ class XMETATable_mysql extends \stdClass
                 }
                 else
                 {
-                    if ($this->fields[$k]->type == "int")
+                    if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$v"))
                         $tf[] = $v;
                     else
                         $tf[] = "'" . $this->conn->real_escape_string($v) . "'";
@@ -854,7 +854,7 @@ class XMETATable_mysql extends \stdClass
                         }
                         else
                         {
-                            if ($this->fields[$k]->type == "int")
+                            if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$value"))
                                 $query .= $this->conn->real_escape_string($value);
                             else
                                 $query .= "'" . $this->conn->real_escape_string($value) . "'";
@@ -914,7 +914,7 @@ class XMETATable_mysql extends \stdClass
                         }
                         else
                         {
-                                if ($this->fields[$k]->type == "int")
+                                if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$value"))
                                     $query .= $this->conn->real_escape_string($value);
                                 else
                                     $query .= "'" . $this->conn->real_escape_string($value) . "'";

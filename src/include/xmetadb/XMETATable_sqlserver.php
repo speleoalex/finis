@@ -767,7 +767,7 @@ class XMETATable_sqlserver extends \stdClass
                     }
                     else
                     {
-                        if ($this->fields[$k]->type == "int" && $v!== '' && $v!== NULL)
+                        if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/',"$v"))
                             $tf[]=$v;
                         else
                         {
@@ -860,7 +860,7 @@ class XMETATable_sqlserver extends \stdClass
                     }
                     else
                     {
-                        if ($this->fields[$k]->type == "int")
+                        if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/',"$value"))
                             $query.=$this->encode($value);
                         else
                             $query.="'".$this->encode($value)."'";

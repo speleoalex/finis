@@ -632,7 +632,7 @@ class XMETATable_sqlite3 extends \stdClass
                         else
                         {
                             if ($this->fields[$k]->type == "int")
-                                $query .= \SQLite3::escapeString($value);
+                                $query .= intval($value);
                             else
                                 $query .= "'" . \SQLite3::escapeString($value) . "'";
                         }
