@@ -707,9 +707,11 @@ function FN_DeleteUser($user)
         {
             FN_OnDeleteUser($uservalues);
         }
-        if (file_exists("{$_FN['datadir']}/fndatabase/fn_users/" . $user))
+        //folder with the files of the user: only the folder named as the user right inside fn_users (no "..", "." or links)
+        $userdir = realpath("{$_FN['datadir']}/fndatabase/fn_users/" . $user);
+        if ($userdir && is_dir($userdir) && basename($userdir) == $user && dirname($userdir) == realpath("{$_FN['datadir']}/fndatabase/fn_users"))
         {
-            remove_dir_rec("{$_FN['datadir']}/fndatabase/fn_users/" . $user);
+            FN_RemoveDir($userdir);
         }
     }
 }
