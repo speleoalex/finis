@@ -38,10 +38,11 @@ Esempio:
 ```php
 require_once "path/to/FINIS.php";
 $FINIS = new FINIS(array(
-    "src_application" => ".",
-    "display_errors" => "on"
+    "src_application" => "."
 ));
 ```
+
+Le opzioni che `src/include/config.vars.php` imposta (come `display_errors`) vengono sovrascritte da quel file: vanno impostate in `config.vars.local.php`.
 
 #### Metodi Principali
 

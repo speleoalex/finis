@@ -196,6 +196,14 @@ if (FN_UserInGroup('admin', 'administrators')) {
 *   `FN_Redirect($url)`: Redirects the user to another URL.
 *   `FN_FromTheme($file, $absolute = true)`: Returns the path of a file in the current theme.
 
+## Error display
+
+`$_FN['display_errors']` is "off" in `src/include/config.vars.php`: set it to "on" in the site's
+`config.vars.local.php` while developing (a value passed to `new FINIS(array(...))` is overwritten
+by `config.vars.php`). With "off", `website.php` also discards what is printed outside the theme
+template, e.g. an `echo` in an autoexec script. The control center and the file manager always
+display errors.
+
 # Database
 
 The application uses a custom XML-based database system called `xmetadb`. The database files are located in the `misc/fndatabase/` directory. Each `.php` file in this directory represents a table.

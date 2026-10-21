@@ -6,8 +6,8 @@ $_FN['xmetadb_mysqlhost'] = "localhost";
 $_FN['xmetadb_mysqldatabase'] = "fndatabase";
 $_FN['xmetadb_mysqlusername'] = "root";
 $_FN['xmetadb_mysqlpassword'] = "";
-//display error
-$_FN['display_errors'] = "on";
+//display errors ("on" only while developing, in config.vars.local.php)
+$_FN['display_errors'] = "off";
 //max upload file size
 $_FN['upload_max_filesize'] = "20M";
 //writable folder that contains data
