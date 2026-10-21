@@ -640,15 +640,7 @@ class XMETATable_sqlite3 extends \stdClass
                             $query .= ",";
                     }
                 }
-                $query .= " WHERE $pkey=";
-                if ($this->fields[$pkey]->type == "int")
-                {
-                    $query .= "$pvalue ";
-                }
-                else
-                {
-                    $query .= "'$pvalue' ";
-                }
+                $query .= " WHERE $pkey='" . \SQLite3::escapeString($pvalue) . "' ";
                 $ret = $this->dbQuery($query);
                 $this->gestfiles($values, $oldvalues);
                 if (!$ret)

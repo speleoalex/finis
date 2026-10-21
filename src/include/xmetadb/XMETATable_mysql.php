@@ -863,11 +863,7 @@ class XMETATable_mysql extends \stdClass
                             $query .= ",";
                     }
                 }
-                $query .= " WHERE `$pkey`LIKE ";
-                if ($this->fields[$pkey]->type == "int")
-                    $query .= "$pvalue ";
-                else
-                    $query .= "'$pvalue' ";
+                $query .= " WHERE `$pkey` LIKE '" . $this->conn->real_escape_string(xmetadb_escape_like($pvalue)) . "' ESCAPE '!' ";
                 $ret = $this->dbQuery($query);
                 $this->gestfiles($values, $oldvalues);
                 if (!$ret)
@@ -927,11 +923,7 @@ class XMETATable_mysql extends \stdClass
                                 $query .= ",";
                         }
                     }
-                    $query .= " WHERE `$pkey`=";
-                    if ($this->fields[$pkey]->type == "int" || $this->fields[$pkey]->type == "float")
-                    $query .= "$pvalue ";
-                else
-                    $query .= "'$pvalue' ";
+                $query .= " WHERE `$pkey`='" . $this->conn->real_escape_string($pvalue) . "' ";
 
                 $ret = $this->dbQuery($query);
                 if (!$ret)
