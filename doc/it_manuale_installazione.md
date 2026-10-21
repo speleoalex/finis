@@ -54,6 +54,10 @@ $_FN['display_errors'] = "on"; // impostare su "off" in produzione
 // Metodo di autenticazione (in include/auth/)
 $_FN['default_auth_method'] = "local";
 
+// Dietro un reverse proxy: i suoi indirizzi IP, separati da virgola, perché il limite
+// dei tentativi di login legga l'indirizzo del client da X-Forwarded-For ("" = nessun proxy)
+$_FN['trusted_proxies'] = "";
+
 // Configurazione per MySQL:
 $_FN['default_database_driver'] = "mysql";
 $_FN['xmetadb_mysqlhost'] = "localhost";

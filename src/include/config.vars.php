@@ -16,6 +16,8 @@ $_FN['datadir'] = "misc";
 $_FN['default_auth_method'] = "local";
 //groups allowed to use an API key (MCP, API clients), comma separated; empty = every user, administrators always
 $_FN['apikey_groups'] = "";
+//reverse proxies trusted for the client address in X-Forwarded-For, comma separated IP addresses; empty = the client is REMOTE_ADDR
+$_FN['trusted_proxies'] = "";
 //default driver: xmlphp,sqlite3,sqlite,csv,serialize,mysql,mssql
 $_FN['default_database_driver'] = "xmlphp";
 //home section that overrides the control center setting (empty = use the setting)

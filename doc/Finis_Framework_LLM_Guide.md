@@ -405,6 +405,13 @@ Helpers in `src/include/auth/local.php`; the login module
     keeps the time) the counters not updated in it are removed. `FN_LoginResetAttempts($user)`
     runs after a successful login. A locked out login gets the usual generic error and one
     `FN_Log` entry.
+*   **Client IP**: `FN_GetClientIp()` gives the address used by the limiter. It is
+    `REMOTE_ADDR`, unless that is one of `$_FN['trusted_proxies']`: then it is the last
+    address in `X-Forwarded-For` not added by a trusted proxy (the addresses on the left are
+    sent by the client and can be forged). Behind a reverse proxy, without the key all the
+    clients share the address of the proxy, so anyone can lock out a username for everybody.
+    The lockout log entry names the client address; the `ip` field of `fn_log` and the other
+    modules still record `REMOTE_ADDR`.
 *   **Captcha**: the session key `captcha` is an array with one code per form, drawn by
     `fnapp=captcha&t=<name>`: `fnlogin_code` for the login when `$_FN['enable_captcha']`,
     `security_code` for the registration when `enable_captcha` is set in the login module
@@ -446,6 +453,7 @@ Configuration keys (in `config.vars.local.php`, defaults in the code):
 | `recovery_link_minutes` | 60 | validity of a password recovery link |
 | `login_max_attempts` | 5 | login attempts allowed per username and IP |
 | `login_lockout_minutes` | 15 | time window of the attempts, and longest lockout |
+| `trusted_proxies` | "" | reverse proxies whose `X-Forwarded-For` is trusted: IP addresses, comma separated or an array (no ranges) |
 
 ## API keys and MCP server
 

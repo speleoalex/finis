@@ -75,6 +75,40 @@ function FN_IsHttps()
 }
 
 /**
+ * IP address of the client. Behind a reverse proxy REMOTE_ADDR is the address
+ * of the proxy: when it is in $_FN['trusted_proxies'] (IP addresses, comma
+ * separated or an array) the client is the last address in X-Forwarded-For
+ * not added by a trusted proxy. Without trusted proxies the header is ignored,
+ * since any client can send it.
+ *
+ * @global array $_FN
+ * @return string
+ */
+function FN_GetClientIp()
+{
+    global $_FN;
+    $ip = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
+    $proxies = !empty($_FN['trusted_proxies']) ? $_FN['trusted_proxies'] : array();
+    if (!is_array($proxies))
+        $proxies = explode(",", $proxies);
+    $proxies = array_filter(array_map("trim", $proxies));
+    if (in_array($ip, $proxies, true) && !empty($_SERVER['HTTP_X_FORWARDED_FOR']) && is_string($_SERVER['HTTP_X_FORWARDED_FOR']))
+    {
+        //each proxy appends the address the request comes from: the addresses on the left can be forged
+        foreach (array_reverse(explode(",", $_SERVER['HTTP_X_FORWARDED_FOR'])) as $hop)
+        {
+            $hop = trim($hop);
+            if (!filter_var($hop, FILTER_VALIDATE_IP))
+                break;
+            $ip = $hop;
+            if (!in_array($hop, $proxies, true))
+                break;
+        }
+    }
+    return $ip;
+}
+
+/**
  * True when the url points to this site: an absolute url under $_FN['siteurl']
  * or a relative url without scheme and host.
  * Check it before a redirect, so that it cannot lead to another site.
@@ -100,7 +134,8 @@ function FN_IsInternalUrl($url)
 }
 
 /**
- * File that keeps the recent login attempts of a username from the client IP.
+ * File that keeps the recent login attempts of a username from the client IP
+ * (FN_GetClientIp()).
  * It is in {datadir}/_login_attempts, not in the cache folder: FN_ClearCache()
  * does not reset the counters.
  *
@@ -111,7 +146,7 @@ function FN_IsInternalUrl($url)
 function FN_LoginAttemptsFile($user)
 {
     global $_FN;
-    $ip = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
+    $ip = FN_GetClientIp();
     return "{$_FN['datadir']}/_login_attempts/" . hash('sha256', $user . '|' . $ip) . ".cache";
 }
 
@@ -171,7 +206,7 @@ function FN_LoginAttempt($user)
     {
         //log once for each lockout
         FN_Write(implode("\n", $attempts) . "\nlocked", $file);
-        FN_Log("User $user locked out for $minutes minutes after $max failed logins from " . FN_GetParam("REMOTE_ADDR", $_SERVER, "html"));
+        FN_Log("User $user locked out for $minutes minutes after $max failed logins from " . FN_GetClientIp());
     }
     FN_UnlockFile($file);
     return $allowed;
