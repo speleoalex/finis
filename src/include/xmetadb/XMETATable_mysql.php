@@ -573,7 +573,7 @@ class XMETATable_mysql extends \stdClass
                 return false;
             }
             #$this->conn->select_db ($this->mysqldatabasename);
-            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string($pvalue) . "'";
+            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string(xmetadb_escape_like($pvalue)) . "' ESCAPE '!'";
             $result = $this->dbQuery($query);
             if (!isset($result[0]))
             {

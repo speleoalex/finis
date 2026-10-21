@@ -427,7 +427,7 @@ class XMETATable_sqlite3 extends \stdClass
         {
             if (!$this->conn)
                 die("error connection");
-            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . \SQLite3::escapeString($pvalue) . "'";
+            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . \SQLite3::escapeString(xmetadb_escape_like($pvalue)) . "' ESCAPE '!'";
             $result = $this->dbQuery($query);
             if (!isset($result[0]))
             {
