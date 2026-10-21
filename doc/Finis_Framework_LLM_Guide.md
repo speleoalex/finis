@@ -374,6 +374,26 @@ $query = "SELECT * FROM fn_users WHERE level > 5 ORDER BY username";
 $high_level_users = FN_XMETADBQuery($query);
 ```
 
+### Matching in the SQL drivers
+
+*   **Primary key**: `GetRecordByPk()`, `DelRecord()` and `UpdateRecordBypk()` of the `mysql`,
+    `sqlite3` and `sqlserver` drivers (and `UpdateRecordFast()` of `mysql`) touch only the
+    record with exactly that key: the value is always quoted and escaped, and `%` and `_` are
+    escaped (`xmetadb_escape_like()` with `ESCAPE '!'`, brackets on SQL Server). The case
+    follows the database: MySQL tables (`utf8_bin`) are case sensitive, the default SQL
+    Server collations are not, SQLite ignores the case of ASCII letters in `GetRecordByPk()`
+    and `DelRecord()` (`LIKE`) but not in `UpdateRecordBypk()` (`=`).
+*   **Restrictions**: a filter passed to `GetRecords($restr)` or `GetNumRecords($restr)` is
+    still a `LIKE` pattern on the SQL drivers (`_` and `%` in the value are wildcards), while
+    `xmlphp` compares the value exactly and reads a leading or trailing `%` as a wildcard
+    that ignores the case. When a value from the request must find one record, compare the
+    field again on the result: the OAuth login does it on the email (`strcasecmp`),
+    `FN_GetUserByApiKey()` on the key (`hash_equals`).
+*   **`int` fields**: the SQL drivers write their values without quotes: the updates escape
+    them, `InsertRecord()` of `mysql` and `sqlserver` does not even escape them (`sqlite3`
+    casts them with `intval`). Neither `GetByPost()` nor `Verify()` checks that they are
+    numbers: cast a value from the request (`intval`) before saving it.
+
 ## Main Tables
 
 *   `fn_users`: Stores user information.
@@ -454,7 +474,9 @@ Helpers in `src/include/auth/local.php`; the login module
     logged and the user is not sent to the provider again. When the
     provider returns `email_verified` or `verified_email`, it must be true. The return url
     `session_oauth_returnurl` is followed only if `FN_IsInternalUrl($url)` (under
-    `$_FN['siteurl']`, or relative without scheme).
+    `$_FN['siteurl']`, or relative without scheme). The user logged in is the one whose
+    `email` is exactly the address given by the provider, ignoring the case (`_` and `%` are
+    not wildcards); without one, a new user is created when `$_FN['enable_registration']`.
 *   **Random values**: tokens, captcha codes and generated passwords use `random_bytes` or
     `random_int`; do not use `rand`, `mt_rand` or `uniqid` for anything secret.
 
