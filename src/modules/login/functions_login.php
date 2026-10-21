@@ -19,6 +19,7 @@ function FNREG_ManageRecovery()
     $config = FN_LoadConfig("{$_FN['src_finis']}/modules/login/config.php");
     $form = FN_GetUserForm();
     $username_field = empty($form->fieldname_user) ? "username" : $form->fieldname_user;
+    $active_field = empty($form->fieldname_active) ? "username" : $form->fieldname_active;
     $recovery_minutes = !empty($_FN['recovery_link_minutes']) ? intval($_FN['recovery_link_minutes']) : 60;
     $postuser = FN_GetParam("username", $_REQUEST, "html");
     $getuser = FN_GetParam("user", $_REQUEST, "html");
@@ -36,6 +37,11 @@ function FNREG_ManageRecovery()
         if (!$uservalues)
         {
             FN_Log("Password recovery requested for unknown user $postuser");
+        }
+        elseif (empty($uservalues[$active_field]) && isset($uservalues['rnd']) && preg_match('/^[0-9a-f]{32}$/', $uservalues['rnd']))
+        {
+            //keep the code of a registration waiting for confirmation: the recovery token would replace it
+            FN_Log("Password recovery requested for user $postuser waiting for the registration confirmation");
         }
         else
         {
@@ -544,17 +550,24 @@ function FNREG_ManageRegister($actionform = "")
         $tplvalues['error'] = false;
         $tplvalues['formaction'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=send_code");
         $user = trim(ltrim(FN_GetParam("username", $_REQUEST, "html")));
+        //the same answer for any username: it must not tell which users exist, nor their email address
+        $resendvalues = $tplvalues;
+        $resendvalues['message'] = "<br /><br />" . FN_Translate("if the registration is waiting for confirmation, an email has been sent with the instructions to complete it") . "<br />" . FN_Translate("check your inbox");
         if ($user)
         {
             $uservalues = FN_GetUser($user);
-            $email = $uservalues['email'];
-            if ($uservalues)
+            //only a registration waiting for confirmation: user not active with the registration code (32 hex)
+            if ($uservalues && empty($uservalues[$active_field]) && isset($uservalues['rnd']) && preg_match('/^[0-9a-f]{32}$/', $uservalues['rnd']))
             {
+                $email = $uservalues['email'];
                 $sendRegistrationCode = true;
             }
             else
             {
-                $tplvalues['error'] = FN_Translate("the email address entered does not match any user");
+                FN_Log("Registration code not sent to $user: no registration waiting for confirmation");
+                echo FN_TPL_ApplyTplFile($tplfile, $resendvalues);
+                $_FN['return'] = $resendvalues;
+                return false;
             }
         }
         if (!$sendRegistrationCode)
@@ -804,12 +817,19 @@ function FNREG_ManageRegister($actionform = "")
         {
 
             $tplvalues['message'] .= FN_Translate("the system failed to send the confirmation email");
+            FN_Log("Registration code not sent to $name: mail error");
         }
         else
         {
             $tplvalues['message'] .= "<br /><br />" . FN_Translate("it has been sended one email to you to the address") . " " . htmlentities($newvalues['email']) . " " . FN_i18n("with the instructions to complete the registration") . "<br />";
             $tplvalues['message'] .= FN_Translate("check your inbox");
 //            $tplvalues['message'].="<br /><br /><div ><a href=\"".FN_RewriteLink("index.php")."\" >".FN_Translate("next")." &gt;&gt;&gt;</a></div>";
+        }
+        if ($op == "send_code")
+        {
+            //resend: the same answer given for any other username
+            $tplvalues = $resendvalues;
+            $_FN['return'] = $resendvalues;
         }
         echo FN_TPL_ApplyTplFile($tplfile, $tplvalues);
         return false;

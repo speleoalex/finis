@@ -412,6 +412,13 @@ Helpers in `src/include/auth/local.php`; the login module
     `recovery_link_minutes`), registration confirmation stores `<32 hex>` (single use). One
     is never accepted in place of the other, both are compared with `hash_equals`, and
     recovery answers the same way for existing and unknown users.
+*   **Registration code**: kept only while the registration waits for confirmation (user
+    not active, `rnd` of 32 hex). `FN_UpdateUser()` clears it when the user is activated
+    (confirmation, control center, api) or an active user is deactivated, unless the same
+    update sets `rnd`; recovery leaves it as it is and sends no token. The resend
+    (`op=send_code`) mails the same code only to such a user, and answers with the same page
+    and `$_FN['return']` for any username, without the email address. Old 5 character codes
+    are not resent: an administrator activates the user.
 *   **OAuth**: `FN_ManageLoginWithOpenAuthentication()` sends a random `state` kept in the
     session (`session_oauth_state`, single use) and refuses callbacks without it. When the
     provider returns `email_verified` or `verified_email`, it must be true. The return url

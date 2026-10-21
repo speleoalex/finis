@@ -732,6 +732,18 @@ function FN_UpdateUser($user, $newvalues, $password = "")
             unset($newvalues['passwd']);
         }
         $table = FN_GetUserForm();
+        //the registration code (32 hex) is needed only until the first activation: a user activated
+        //without it (control center, api) or deactivated after the activation must not keep it,
+        //otherwise the code would activate the user again
+        $active_field = empty($table->fieldname_active) ? "active" : $table->fieldname_active;
+        if (isset($newvalues[$active_field]) && !isset($newvalues['rnd']))
+        {
+            $oldvalues = $table->xmltable->GetRecordByPrimaryKey($newvalues['username']);
+            if (isset($oldvalues['rnd']) && preg_match('/^[0-9a-f]{32}$/', $oldvalues['rnd']) && (!empty($newvalues[$active_field]) || !empty($oldvalues[$active_field])))
+            {
+                $newvalues['rnd'] = "";
+            }
+        }
         //dprint_r($newvalues);
         $newvalues = $table->UpdateRecord($newvalues);
         if ($newvalues && function_exists("FN_OnUpdateUser"))
