@@ -1766,6 +1766,27 @@ $frm_endgroupfooter
                 }
                 else
                     $t = $this->xmltable->GetRecords($restr);
+                //GetRecords of the SQL drivers uses LIKE (_ and % are wildcards): keep only the records with these exact values (whether the case counts is left to the driver)
+                $found = array();
+                if (is_array($t))
+                {
+                    foreach ($t as $record)
+                    {
+                        $same = true;
+                        foreach ($restr as $rk => $rv)
+                        {
+                            if (strcasecmp(isset($record[$rk]) ? "{$record[$rk]}" : "", "$rv") != 0)
+                            {
+                                $same = false;
+                            }
+                        }
+                        if ($same)
+                        {
+                            $found[] = $record;
+                        }
+                    }
+                }
+                $t = $found;
                 if (is_array($t) && count($t) > 0)
                 {
 
