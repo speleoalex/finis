@@ -1068,6 +1068,19 @@ function FN_ManageLoginWithOpenAuthentication()
     if ($user_email)
     {
         $users = FN_GetUsers(array("email" => $user_email));
+        //in the filter _ and % are wildcards (LIKE): keep only this email, ignoring the case
+        $found = array();
+        if (is_array($users))
+        {
+            foreach ($users as $user)
+            {
+                if (isset($user['email']) && strcasecmp("{$user['email']}", "$user_email") == 0)
+                {
+                    $found[] = $user;
+                }
+            }
+        }
+        $users = $found;
         if ($users)
         {
             $uservalues = $users[0];
