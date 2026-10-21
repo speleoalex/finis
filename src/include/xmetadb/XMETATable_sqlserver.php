@@ -459,6 +459,17 @@ class XMETATable_sqlserver extends \stdClass
     }
 
     /**
+     * escapes the LIKE wildcards
+     *
+     * @param string $str
+     * @return string
+     */
+    function EscapeLike($str)
+    {
+        return strtr("$str",array("["=> "[[]","%"=> "[%]","_"=> "[_]"));
+    }
+
+    /**
      * get records in table
      *
      * @param array $restr
@@ -603,22 +614,14 @@ class XMETATable_sqlserver extends \stdClass
                   $query .= " $pvalue ";
                   else
                   $query .= " '$pvalue' "; */
-                $query.=" $sep [$k] LIKE ";
-                if ($this->fields[$k]->type == "int")
-                    $query.=" $p ";
-                else
-                    $query.=" '$p' ";
+                $query.=" $sep [$k] LIKE '".$this->AddSlashes($this->EscapeLike($p))."' ";
                 $sep="AND";
             }
         }
         else
         {
             $pkey=$this->primarykey;
-            $query="[$pkey] LIKE ";
-            if ($this->fields[$pkey]->type == "int")
-                $query.=" $pvalue ";
-            else
-                $query.=" '$pvalue' ";
+            $query="[$pkey] LIKE '".$this->AddSlashes($this->EscapeLike($pvalue))."' ";
         }
         return $query;
     }
@@ -898,7 +901,7 @@ class XMETATable_sqlserver extends \stdClass
             $and="";
             foreach($restr as $h=> $v)
             {
-                $query.=" $and [$h] LIKE '$v' ";
+                $query.=" $and [$h] LIKE '".$this->AddSlashes($v)."' ";
                 $and="AND";
             }
         }
