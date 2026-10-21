@@ -434,6 +434,9 @@ Helpers in `src/include/auth/local.php`; the login module
     registration, the resend of the code and the password recovery lowercase the typed name,
     unless `$_FN['username_case_sensitive']` is set: then names are saved and looked up as
     typed. The registration mails the code saved with the user to the address saved with it.
+    A username made only of dots (`.`, `..`) is refused: with the `xmlphp` driver it would
+    name the folder of the users or its parent. `FN_AddUser()` returns false, and the
+    registration and the installer show "the value is not valid" on the field.
 *   **Tokens in `fn_users.rnd`**: password recovery stores `<32 hex>.<timestamp>` (valid
     `recovery_link_minutes`), registration confirmation stores `<32 hex>` (single use). One
     is never accepted in place of the other, both are compared with `hash_equals`, and
