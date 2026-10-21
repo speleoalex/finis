@@ -303,7 +303,7 @@ if (file_exists("{$_FN['datadir']}/firstinstall"))
                 echo "<h2>" . FN_Translate("please register the administrator") . "</h2>";
                 $newvalues ['passwd'] = "";
                 $tabuser->setlayoutTags("<b>", "</b><br />", "", "<br />");
-                $tabuser->ShowInsertForm(false, $newvalues);
+                $tabuser->ShowInsertForm(false, $newvalues, $err);
                 echo "<input type=\"hidden\" name=\"reg\" value=\"reg\" />";
                 FNINSTALLER_CloseInstallerBody();
                 echo "<button type=\"button\" onclick=\"window.location='?fnapp=install&step=" . ($step - 1) . "';\" >&#060;&#060; " . FN_Translate("back") . "</button>";
