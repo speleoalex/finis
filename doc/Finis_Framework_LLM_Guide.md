@@ -388,11 +388,14 @@ $high_level_users = FN_XMETADBQuery($query);
     `xmlphp` compares the value exactly and reads a leading or trailing `%` as a wildcard
     that ignores the case. When a value from the request must find one record, compare the
     field again on the result: the OAuth login does it on the email (`strcasecmp`),
-    `FN_GetUserByApiKey()` on the key (`hash_equals`).
-*   **`int` fields**: the SQL drivers write their values without quotes: the updates escape
-    them, `InsertRecord()` of `mysql` and `sqlserver` does not even escape them (`sqlite3`
-    casts them with `intval`). Neither `GetByPost()` nor `Verify()` checks that they are
-    numbers: cast a value from the request (`intval`) before saving it.
+    `FN_GetUserByApiKey()` on the key (`hash_equals`), the unique check of `Verify()` on the
+    fields of the filter (`strcasecmp`, so whether the case counts is still up to the driver).
+*   **`int` fields**: the `mysql` and `sqlserver` drivers write a value without quotes only
+    when it is an integer (`-?[0-9]+`); any other value is quoted and escaped, and the
+    database converts it or refuses it (MySQL rounds `1.5` to 2 and in strict mode refuses
+    `abc`, SQL Server refuses both). `sqlite3` casts the values with `intval`. Neither
+    `GetByPost()` nor `Verify()` checks that they are numbers: cast a value from the request
+    (`intval`) before saving it.
 
 ## Main Tables
 
@@ -457,6 +460,9 @@ Helpers in `src/include/auth/local.php`; the login module
     A username made only of dots (`.`, `..`) is refused: with the `xmlphp` driver it would
     name the folder of the users or its parent. `FN_AddUser()` returns false, and the
     registration and the installer show "the value is not valid" on the field.
+    `FN_AddUser()` returns true, and calls the hook `FN_OnAddUser()`, only when
+    `InsertRecord()` returns the saved record: an existing username is refused (`xmlphp`
+    returns an error string), except with the `serialize` driver, which overwrites it.
 *   **Tokens in `fn_users.rnd`**: password recovery stores `<32 hex>.<timestamp>` (valid
     `recovery_link_minutes`), registration confirmation stores `<32 hex>` (single use). One
     is never accepted in place of the other, both are compared with `hash_equals`, and
@@ -475,8 +481,13 @@ Helpers in `src/include/auth/local.php`; the login module
     provider returns `email_verified` or `verified_email`, it must be true. The return url
     `session_oauth_returnurl` is followed only if `FN_IsInternalUrl($url)` (under
     `$_FN['siteurl']`, or relative without scheme). The user logged in is the one whose
-    `email` is exactly the address given by the provider, ignoring the case (`_` and `%` are
-    not wildcards); without one, a new user is created when `$_FN['enable_registration']`.
+    `email` is exactly the address given by the provider (`_` and `%` are not wildcards; the
+    case is ignored only where the filter of the driver ignores it: `sqlite3` and the
+    default SQL Server collations, not `mysql` and `xmlphp`). Without one, a new user is
+    created when `$_FN['enable_registration']`, with the address as username (lowercase
+    unless `$_FN['username_case_sensitive']`), and logged in with the saved username. If it
+    is not created (e.g. another account already has that username), nobody is logged in
+    and the refusal is logged.
 *   **Random values**: tokens, captcha codes and generated passwords use `random_bytes` or
     `random_int`; do not use `rand`, `mt_rand` or `uniqid` for anything secret.
 
