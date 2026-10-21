@@ -817,8 +817,8 @@ function xmetadb_remove_dir_rec($dirtodelete)
 }
 
 /**
- * Removes the folder with the files of a record: only the folder named as the
- * primary key right inside the folder of the table (no ".", "..", "/" or links)
+ * Removes the folder with the files of a record, only if its real path is the
+ * folder of the table followed by the primary key (not ".", "..", "x/.." or a link)
  *
  * @param string $tablepath folder of the table
  * @param string $pkvalue primary key of the record
