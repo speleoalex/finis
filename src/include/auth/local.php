@@ -395,27 +395,47 @@ function FN_VerifyUserPassword($fnuser, $fnpwd)
     {
         return $_FN['FN_VerifyUserPassword']($fnuser, $fnpwd);
     }
-    $lpass = md5($fnpwd);
-    $us = FN_GetUser($fnuser);
-    $passwd = !empty($us['passwd']) ? $us['passwd'] : "";
-    if ($passwd == $lpass)
-        return true;
-    if ($passwd == $fnpwd)
-        return true;
-
-    if (function_exists("password_hash") && function_exists("password_verify"))
-    {
-
-        if (password_verify($fnpwd, $passwd))
-        {
-            return true;
-        }
-    }
-    else
+    if (!function_exists("password_hash") || !function_exists("password_verify"))
     {
         die("functions password_hash password_verify dont exists ");
     }
-    return false;
+    $us = FN_GetUser($fnuser);
+    $passwd = !empty($us['passwd']) ? $us['passwd'] : "";
+    if ($passwd === "" || $fnpwd === "")
+        return false;
+    $info = password_get_info($passwd);
+    //----modern hash: only password_verify (no pass-the-hash)---------------->
+    if (!empty($info['algo']))
+    {
+        if (!password_verify($fnpwd, $passwd))
+            return false;
+        if (password_needs_rehash($passwd, FN_AUTH_METHOD, array('cost' => FN_AUTH_COST)))
+        {
+            FN_UpdateUser($fnuser, array(), $fnpwd);
+        }
+        return true;
+    }
+    //----modern hash: only password_verify (no pass-the-hash)----------------<
+    //----legacy: md5, crypt() or plaintext, rehashed at the first login------>
+    if (preg_match('/^[0-9a-f]{32}$/i', $passwd))
+    {
+        $ok = hash_equals(strtolower($passwd), md5($fnpwd));
+    }
+    elseif ($passwd[0] == '$')
+    {
+        $ok = password_verify($fnpwd, $passwd);
+    }
+    else
+    {
+        $ok = hash_equals($passwd, (string) $fnpwd);
+    }
+    if ($ok)
+    {
+        FN_UpdateUser($fnuser, array(), $fnpwd);
+        FN_Log("User $fnuser: legacy password rehashed");
+    }
+    //----legacy: md5, crypt() or plaintext, rehashed at the first login------<
+    return $ok;
 }
 
 /**
