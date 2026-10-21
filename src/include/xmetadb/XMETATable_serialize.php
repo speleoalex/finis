@@ -354,8 +354,7 @@ class XMETATable_serialize  extends \stdClass
         $dirold=dirname($old)."/".basename($old,".php");
         if (!file_exists($old))
             return false;
-        if (strpos($pkvalue, "..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
-            xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
+        xmetadb_remove_record_dir("$path/$databasename/$tablename", $pkvalue);
         $this->ClearCachefile();
         @ unlink($old);
         $values=readSerialDatabase("$old",true);

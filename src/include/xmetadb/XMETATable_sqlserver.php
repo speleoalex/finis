@@ -680,8 +680,7 @@ class XMETATable_sqlserver extends \stdClass
         {
             return false;
         }
-        if (!is_array($pkvalue) && strpos($pkvalue,"..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
-            xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
+        xmetadb_remove_record_dir("$path/$databasename/$tablename", $pkvalue);
         return true;
     }
 

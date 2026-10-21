@@ -484,8 +484,7 @@ class XMETATable_sqlite3 extends \stdClass
                 echo $this->sqlite_error;
                 return false;
             }
-            if (strpos($pkvalue, "..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
-                xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
+            xmetadb_remove_record_dir("$path/$databasename/$tablename", $pkvalue);
             return true;
         }
         return false;

@@ -594,8 +594,7 @@ class XMETATable_xmlphp extends \stdClass
         if (!file_exists($oldfile))
             return false;
         if (preg_match("/\\/$/si", $this->datafile))
-            if (strpos($pkvalue, "..") === false && file_exists("{$this->datafile}$pkvalue/") && is_dir("{$this->datafile}$pkvalue/"))
-                xmetadb_remove_dir_rec("{$this->datafile}$pkvalue");
+            xmetadb_remove_record_dir($this->datafile, $pkvalue);
         $this->ClearCachefile();
         $n = xmetadb_readDatabase($oldfile, $this->xmlfieldname, false, false);
         // if it is the last record

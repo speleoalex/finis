@@ -640,8 +640,7 @@ class XMETATable_mysql extends \stdClass
                 trigger_error("MySQL DELETE failed: " . $this->conn->error, E_USER_WARNING);
                 return false;
             }
-            if (strpos($pkvalue, "..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
-                xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
+            xmetadb_remove_record_dir("$path/$databasename/$tablename", $pkvalue);
             return true;
         }
         return false;

@@ -817,6 +817,23 @@ function xmetadb_remove_dir_rec($dirtodelete)
 }
 
 /**
+ * Removes the folder with the files of a record: only the folder named as the
+ * primary key right inside the folder of the table (no ".", "..", "/" or links)
+ *
+ * @param string $tablepath folder of the table
+ * @param string $pkvalue primary key of the record
+ * */
+function xmetadb_remove_record_dir($tablepath, $pkvalue)
+{
+    if (is_array($pkvalue) || strpos((string) $pkvalue, "\0") !== false)
+        return;
+    $tabledir = realpath($tablepath);
+    $recorddir = realpath("$tablepath/$pkvalue");
+    if ($tabledir && $recorddir && $recorddir === $tabledir . DIRECTORY_SEPARATOR . $pkvalue && is_dir($recorddir))
+        xmetadb_remove_dir_rec($recorddir);
+}
+
+/**
  * xmetadb_encode_preg_replace2nd
  * prepara la stringa per il secondo parametro
  * dell' preg_replace aggiungendo la \ savanti a \ e $
