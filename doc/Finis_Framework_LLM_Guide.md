@@ -374,6 +374,49 @@ $high_level_users = FN_XMETADBQuery($query);
 *   `fn_settings`: Stores application settings.
 *   `fn_log`: Event log (`FN_LogEvent($event, $context)`), the `user` column is `$_FN['user']`.
 
+## Login security
+
+Helpers in `src/include/auth/local.php`; the login module
+(`src/modules/login/functions_login.php`) uses them for registration and password recovery.
+
+*   **Session cookie**: `FN_Login($user)` sets `fnuser` and `secid` (HttpOnly, SameSite=Lax,
+    `secure` when `FN_IsHttps()`). `secid` is `FN_GetSecid($user, $passwd_hash)`, an
+    HMAC-SHA256 of `user|passwd` with the site secret, checked by `FN_CheckUser()` with
+    `hash_equals`. Changing the password invalidates the cookie.
+*   **Site secret**: `FN_GetSiteSecret()` reads `{datadir}/secret.key.php` (starts with
+    `<?php exit(0); ?>`, mode 0600) or creates it once with `random_bytes(32)`. Deleting the
+    file logs out every user. Never commit it.
+*   **Passwords**: `FN_VerifyUserPassword($user, $password)` uses only `password_verify` for
+    modern hashes (the stored hash sent as password is refused) and rehashes when
+    `password_needs_rehash`. Legacy md5 and plaintext values are compared with `hash_equals`
+    and rehashed at the first successful login. An empty stored password never matches.
+*   **Brute force**: `FN_LoginAttempt($user)` runs before the password check and returns
+    false after `login_max_attempts` attempts of the same username from the same IP in
+    `login_lockout_minutes`; the counter is `{datadir}/_cache/login_<sha256(user|ip)>.cache`,
+    so `FN_ClearCache()` resets it. `FN_LoginResetAttempts($user)` runs after a successful
+    login. A locked out login gets the usual generic error and one `FN_Log` entry.
+*   **Tokens in `fn_users.rnd`**: password recovery stores `<32 hex>.<timestamp>` (valid
+    `recovery_link_minutes`), registration confirmation stores `<32 hex>` (single use). One
+    is never accepted in place of the other, both are compared with `hash_equals`, and
+    recovery answers the same way for existing and unknown users.
+*   **OAuth**: `FN_ManageLoginWithOpenAuthentication()` sends a random `state` kept in the
+    session (`session_oauth_state`, single use) and refuses callbacks without it. When the
+    provider returns `email_verified` or `verified_email`, it must be true. The return url
+    `session_oauth_returnurl` is followed only if `FN_IsInternalUrl($url)` (under
+    `$_FN['siteurl']`, or relative without scheme).
+*   **Random values**: tokens, captcha codes and generated passwords use `random_bytes` or
+    `random_int`; do not use `rand`, `mt_rand` or `uniqid` for anything secret (the session
+    id `fnsid` still comes from `uniqid`).
+
+Configuration keys (in `config.vars.local.php`, defaults in the code):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `remember_login_days` | 30 | lifetime of the login cookies with "remember me" (`remember_login` enabled) |
+| `recovery_link_minutes` | 60 | validity of a password recovery link |
+| `login_max_attempts` | 5 | login attempts allowed per username and IP |
+| `login_lockout_minutes` | 15 | time window of the attempts, and longest lockout |
+
 ## API keys and MCP server
 
 Every user can have a personal API key (`apikey` field of `fn_users`, 48 hex chars,
