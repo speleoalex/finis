@@ -1048,8 +1048,8 @@ function generateSecurePassword($length = 12)
     // Generate a password of the specified length
     for ($i = 0; $i < $length; $i++)
     {
-        // Select a random character from the shuffled character set
-        $randomIndex = rand(0, strlen($shuffledChars) - 1);
+        // Select a random character from the shuffled character set (random_int is cryptographically secure, rand is not)
+        $randomIndex = random_int(0, strlen($shuffledChars) - 1);
         $password .= $shuffledChars[$randomIndex];
     }
 
