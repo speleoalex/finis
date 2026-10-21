@@ -248,6 +248,11 @@ if (file_exists("{$_FN['datadir']}/firstinstall"))
                 {
                     $newvalues = $tabuser->getbypost();
                     $err = $tabuser->Verify($newvalues);
+                    //FN_AddUser refuses a username made only of dots ("." or "..")
+                    if (!empty($newvalues['username']) && trim($newvalues['username'], ".") == "")
+                    {
+                        $err['username'] = array("title" => FN_Translate("username"), "field" => "username", "error" => FN_Translate("the value is not valid"));
+                    }
                     foreach ($err as $field => $error)
                     {
                         $tabuser->setlayoutTag($field, "<b>", "</b><span style=\"color:red;background-color:#ffffff\">{$error['error']}</span><br />", "", "<br />");

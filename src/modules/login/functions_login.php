@@ -708,6 +708,11 @@ function FNREG_ManageRegister($actionform = "")
         {
 
             $errors = $form->Verify($newvalues);
+            //FN_AddUser refuses a username made only of dots ("." or "..")
+            if (!empty($newvalues[$username_field]) && trim($newvalues[$username_field], ".") == "")
+            {
+                $errors[$username_field] = array("title" => FN_Translate("username"), "field" => $username_field, "error" => FN_Translate("the value is not valid"));
+            }
             if (function_exists("FN_PasswordVerifyConstraints"))
             {
                 $passwd = FN_GetParam("$password_field", $_REQUEST, "flat");

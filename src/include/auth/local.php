@@ -818,7 +818,8 @@ function FN_UpdateUser($user, $newvalues, $password = "")
 function FN_AddUser($newvalues, $password = "")
 {
     global $_FN;
-    if ($newvalues['username'] != "")
+    //a username made only of dots ("." or "..") would name the folder of the users or its parent
+    if ($newvalues['username'] != "" && trim($newvalues['username'], ".") != "")
     {
         if (empty($_FN['username_case_sensitive']))
         {
