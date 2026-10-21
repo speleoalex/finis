@@ -438,7 +438,9 @@ Helpers in `src/include/auth/local.php`; the login module
     and `$_FN['return']` for any username, without the email address. Old 5 character codes
     are not resent: an administrator activates the user.
 *   **OAuth**: `FN_ManageLoginWithOpenAuthentication()` sends a random `state` kept in the
-    session (`session_oauth_state`, single use) and refuses callbacks without it. When the
+    session (`session_oauth_state`, single use) and refuses callbacks without it. A callback
+    with `error` (e.g. `access_denied`) ends the login: the state is removed, the error code is
+    logged and the user is not sent to the provider again. When the
     provider returns `email_verified` or `verified_email`, it must be true. The return url
     `session_oauth_returnurl` is followed only if `FN_IsInternalUrl($url)` (under
     `$_FN['siteurl']`, or relative without scheme).

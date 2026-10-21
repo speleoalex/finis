@@ -977,6 +977,13 @@ function FN_ManageLoginWithOpenAuthentication()
         // If not authenticated, start the OAuth flow
         if (!isset($_GET['code']))
         {
+            //error from the provider (access_denied when the user does not allow the login): no new authorization request, it would send the user back to the provider
+            if (isset($_GET['error']))
+            {
+                FN_SetSessionValue("session_oauth_state", "");
+                FN_Log("OAuth login with provider {$config['id']} not completed: " . substr(preg_replace('/[^A-Za-z0-9_.-]/', "", FN_GetParam("error", $_GET)), 0, 64));
+                return;
+            }
             // Redirect to provider's authorization page
             //random state kept in the session, the provider sends it back with the code
             $state = bin2hex(random_bytes(16));
