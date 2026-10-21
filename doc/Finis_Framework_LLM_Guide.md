@@ -399,9 +399,12 @@ Helpers in `src/include/auth/local.php`; the login module
     and rehashed at the first successful login. An empty stored password never matches.
 *   **Brute force**: `FN_LoginAttempt($user)` runs before the password check and returns
     false after `login_max_attempts` attempts of the same username from the same IP in
-    `login_lockout_minutes`; the counter is `{datadir}/_cache/login_<sha256(user|ip)>.cache`,
-    so `FN_ClearCache()` resets it. `FN_LoginResetAttempts($user)` runs after a successful
-    login. A locked out login gets the usual generic error and one `FN_Log` entry.
+    `login_lockout_minutes`; the counter is `{datadir}/_login_attempts/<sha256(user|ip)>.cache`,
+    outside the cache, so `FN_ClearCache()` does not reset it: to unlock a user before the
+    end of the window, delete the folder. Once in the window (`_login_attempts/cleanup`
+    keeps the time) the counters not updated in it are removed. `FN_LoginResetAttempts($user)`
+    runs after a successful login. A locked out login gets the usual generic error and one
+    `FN_Log` entry.
 *   **Captcha**: the session key `captcha` is an array with one code per form, drawn by
     `fnapp=captcha&t=<name>`: `fnlogin_code` for the login when `$_FN['enable_captcha']`,
     `security_code` for the registration when `enable_captcha` is set in the login module

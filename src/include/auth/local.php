@@ -101,7 +101,8 @@ function FN_IsInternalUrl($url)
 
 /**
  * File that keeps the recent login attempts of a username from the client IP.
- * It is in the cache folder, so FN_ClearCache() resets all the counters.
+ * It is in {datadir}/_login_attempts, not in the cache folder: FN_ClearCache()
+ * does not reset the counters.
  *
  * @param string $user
  * @global array $_FN
@@ -111,7 +112,7 @@ function FN_LoginAttemptsFile($user)
 {
     global $_FN;
     $ip = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
-    return "{$_FN['datadir']}/_cache/login_" . hash('sha256', $user . '|' . $ip) . ".cache";
+    return "{$_FN['datadir']}/_login_attempts/" . hash('sha256', $user . '|' . $ip) . ".cache";
 }
 
 /**
@@ -120,6 +121,7 @@ function FN_LoginAttemptsFile($user)
  * After $_FN['login_max_attempts'] attempts (default 5) in the last
  * $_FN['login_lockout_minutes'] minutes (default 15) the attempt is refused.
  * FN_LoginResetAttempts() clears the attempts after a successful login.
+ * Once in the time window, the files of the counters not updated in it are removed.
  *
  * @param string $user
  * @global array $_FN
@@ -131,6 +133,22 @@ function FN_LoginAttempt($user)
     $max = !empty($_FN['login_max_attempts']) ? intval($_FN['login_max_attempts']) : 5;
     $minutes = !empty($_FN['login_lockout_minutes']) ? intval($_FN['login_lockout_minutes']) : 15;
     $file = FN_LoginAttemptsFile($user);
+    //once in the time window, remove the counters not updated in it: they have only expired attempts
+    $dir = dirname($file);
+    if (!file_exists("$dir/cleanup") || filemtime("$dir/cleanup") < time() - $minutes * 60)
+    {
+        FN_MkDir($dir);
+        @touch("$dir/cleanup");
+        $files = glob("$dir/*.cache");
+        if (is_array($files))
+        {
+            foreach ($files as $oldfile)
+            {
+                if (@filemtime($oldfile) < time() - $minutes * 60)
+                    @unlink($oldfile);
+            }
+        }
+    }
     //wait for a concurrent request, a stale lock is removed by FN_UnlockFile
     for ($i = 0; $i < 20 && !FN_LockFile($file); $i++)
     {
