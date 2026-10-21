@@ -17,6 +17,9 @@ function FNREG_ManageRecovery()
     global $_FN;
     $_FN['result'] = array();
     $config = FN_LoadConfig("{$_FN['src_finis']}/modules/login/config.php");
+    $form = FN_GetUserForm();
+    $username_field = empty($form->fieldname_user) ? "username" : $form->fieldname_user;
+    $recovery_minutes = !empty($_FN['recovery_link_minutes']) ? intval($_FN['recovery_link_minutes']) : 60;
     $postuser = FN_GetParam("username", $_REQUEST, "html");
     $getuser = FN_GetParam("user", $_REQUEST, "html");
     $rnd = FN_GetParam("rnd", $_GET, "html");
@@ -27,15 +30,18 @@ function FNREG_ManageRecovery()
     // step 1 generate rnd and send -------->
     if ($postuser != "")
     {
-        if (!FN_GetUser($postuser))
+        // same answer whether the user exists or not (no user enumeration)
+        $tplvars['txtresults'] = FN_Translate("an email has been sent to your email address with instructions to recover your password");
+        $uservalues = FN_GetUser($postuser);
+        if (!$uservalues)
         {
-            $errors = $postuser . ": " . fn_i18n("user does not exist");
+            FN_Log("Password recovery requested for unknown user $postuser");
         }
         else
         {
-            $uservalues = FN_GetUser($postuser);
-            $newrnd = substr(str_shuffle(str_repeat('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', mt_rand(1, 10))), 1, 10);
-            FN_UpdateUser($postuser, array("rnd" => $newrnd));
+            // recovery token: "<32 hex>.<timestamp>", the registration code has no dot
+            $newrnd = bin2hex(random_bytes(16));
+            FN_UpdateUser($postuser, array("rnd" => $newrnd . "." . time()));
             $server = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=recovery&user=$postuser&rnd=$newrnd&lang={$_FN['lang']}", "&", true);
             //$body=FN_Translate("password recovery")."\n"."\n".fn_i18n("to retrieve the password, please follow this link").":\n$server\n\n".FN_Translate("a new password will be generated and sent to your email address");
             $subject = FN_i18n("password recovery");
@@ -68,25 +74,24 @@ function FNREG_ManageRecovery()
             {
                 FN_SendMail($email, $subject, $body, false !== stristr($body, "<html"));
                 FN_Log("User $postuser recover password step 1.");
-                $tplvars['txtresults'] = FN_Translate("an email has been sent to your email address with instructions to recover your password");
             }
             else
             {
-                $tplvars['txtresults'] = FN_Translate("error");
+                FN_Log("Password recovery: user $postuser has no valid email address");
             }
-            $tplfile = FN_FromTheme("{$_FN['src_finis']}/modules/login/passwordrecovery_step1.tp.html", false);
-            $tplbasepath = dirname($tplfile) . "/";
-            $templateForm = file_get_contents($tplfile);
-            if ($_FN['username_is_email'])
-            {
-                $tplvars['txtusername'] = FN_Translate("email");
-            }
-            $tplvars['urlnext'] = FN_RewriteLink("index.php?mod=" . $_FN['mod'], "&", true);
-            $templateFormHtml = FN_TPL_ApplyTplString($templateForm, $tplvars, $tplbasepath);
-            echo $templateFormHtml;
-            $_FN['return']['txtresults'] = $tplvars['txtresults'];
-            return;
         }
+        $tplfile = FN_FromTheme("{$_FN['src_finis']}/modules/login/passwordrecovery_step1.tp.html", false);
+        $tplbasepath = dirname($tplfile) . "/";
+        $templateForm = file_get_contents($tplfile);
+        if ($_FN['username_is_email'])
+        {
+            $tplvars['txtusername'] = FN_Translate("email");
+        }
+        $tplvars['urlnext'] = FN_RewriteLink("index.php?mod=" . $_FN['mod'], "&", true);
+        $templateFormHtml = FN_TPL_ApplyTplString($templateForm, $tplvars, $tplbasepath);
+        echo $templateFormHtml;
+        $_FN['return']['txtresults'] = $tplvars['txtresults'];
+        return;
     }
     // step 1 generate rnd and send ---------<
     // step 2 generate password and send ---->
@@ -94,23 +99,35 @@ function FNREG_ManageRecovery()
     {
         $txtresults = "";
         $uservalues = FN_GetUser($getuser);
-        $email = trim(ltrim($uservalues['email']));
-        if ($email == "" && FN_CheckMail($uservalues[$username_field]))
+        $email = isset($uservalues['email']) ? trim($uservalues['email']) : "";
+        if ($email == "" && isset($uservalues[$username_field]) && FN_CheckMail($uservalues[$username_field]))
         {
             $email = $uservalues[$username_field];
         }
-        if (!$uservalues)
+        //----recovery token "<32 hex>.<timestamp>", valid for $recovery_minutes--->
+        $stored_rnd = isset($uservalues['rnd']) ? $uservalues['rnd'] : "";
+        $stored_token = "";
+        $stored_time = 0;
+        if (preg_match('/^([0-9a-f]{32})\.([0-9]+)$/', $stored_rnd, $matches))
         {
-            $errors = FN_i18n("user does not exist");
+            $stored_token = $matches[1];
+            $stored_time = intval($matches[2]);
         }
-        if ($uservalues['rnd'] == "")
+        if ($stored_rnd == "")
         {
+            // also for not existing users (no user enumeration)
             $errors = FN_Translate("the password has been sent to your email address, if you have not yet received it occurs in spam or repeat the procedure password recovery");
         }
-        elseif ($uservalues['rnd'] != $rnd)
+        elseif ($stored_token == "" || !hash_equals($stored_token, (string) $rnd))
         {
             $errors = FN_i18n("authentication failure");
         }
+        elseif (time() - $stored_time > $recovery_minutes * 60)
+        {
+            FN_Log("User $getuser: expired password recovery link");
+            $errors = FN_i18n("authentication failure");
+        }
+        //----recovery token "<32 hex>.<timestamp>", valid for $recovery_minutes---<
         if ($errors == "")
         {
             if (empty($config['change_password_online']))
@@ -119,7 +136,7 @@ function FNREG_ManageRecovery()
                 $newpass = "";
                 for ($i = 0; $i < 10; $i++)
                 {
-                    $ch = rand(0, 35);
+                    $ch = random_int(0, 35);
                     $newpass .= $chrs[$ch];
                 }
                 $subject = $_FN['sitename'] . " - " . FN_i18n("password recovery");
@@ -152,26 +169,26 @@ function FNREG_ManageRecovery()
                 //update password 
                 if (empty($_REQUEST['__NOSAVE']) && empty($_REQUEST['fnlogin']) && isset($_REQUEST['updateuser']) && isset($_POST['newpassword']))
                 {
-                    $form = FN_GetUserForm();
-                    $username_field = empty($form->fieldname_user) ? "username" : $form->fieldname_user;
                     $active_field = empty($form->fieldname_active) ? "username" : $form->fieldname_active;
                     $password_field = empty($form->fieldname_password) ? "passwd" : $form->fieldname_password;
 
                     $newvalues = $uservalues;
                     $passwd = FN_GetParam("newpassword", $_POST, "html");
                     $passwd2 = FN_GetParam("newpassword_retype", $_POST, "html");
+                    $errors = array();
                     if (empty($passwd))
                     {
-                        $errors = FN_Translate("enter a password");
+                        $errors[] = FN_Translate("enter a password");
                     }
                     if ($passwd != $passwd2)
                     {
-                        $errors = FN_Translate("passwords do not match");
+                        $errors[] = FN_Translate("passwords do not match");
                     }
-                    if (function_exists("FN_PasswordVerifyConstraints"))
+                    if (function_exists("FN_PasswordVerifyConstraints") && "" != ($constraint_error = FN_PasswordVerifyConstraints($passwd)))
                     {
-                        $errors = FN_PasswordVerifyConstraints($passwd);
+                        $errors[] = $constraint_error;
                     }
+                    $errors = implode("<br />", $errors);
                     if ($errors)
                     {
                         //form update password with errors
