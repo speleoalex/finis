@@ -270,16 +270,20 @@ function FN_ManageLogin()
     $captcha_ok = true;
     FN_ManageLoginWithOpenAuthentication();
     //-------------------captcha----------------------------------------------->
-    if (!empty($_FN['enable_captcha']))
+    //checked only on a login: the other requests (e.g. the captcha image) leave the code as it is
+    if (!empty($_FN['enable_captcha']) && $fnlogin == "login" && $fnuser != "" && $fnpwd != "")
     {
         $captcha = FN_GetSessionValue("captcha");
+        if (!is_array($captcha))
+            $captcha = array();
         $fnlogincode = FN_GetParam("fnlogin_code", $_POST);
         if ($fnlogincode == "" || empty($captcha['fnlogin_code']) || !hash_equals((string) $captcha['fnlogin_code'], $fnlogincode))
         {
             $captcha_ok = false;
         }
-        //each code is checked once: a new one for the next attempt
-        FN_SetSessionValue("captcha", array("fnlogin_code" => random_int(1000, 9999)));
+        //each code is checked once: the login form shows a new one, the code of the registration form is kept
+        unset($captcha['fnlogin_code']);
+        FN_SetSessionValue("captcha", $captcha);
     }
     //-------------------captcha-----------------------------------------------<
     $rememberlogin  = FN_GetParam("rememberlogin", $_POST);
@@ -403,16 +407,11 @@ function FN_HtmlLoginForm($templateForm = false, $url = "")
     $tplvars['txtusername'] = (!empty($_FN['username_is_email'])) ? FN_Translate("email") : FN_Translate("username");
 
     //------------------------------------ captcha ---------------------------->
-    $captcha_ok = true;
     $htmlcaptcha = "";
     if (!empty($_FN['enable_captcha']))
     {
-        $captcha = FN_GetSessionValue("captcha");
-        $fnlogincode = FN_GetParam("fnlogin_code", $_POST);
-        if ($fnlogincode == "" || empty($captcha['fnlogin_code']) || $captcha['fnlogin_code'] != $fnlogincode)
-            $captcha_ok = false;
-        FN_SetSessionValue("captcha", array("fnlogin_code" => random_int(1000, 9999)));
-        
+        //the code is checked by FN_ManageLogin
+        FN_NewCaptchaCode("fnlogin_code");
         $htmlcaptcha .= "<img style=\"vertical-align:middle\" src=\"{$_FN['siteurl']}?fnapp=captcha&amp;t=fnlogin_code&amp;" . time() . "\" alt=\"\" title=\"\" /> <input size=\"4\" name=\"fnlogin_code\"  value = \"\" />";
         $tplvars['htmlcaptcha'] = $htmlcaptcha;
     }

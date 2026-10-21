@@ -95,6 +95,24 @@ function FN_SetSessionValue($key, $value)
 }
 
 /**
+ * Create a new code for the captcha $name (fnlogin_code for the login form,
+ * security_code for the registration form), drawn by ?fnapp=captcha&t=$name.
+ * The codes of the other captchas are kept, so both forms can be used in the same session.
+ *
+ * @param string $name
+ * @return int
+ */
+function FN_NewCaptchaCode($name)
+{
+    $captcha = FN_GetSessionValue("captcha");
+    if (!is_array($captcha))
+        $captcha = array();
+    $captcha[$name] = random_int(1000, 9999);
+    FN_SetSessionValue("captcha", $captcha);
+    return $captcha[$name];
+}
+
+/**
  * clean old files
  */
 function FN_ClearOldSessions()

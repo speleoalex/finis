@@ -402,12 +402,16 @@ Helpers in `src/include/auth/local.php`; the login module
     `login_lockout_minutes`; the counter is `{datadir}/_cache/login_<sha256(user|ip)>.cache`,
     so `FN_ClearCache()` resets it. `FN_LoginResetAttempts($user)` runs after a successful
     login. A locked out login gets the usual generic error and one `FN_Log` entry.
-*   **Captcha**: the session key `captcha` holds the code shown by `fnapp=captcha&t=<name>`
-    (`fnlogin_code` for the login when `$_FN['enable_captcha']`, `security_code` for the
-    registration when `enable_captcha` is set in the login module config). The posted code is
-    compared with `hash_equals` and used once, right or wrong: the login replaces it after
-    every check, the registration removes it and the form shows a new one. A wrong captcha
-    does not count as a login attempt.
+*   **Captcha**: the session key `captcha` is an array with one code per form, drawn by
+    `fnapp=captcha&t=<name>`: `fnlogin_code` for the login when `$_FN['enable_captcha']`,
+    `security_code` for the registration when `enable_captcha` is set in the login module
+    config. `FN_NewCaptchaCode($name)` sets the code of one form and keeps the others, so
+    both forms work in the same session. The posted code is compared with `hash_equals` and
+    used once, right or wrong: `FN_ManageLogin()` checks and removes the login code only on a
+    login post with username and password (other requests, like the image, leave it as it
+    is), the registration removes its code, and each form shows a new one. A wrong captcha
+    does not count as a login attempt. The image needs an `index.php` that calls
+    `$FINIS->finis()`: `website()` does not serve `fnapp`.
 *   **Tokens in `fn_users.rnd`**: password recovery stores `<32 hex>.<timestamp>` (valid
     `recovery_link_minutes`), registration confirmation stores `<32 hex>` (single use). One
     is never accepted in place of the other, both are compared with `hash_equals`, and
