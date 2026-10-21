@@ -1092,8 +1092,20 @@ function FN_ManageLoginWithOpenAuthentication()
             if ($_FN['enable_registration'])
             {
                 $uservalues = array("username" => $user_email, "email" => $user_email, "active" => 1);
-                $res = FN_AddUser($uservalues, generateSecurePassword());
-                FN_Login($uservalues['username']);
+                //FN_AddUser saves the username in lowercase: the login uses the saved name
+                if (empty($_FN['username_case_sensitive']))
+                {
+                    $uservalues['username'] = strtolower($uservalues['username']);
+                }
+                //no login when the user is not created (eg. another user already has this username)
+                if (FN_AddUser($uservalues, generateSecurePassword()))
+                {
+                    FN_Login($uservalues['username']);
+                }
+                else
+                {
+                    FN_Log("OAuth login with provider {$config['id']} refused: user $user_email not created");
+                }
             }
         }
         $_FN['userimage'] = $user_image;
