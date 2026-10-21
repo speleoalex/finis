@@ -571,7 +571,11 @@ function FNREG_ManageRegister($actionform = "")
     {
         $user = trim(ltrim(FN_GetParam("user", $_GET, "html")));
         $id = trim(ltrim(FN_GetParam("id", $_GET, "html")));
-
+        // registration code: 32 hex chars (the recovery token has a dot and is refused)
+        if (!preg_match('/^[0-9a-f]{32}$/', $id))
+        {
+            $id = "";
+        }
         if ($user == "" && $id != "")
         {
             $users = FN_GetUsers(array("rnd" => $id));
@@ -586,9 +590,10 @@ function FNREG_ManageRegister($actionform = "")
             $uservalues = FN_GetUser($user);
         }
         $message = "";
-        if ($user != "" && $id != "" && isset($uservalues['rnd']) && $uservalues['rnd'] == $id)
+        if ($user != "" && $id != "" && isset($uservalues['rnd']) && hash_equals((string) $uservalues['rnd'], $id))
         {
             FNREG_ConfirmUser($uservalues, !empty($config['send_welcome_message']));
+            FN_UpdateUser($user, array("rnd" => ""));
             //complete registration-------------------------------------------->
             if (function_exists("FN_OnConfirmUser"))
             {
@@ -651,7 +656,7 @@ function FNREG_ManageRegister($actionform = "")
             $newvalues['username'] = $newvalues['email'];
         }
     }
-    $rnd = substr(str_shuffle(str_repeat('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', mt_rand(1, 5))), 1, 5);
+    $rnd = bin2hex(random_bytes(16));
     $newvalues['rnd'] = $rnd;
     $newvalues['ip'] = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
     $insgroup = array(0 => "users");
@@ -757,9 +762,10 @@ function FNREG_ManageRegister($actionform = "")
         $newvalues = FN_GetUser($user);
         $name = $newvalues[$username_field];
         $rnd = $newvalues['rnd'];
-        if ($rnd == "")
+        // new code also when rnd is an old 5 chars code or a recovery token
+        if (!preg_match('/^[0-9a-f]{32}$/', $rnd))
         {
-            $rnd = substr(str_shuffle(str_repeat('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', mt_rand(1, 5))), 1, 5);
+            $rnd = bin2hex(random_bytes(16));
             FN_UpdateUser($name, array("rnd" => $rnd));
         }
         $subject = FN_Translate("confirm registration site") . " " . $_FN['sitename'];
