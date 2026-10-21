@@ -833,7 +833,8 @@ function FN_AddUser($newvalues, $password = "")
         {
             unset($newvalues['passwd']);
         }
-        if ($table->InsertRecord($newvalues))
+        //InsertRecord returns the saved record (the xmlphp driver returns an error string when the insert fails)
+        if (is_array($table->InsertRecord($newvalues)))
         {
             if (function_exists("FN_OnAddUser"))
             {
