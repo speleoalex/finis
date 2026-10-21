@@ -1232,7 +1232,9 @@ function FN_GenerateApiKey($user)
     }
     catch (Exception $e)
     {
-        $apikey = hash("sha256", uniqid("", true) . mt_rand() . $user);
+        //never a predictable key: no key at all
+        FN_LogEvent("API key not generated for user $user: " . $e->getMessage(), "apikey");
+        return "";
     }
     $table = FN_GetUserForm();
     $result = $table->xmltable->UpdateRecordBypk(array("apikey" => $apikey), $table->xmltable->primarykey, $user);

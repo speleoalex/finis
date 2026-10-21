@@ -462,7 +462,8 @@ Every user can have a personal API key (`apikey` field of `fn_users`, 48 hex cha
 (control center `users_and_groups/profile` and the login module `op=editreg`), with a
 "Regenerate API key" button. Helpers in `src/include/auth/local.php`:
 
-*   `FN_GetUserApiKey($user, $generate = true)`, `FN_GenerateApiKey($user)`
+*   `FN_GetUserApiKey($user, $generate = true)`, `FN_GenerateApiKey($user)` (`random_bytes(24)`;
+    without a random source it logs the error and returns "": no fallback key, the old key stays)
 *   `FN_GetRequestApiKey()`: reads `Authorization: Bearer <key>` or `X-Api-Key`
 *   `FN_GetUserByApiKey($apikey)`, `FN_LoginByApiKey($apikey)` (sets `$_FN['user']`,
     `$_FN['uservalues']` and `$_FN['auth_method'] = "apikey"`)
