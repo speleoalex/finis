@@ -264,16 +264,47 @@ xml_to_sql('database_name', 'fn_users', 'misc', $connection);
 
 ## Schemas and Field Definitions
 
-### Supported Field Types
+### Field Types: `type` and `frm_type`
 
-- `string` / `varchar`: Text strings (limited length)
-- `text`: Long text
-- `html`: HTML text
-- `int`: Integers
-- `datetime`: Dates and timestamps
-- `file`: File upload field
-- `image`: Image upload field (with automatic thumbnail generation)
-- `base64file`: Files stored as base64 in database
+- `type` is the **SQL column type**, used when the table is created or a column is added.
+- `frm_type` is the **form widget**. When it is missing the widget is taken from `type`.
+
+SQL types (`type`):
+
+| `type` | column | empty value |
+|---|---|---|
+| `varchar` | `VARCHAR(size)`, default size 255 | `''` (NOT NULL) |
+| `char` | `CHAR(size)`, default size 1 | `''` (NOT NULL) |
+| `text`, `html`, `mediumtext`, `longtext` | `TEXT`, `TEXT`, `MEDIUMTEXT`, `LONGTEXT` | `NULL` |
+| `int`, `number`, `tinyint`, `smallint`, `bigint` | integer types (`number` = `INT`) | `NULL` |
+| `float`, `double` | `FLOAT`, `DOUBLE` | `NULL` |
+| `decimal` | `DECIMAL(size)`, size `"precision,scale"`, default `10,2` | `NULL` |
+| `date`, `datetime`, `time` | `DATE`, `DATETIME`, `TIME` | `NULL` |
+| `json` | `JSON` | |
+| anything else (`string`, `check`, `image`, ... legacy widget names) | `VARCHAR(255)` | `''` (NOT NULL) |
+
+Numeric and date columns are nullable: an empty form field is stored as `NULL` and read back
+as `""`, never as `0`. finis never modifies an existing column: changing `type` in a
+descriptor affects new tables and new columns only.
+
+Form widgets (`frm_type`): `varchar`, `varchar_uppercase` / `uppercase`, `text`, `html`,
+`check`, `radio`, `select`, `multiselect`, `multicheck`, `stringselect`, `int`, `float`,
+`datetime`, `password`, `file`, `image` (with thumbnail), `base64file`, `json`,
+`separator`, ... SQL types without a widget of their own get the closest one
+(`mediumtext` → `text`, `double` → `varchar`, ...).
+
+```xml
+<field>
+  <name>elevation</name>
+  <type>double</type>          <!-- SQL type -->
+  <frm_type>varchar</frm_type> <!-- form widget -->
+</field>
+<field>
+  <name>photo</name>
+  <type>varchar</type>
+  <frm_type>image</frm_type>
+</field>
+```
 
 ### Field Properties
 

@@ -268,6 +268,13 @@ function FN_SetUserSessionValue($varname, $value)
 ", "{$_FN['datadir']}/{$_FN['database']}/fn_userssessions.php");
     }
     $t = FN_XMDBTable("fn_userssessions");
+    if (empty($t->fields))
+    {
+        // the instance was cached by FN_XMDBTable before the descriptor existed
+        // (FN_GetUserSessionValue called first in this request): load it again,
+        // otherwise the first value written in a new installation is lost
+        $t = new XMETATable($_FN['database'], "fn_userssessions", $_FN['datadir'], FN_setCommonParams(array()));
+    }
     $values = $t->GetRecord(array("username" => $_FN['user'], "varname" => $varname));
     if (isset($values['varname']))
     {

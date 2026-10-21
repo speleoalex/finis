@@ -129,8 +129,15 @@ class XMETATable extends \stdClass
     {
         if (!file_exists("$path/$databasename") || !is_dir("$path/$databasename"))
             return "xml databse not exists";
-        if (file_exists("$path/$databasename/$tablename") && file_exists("$path/$databasename/$tablename.php"))
+        if (file_exists("$path/$databasename/$tablename.php"))
+        {
+            // Never overwrite an existing descriptor: its fields (primary key above all)
+            // may differ from $fields and the real table would no longer match it.
+            // Only recreate the data folder if it is missing.
+            if (!file_exists("$path/$databasename/$tablename") && is_writable("$path/$databasename/"))
+                mkdir("$path/$databasename/$tablename");
             return "xml table exists";
+        }
         if (!is_writable("$path/$databasename/"))
             return "xml database not writable";
         $str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<?php exit(0);?>\n<tables>";
@@ -754,7 +761,7 @@ class XMETATable extends \stdClass
         foreach ($newvalues as $key => $value)
         {
             $type = isset($this->fields[$key]) ? $this->fields[$key] : null;
-            if (isset($type->type) && ($type->type == 'file' || $type->type == 'image'))
+            if ($type !== null && xmetadb_is_file_field($type))
             {
                 // delete old file if a new one is being uploaded
                 $dirtable_oldvalue = false;

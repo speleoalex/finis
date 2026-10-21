@@ -384,7 +384,7 @@ class FNDBVIEW
         $findtextquery = "";
         $tmpmethod = "";
         foreach ($t->xmltable->fields as $fieldstoread => $fieldvalues) {
-            if ($fieldstoread != "insert" && $fieldstoread != "update" && $fieldstoread != "id" && $fieldstoread != "id" && $fieldvalues->type != "check") {
+            if ($fieldstoread != "insert" && $fieldstoread != "update" && $fieldstoread != "id" && $fieldstoread != "id" && xmetadb_frm_type($fieldvalues) != "check") {
                 foreach ($listfind as $f) {
                     if ($f != "") {
                         if (isset($fieldvalues->foreignkey) && isset($fieldvalues->fk_link_field)) {
@@ -507,7 +507,15 @@ class FNDBVIEW
             if (isset($_tables[$tablename]->formvals[$sfield])) {
                 $get_sfield = FN_GetParam("spfield_$sfield", $params, "html");
                 if ($get_sfield != "") {
-                    $sfquery .= " $tmet " . $this->QuoteField($sfield, $native) . " LIKE '%" . addslashes($get_sfield) . "%' ";
+                    $qf = $this->QuoteField($sfield, $native);
+                    $qv = addslashes($get_sfield);
+                    if (!empty($_tables[$tablename]->formvals[$sfield]['foreignkey'])) {
+                        // foreign key chosen from a select: match the whole code, alone or in a comma separated list
+                        // (a plain LIKE '%IM1%' would also match IM10, IM11, ...)
+                        $sfquery .= " $tmet ($qf = '$qv' OR $qf LIKE '$qv,%' OR $qf LIKE '%,$qv' OR $qf LIKE '%,$qv,%') ";
+                    } else {
+                        $sfquery .= " $tmet $qf LIKE '%$qv%' ";
+                    }
                     $tmet = "AND";
                 }
             }
@@ -1178,6 +1186,13 @@ class FNDBVIEW
                     $params['restr'] = array($tinner[1] => $oldvalues[$tinner[0]]);
                 else
                     $params['restr'] = array($v["linkfield"] => $oldvalues[$Table->xmltable->primarykey]);
+                // If the link field is empty (e.g. a cave without a cadastre number) do not look
+                // for linked records: the restriction "field = ''" would show every record of the
+                // linked table with that field empty (e.g. the fauna surveys of the artificial
+                // cavities in the cave sheet).
+                $linkvalue = reset($params['restr']);
+                if (!is_array($linkvalue) && trim((string) $linkvalue) === "")
+                    continue;
                 if (isset($v["tablename"]) && isset($oldvalues[$Table->xmltable->primarykey]) && file_exists("{$_FN['datadir']}/{$_FN['database']}/{$v["tablename"]}.php")) {
                     $tmptable = FN_XMDBForm($v["tablename"], $params);
                     $sort = false;
@@ -1887,6 +1902,16 @@ set_changed();
                 if (isset($t[1]) && $t[1] != "" && isset($row[$t[0]]))
                     $params['restr'] = array($t[1] => $row[$t[0]]);
                 $params['restr'] = isset($params['restr']) ? $params['restr'] : false;
+                // With an empty link field the nested editor would show every record of the linked
+                // table with that field empty (see ViewRecord).
+                if (is_array($params['restr'])) {
+                    $linkvalue = reset($params['restr']);
+                    if (!is_array($linkvalue) && trim((string) $linkvalue) === "") {
+                        $html .= "<p><em>" . FN_Translate("Compilare il campo") . " <b>" . htmlspecialchars($t[0]) . "</b> " . FN_Translate("per collegare i record di questa tabella") . ".</em></p>";
+                        $html .= "</div>";
+                        continue;
+                    }
+                }
                 $params['forcenewvalues'] = $params['forceupdatevalues'] = $params['restr'];
 
                 $params['link_cancel'] = $this->MakeLink(array("op" => "edit", "id" => $id_record, "inner" => null), "&", false);
@@ -2100,6 +2125,31 @@ set_changed();
         return $html;
     }
 
+    /**
+     * Options for a search form field (foreign key or static options), with the
+     * current filter value marked as selected. Empty array = plain text input.
+     *
+     * @param array $formval  entry of XMETAForm::formvals
+     * @param string $val     current filter value
+     * @return array
+     */
+    function GetSearchFieldOptions($formval, $val)
+    {
+        $ret = array();
+        if (empty($formval['options']) || !is_array($formval['options']))
+            return $ret;
+        foreach ($formval['options'] as $opt) {
+            if (!isset($opt['value']) || $opt['value'] === "")
+                continue;
+            $ret[] = array(
+                'value' => htmlspecialchars($opt['value']),
+                'title' => htmlspecialchars(isset($opt['title']) ? $opt['title'] : $opt['value']),
+                'selected' => ((string)$val !== "" && (string)$val === (string)$opt['value']) ? 'selected="selected"' : ''
+            );
+        }
+        return $ret;
+    }
+
     function GetSearchForm($orders, $tablename, $search_options, $search_min, $search_fields, $search_partfields = "")
     {
 
@@ -2180,13 +2230,18 @@ set_changed();
         //dprint_r($rules);
         foreach ($search_fields as $fieldname) {
             if (isset($_table_form->formvals[$fieldname])) {
-                $val = FN_GetParam("$fieldname", $_REQUEST);
+                // the form submits sfield_<name>; keep the bare name as fallback
+                $val = FN_GetParam("sfield_$fieldname", $_REQUEST);
+                if ($val === "")
+                    $val = FN_GetParam("$fieldname", $_REQUEST);
                 $search_fields_array['suffix'] = "";
                 if (isset($_table_form->formvals[$fieldname]['frm_suffix']))
                     $search_fields_array['suffix'] = $_table_form->formvals[$fieldname]['frm_suffix'];
                 $search_fields_array['title'] = $_table_form->formvals[$fieldname]['title'];
                 $search_fields_array['value'] = $val;
                 $search_fields_array['name'] = "sfield_$fieldname";
+                // foreign keys / static options: render a select instead of a text input
+                $search_fields_array['options'] = $this->GetSearchFieldOptions($_table_form->formvals[$fieldname], $val);
                 $search_fields_items[] = $search_fields_array;
             }
         }
@@ -2204,6 +2259,8 @@ set_changed();
                 $search_fields_array['title'] = $_table_form->formvals[$fieldname]['title'];
                 $search_fields_array['value'] = $val;
                 $search_fields_array['name'] = "spfield_$fieldname";
+                // foreign keys / static options: render a select instead of a text input
+                $search_fields_array['options'] = $this->GetSearchFieldOptions($_table_form->formvals[$fieldname], $val);
                 $search_fields_items[] = $search_fields_array;
             }
         }

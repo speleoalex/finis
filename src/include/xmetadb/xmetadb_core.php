@@ -42,6 +42,133 @@ if (!function_exists('FN_Copy')) {
     function FN_Copy($src, $dst) { return copy($src, $dst); }
 }
 // TODO: the primary key must always be the first field in the descriptor
+/**
+ * Form widget of a field descriptor.
+ *
+ * Descriptor convention: "type" is the SQL column type (varchar, int, double,
+ * datetime, text, ...) and "frm_type" is the form widget (image, file, check,
+ * radio, select, uppercase, ...). Old descriptors put the widget in "type":
+ * when "frm_type" is empty, "type" is returned.
+ *
+ * @param array|object $field
+ * @return string
+ */
+function xmetadb_frm_type($field)
+{
+    if (is_object($field))
+        $field = get_object_vars($field);
+    if (!is_array($field))
+        return "";
+    if (!empty($field['frm_type']))
+        return $field['frm_type'];
+    return xmetadb_default_frm_type(isset($field['type']) ? $field['type'] : "");
+}
+
+/**
+ * Default form widget for a field without frm_type.
+ * SQL types that have no widget class of their own are mapped to the closest one;
+ * every other value (including the legacy widget names) is returned as it is.
+ *
+ * @param string $type
+ * @return string
+ */
+function xmetadb_default_frm_type($type)
+{
+    switch (strtolower((string) $type))
+    {
+        case "mediumtext":
+        case "longtext":
+            return "text";
+        case "tinyint":
+        case "smallint":
+        case "bigint":
+            return "int";
+        case "double":
+        case "decimal":
+        case "char":
+        case "date":
+        case "time":
+            return "varchar";
+    }
+    return $type;
+}
+
+/**
+ * True if the field stores an uploaded file (widget "file" or "image").
+ * @param array|object $field
+ * @return bool
+ */
+function xmetadb_is_file_field($field)
+{
+    $t = xmetadb_frm_type($field);
+    return ($t == "file" || $t == "image");
+}
+
+/**
+ * MySQL column type of a field descriptor.
+ *
+ * "type" is the SQL type; "size" is the length of varchar/char and the
+ * precision of decimal ("9,2"). Any other value of "type" (old descriptors
+ * with the form widget in "type": string, check, image, select, ...) is
+ * VARCHAR(255).
+ *
+ * @param array|object $field
+ * @return array ['sql' => column type, 'string' => text column (needs a
+ *               charset), 'nullable' => created as NULL DEFAULT NULL,
+ *               'integer' => integer column]
+ */
+function xmetadb_sql_column_type($field)
+{
+    if (is_object($field))
+        $field = get_object_vars($field);
+    $type = isset($field['type']) ? strtolower(trim($field['type'])) : "";
+    $size = isset($field['size']) ? trim($field['size']) : "";
+    $ret = array('sql' => "VARCHAR(255)", 'string' => true, 'nullable' => false, 'integer' => false);
+    switch ($type)
+    {
+        case "text":
+        case "html":
+            $ret['sql'] = "TEXT";
+            $ret['nullable'] = true;
+            break;
+        case "mediumtext":
+        case "longtext":
+            $ret['sql'] = strtoupper($type);
+            $ret['nullable'] = true;
+            break;
+        case "json":
+            $ret = array('sql' => "JSON", 'string' => false, 'nullable' => true, 'integer' => false);
+            break;
+        case "date":
+        case "datetime":
+        case "time":
+            $ret = array('sql' => strtoupper($type), 'string' => false, 'nullable' => true, 'integer' => false);
+            break;
+        case "int":
+        case "number":
+        case "tinyint":
+        case "smallint":
+        case "bigint":
+            $ret = array('sql' => ($type == "number" ? "INT" : strtoupper($type)), 'string' => false, 'nullable' => true, 'integer' => true);
+            break;
+        case "float":
+        case "double":
+            $ret = array('sql' => strtoupper($type), 'string' => false, 'nullable' => true, 'integer' => false);
+            break;
+        case "decimal":
+            $ret = array('sql' => "DECIMAL(" . (preg_match('/^\d+(,\d+)?$/', $size) ? $size : "10,2") . ")", 'string' => false, 'nullable' => true, 'integer' => false);
+            break;
+        case "char":
+        case "varchar":
+            $len = ctype_digit($size) && $size > 0 ? intval($size) : ($type == "char" ? 1 : 255);
+            if ($type == "char" && $len > 255)
+                $len = 255;
+            $ret['sql'] = strtoupper($type) . "($len)";
+            break;
+    }
+    return $ret;
+}
+
 define("_MAX_FILE_ACCESS_ATTEMPTS", "1000");
 define("_MAX_FILES_PER_FOLDER", "10000");
 define("_MAX_LOCK_TIME", "30"); // seconds

@@ -264,16 +264,46 @@ xml_to_sql('database_name', 'fn_users', 'misc', $connection);
 
 ## Schemi e Definizioni Campi
 
-### Tipi di Campi Supportati
+### Tipi dei campi: `type` e `frm_type`
 
-- `string` / `varchar`: Stringhe di testo (lunghezza limitata)
-- `text`: Testo lungo
-- `html`: Testo HTML
-- `int`: Numeri interi
-- `datetime`: Date e timestamp
-- `file`: Campo per l'upload di file
-- `image`: Campo per l'upload di immagini (con generazione automatica di miniature)
-- `base64file`: File archiviati come base64 nel database
+- `type` è il **tipo della colonna SQL**, usato quando si crea la tabella o si aggiunge una colonna.
+- `frm_type` è il **widget del form**. Se manca, il widget si ricava da `type`.
+
+Tipi SQL (`type`):
+
+| `type` | colonna | valore vuoto |
+|---|---|---|
+| `varchar` | `VARCHAR(size)`, size di default 255 | `''` (NOT NULL) |
+| `char` | `CHAR(size)`, size di default 1 | `''` (NOT NULL) |
+| `text`, `html`, `mediumtext`, `longtext` | `TEXT`, `TEXT`, `MEDIUMTEXT`, `LONGTEXT` | `NULL` |
+| `int`, `number`, `tinyint`, `smallint`, `bigint` | tipi interi (`number` = `INT`) | `NULL` |
+| `float`, `double` | `FLOAT`, `DOUBLE` | `NULL` |
+| `decimal` | `DECIMAL(size)`, size `"precisione,scala"`, default `10,2` | `NULL` |
+| `date`, `datetime`, `time` | `DATE`, `DATETIME`, `TIME` | `NULL` |
+| `json` | `JSON` | |
+| qualunque altro valore (`string`, `check`, `image`, ... nomi di widget storici) | `VARCHAR(255)` | `''` (NOT NULL) |
+
+Le colonne numeriche e le date ammettono `NULL`: un campo vuoto del form viene salvato come
+`NULL` e riletto come `""`, mai come `0`. finis non modifica mai una colonna esistente:
+cambiare `type` in un descrittore vale solo per le tabelle e le colonne nuove.
+
+Widget (`frm_type`): `varchar`, `varchar_uppercase` / `uppercase`, `text`, `html`, `check`,
+`radio`, `select`, `multiselect`, `multicheck`, `stringselect`, `int`, `float`, `datetime`,
+`password`, `file`, `image` (con miniatura), `base64file`, `json`, `separator`, ... I tipi
+SQL senza un widget proprio usano il più vicino (`mediumtext` → `text`, `double` → `varchar`, ...).
+
+```xml
+<field>
+  <name>elevation</name>
+  <type>double</type>          <!-- tipo SQL -->
+  <frm_type>varchar</frm_type> <!-- widget del form -->
+</field>
+<field>
+  <name>photo</name>
+  <type>varchar</type>
+  <frm_type>image</frm_type>
+</field>
+```
 
 ### Proprietà dei Campi
 

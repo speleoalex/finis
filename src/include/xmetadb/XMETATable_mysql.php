@@ -267,49 +267,23 @@ class XMETATable_mysql extends \stdClass
                 @ini_set("max_execution_time", "600");
 
                 $fields = $this->fields;
-                $query = "CREATE TABLE `{$this->sqltable}` (";
-                $n = count($fields);
+                $columns = array();
                 foreach ($fields as $field)
                 {
                     $field = get_object_vars($field);
                     if (!isset($field['type']) || $field['type'] == "string")
                         $field['type'] = "varchar";
-                    $query .= "`" . $field['name'] . "`";
-                    $field['size'] = isset($field['size']) ? $field['size'] : "";
-                    $default = "''";
-                    switch ($field['type'])
-                    {
-                        case "innertable":
-                            break;
-                        case "text":
-                        case "html":
-                            $query .= " TEXT";
-                            $default = "NULL";
-                            break;
-                        case "longtext":
-                            $query .= " LONGTEXT";
-                            $default = "NULL";
-                            break;
-                        case "datetime":
-                            $query .= " DATETIME";
-                            $default = "NULL";
-                            break;
-
-                        case "int":
-                            $query .= " INT";
-                            $default = "NULL";
-                            break;
-                        default: // force everything to varchar
-                            $query .= " VARCHAR";
-                            $field['size'] = "255";
-                            break;
-                    }
-                    if ($field['size'] != "")
-                        $query .= "(" . $field['size'] . ")";
+                    if ($field['type'] == "innertable")
+                        continue;
+                    $query = "`" . $field['name'] . "`";
+                    // "type" is the SQL type, see xmetadb_sql_column_type()
+                    $coltype = xmetadb_sql_column_type($field);
+                    $query .= " " . $coltype['sql'];
+                    $default = $coltype['nullable'] ? "NULL" : "''";
                     $query .= " ";
                     if (isset($field['extra']) && $field['extra'] == "autoincrement")
                     {
-                        if ($field['type'] == "int")
+                        if ($coltype['integer'])
                         {
                             $query .= " AUTO_INCREMENT ";
                         }
@@ -337,10 +311,9 @@ class XMETATable_mysql extends \stdClass
                     {
                         $query .= " NOT NULL ";
                     }
-                    if ($n-- > 1)
-                        $query .= ",";
+                    $columns[] = $query;
                 }
-                $query .= ") DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_bin";
+                $query = "CREATE TABLE `{$this->sqltable}` (" . implode(",", $columns) . ") DEFAULT CHARACTER SET utf8 DEFAULT COLLATE utf8_bin";
 
                 if (!$this->dbQuery($query))
                 {
@@ -393,59 +366,29 @@ class XMETATable_mysql extends \stdClass
                 {
                     $field = get_object_vars($fieldvalues);
                     $query = "ALTER TABLE `" . $this->sqltable . "` ADD `$fieldname` ";
-                    $field['size'] = isset($field['size']) ? $field['size'] : "";
-                    $default = "";
-                    switch ($field['type'])
-                    {
-                        case "text":
-                        case "html":
-                            $query .= " TEXT";
-                            break;
-                        case "longtext":
-                            $query .= " LONGTEXT";
-                            break;
-                        case "datetime":
-                            $query .= " DATETIME";
-                            break;
-                        case "int":
-                        case "number":
-                            $query .= " INT";
-                            $default = 0;
-                            break;
-                        case "float":
-                            $query .= " FLOAT";
-                            $default = 0;
-                            break;
-                        case "json":
-                            $query .= " JSON";
-                            break;
-                        default: // force everything to varchar
-                            $query .= " VARCHAR";
-                            $field['size'] = "255";
-                            break;
-                    }
-                    if ($field['size'] != "")
-                        $query .= "(" . $field['size'] . ")";
-                    if (!in_array($field['type'], array('int', 'number', 'float', 'datetime', 'json')))
+                    // "type" is the SQL type, see xmetadb_sql_column_type()
+                    $coltype = xmetadb_sql_column_type($field);
+                    $query .= " " . $coltype['sql'];
+                    // same NULL rules as CREATE: numbers and dates NULL, strings NOT NULL ''
+                    if ($coltype['string'])
                         $query .= " CHARACTER SET utf8 COLLATE utf8_bin";
                     $query .= " ";
                     if (isset($field['extra']) && $field['extra'] == "autoincrement")
                     {
-                        if ($field['type'] == "int")
+                        if ($coltype['integer'])
                             $query .= " AUTO_INCREMENT ";
                     }
-
                     if (!empty($field["mysql_default"]))
                     {
                         $query .= " DEFAULT {$field["mysql_default"]}";
                     }
-                    elseif ($default !== "")
+                    elseif ($coltype['nullable'])
                     {
-                        $query .= " NOT NULL DEFAULT '$default'";
+                        $query .= " NULL DEFAULT NULL";
                     }
                     else
                     {
-                        $query .= " NULL";
+                        $query .= " NOT NULL DEFAULT ''";
                     }
                     if (!empty($field["mysql_on_update"]))
                     {

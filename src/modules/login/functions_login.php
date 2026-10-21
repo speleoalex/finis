@@ -286,7 +286,7 @@ function FNREG_ManageEditRegister($user = "")
         {
             foreach ($form->formvals as $key => $fieldvalue)
             {
-                if (isset($fieldvalue['type']) && ($fieldvalue['type'] == 'image' || $fieldvalue['type'] == 'file'))
+                if (xmetadb_is_file_field($fieldvalue))
                 {
                     if (isset($_FILES[$key]['name']))
                     {
@@ -600,7 +600,7 @@ function FNREG_ManageRegister($actionform = "")
 
     foreach ($form->formvals as $key => $value)
     {
-        if (isset($value['type']) && ($value['type'] == 'image' || $value['type'] == 'file') && isset($_FILES[$key]['name']))
+        if (xmetadb_is_file_field($value) && isset($_FILES[$key]['name']))
         {
             if ($_FILES[$key]['name'] != "")
             {

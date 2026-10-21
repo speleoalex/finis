@@ -39,6 +39,20 @@ If the installation predates the feature, the `apikey` field is added to the
 `fn_users` table definition automatically (`FN_EnsureUserApiKeyField()`); with the
 MySQL driver the column is created on the first write.
 
+### Restricting the API keys to some users
+
+By default every user can use their key. To allow only some users, set the groups in
+`config.php` (or in an `extra/*.inc.php` file of the application):
+
+```php
+$_FN['apikey_groups'] = "mcp_users";   // comma separated groups, "" = every user
+```
+
+Then only the administrators (level 10) and the members of those groups can use an API
+key: the keys of the other users are refused everywhere (MCP endpoint, site login with the
+header) and the profile page neither shows nor generates the key. The check is
+`FN_UserCanUseApiKey($user)`. To enable a user, add one of the groups to the user.
+
 ## Endpoint
 
 ```

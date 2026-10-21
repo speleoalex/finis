@@ -158,7 +158,9 @@ else
         // contenuti pubblici (groupview vuoto) ritorna true anche per l'anonimo: cosi' un crawler
         // (es. Amazonbot) poteva raggiungere op=edit/op=del. Se l'utente non puo' scrivere si forza
         // la sola visualizzazione.
-        $writeops = array("edit", "new", "del", "updaterecord", "insertrecord", "users", "admingroups", "offlineform");
+        // "offlineform" is not listed: it is a read-only download (GenOfflineUpdate checks
+        // CanViewRecord) and is the public channel to submit updates by email.
+        $writeops = array("edit", "new", "del", "updaterecord", "insertrecord", "users", "admingroups");
         if (in_array($op, $writeops, true) && !$dbview->CanEditRecords())
         {
             $op = "view";
@@ -225,6 +227,13 @@ else
                 else
                 {
                     $html .= $dbview->UpdateRecord($Table); // esegue aggiornamento record
+                }
+                // Both branches render the edit form again: include the same
+                // section hook used by op=edit so the form keeps its additions
+                // (e.g. the record validator banner) after saving.
+                if (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/bottom_edit.php"))
+                {
+                    include ("{$_FN['src_application']}/sections/{$_FN['mod']}/bottom_edit.php");
                 }
                 break;
             case "insertrecord" : // esegue inserimento record
