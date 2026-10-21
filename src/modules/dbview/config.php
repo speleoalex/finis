@@ -87,6 +87,10 @@ $config['enable_statistics'] = 0;
 $config['search_query_native_mysql'] = 0;
 //[i18n]enable offline form {1=yes,0=no}
 $config['enable_offlineform'] = 1;
+//[i18n]fields not shown in the offline form (comma separated)
+$config['offlineform_hidden_fields'] = "";
+//[i18n]fields shown as plain text in the offline form (comma separated)
+$config['offlineform_text_fields'] = "";
 //[i18n]folder containing documents
 $config['documents_folder']="";
 //[i18n]enable cache for table records list {1=yes,0=no}

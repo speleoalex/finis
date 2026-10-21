@@ -72,7 +72,7 @@ if (isset($_SERVER['SHELL']))
 {
     $_FN['src_finis'] = realpath(__DIR__ . "/..");
     $_FN['consolemode'] = true;
-    $_FN['script_path'] = $_SERVER['PWD'];
+    $_FN['script_path'] = isset($_SERVER['PWD']) ? $_SERVER['PWD'] : getcwd(); // PWD is not set under sudo/cron
     chdir(dirname($_SERVER["PHP_SELF"]));
 }
 //-------------------console mode----------------------------------------------<

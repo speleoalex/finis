@@ -28,7 +28,7 @@ $config=FN_LoadConfig("modules/news/config.php");
 $tablename=$config['tablename'];
 
 $tableArguments=FN_XMDBForm("{$tablename}_arguments");
-$DB=new XMETADatabase("fndatabase",$_FN['datadir']);
+$DB=new XMETADatabase($_FN['database'],$_FN['datadir'],FN_setCommonParams());
 
 FN_NARC_PrintBar($tablename);
 

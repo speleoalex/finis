@@ -28,13 +28,13 @@ function FNSEARCH_module_dbview($tosearch_array,$method,$sectionvalues,$maxres)
     $dbview = new FNDBVIEW($config);
     $tablename=$config['tables'];
     $Table=FN_XMDBTable($tablename);
-    $DB=new XMETADatabase($_FN['database'],$_FN['datadir']);
+    $DB=new XMETADatabase($_FN['database'],$_FN['datadir'],FN_setCommonParams());
     //--search query ---------------------------------------------------------->
     $query="SELECT * FROM $tablename WHERE  ";
     $tmpmethod="";
     foreach($Table->fields as $fieldstoread=> $fieldvalues)
     {
-        if ($fieldstoread!="insert"&&$fieldstoread!="update"&&$fieldstoread!="id"&&$fieldvalues->type!="check")
+        if ($fieldstoread!="insert"&&$fieldstoread!="update"&&$fieldstoread!="id"&&xmetadb_frm_type($fieldvalues)!="check")
         {
             //dprint_r($fieldvalues);
             if (isset($fieldvalues->frm_show)&&$fieldvalues->frm_show=="0")
