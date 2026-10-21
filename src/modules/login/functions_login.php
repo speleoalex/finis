@@ -872,7 +872,7 @@ function FNREG_ManageRegister($actionform = "")
     if (!empty($config['enable_captcha']))
     {
         $tplvars['txt_error_security_code'] = "";
-        FN_SetSessionValue("captcha", array("security_code" => rand(1000, 9999)));
+        FN_SetSessionValue("captcha", array("security_code" => random_int(1000, 9999)));
         $htmlcaptcha .= "<img style=\"\" src=\"{$_FN['siteurl']}?fnapp=captcha\" alt=\"\" title=\"\" /> <input style=\"\" size=\"4\" autocomplete=\"off\" name=\"security_code\"  value = \"\" />";
         if (isset($_POST['security_code']) && $security_code != $captcha['security_code'])
             $tplvars['txt_error_security_code'] = FN_Translate("incorrect security code");

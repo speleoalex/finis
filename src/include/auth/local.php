@@ -74,6 +74,80 @@ function FN_IsHttps()
     return false;
 }
 
+/**
+ * File that keeps the recent login attempts of a username from the client IP.
+ * It is in the cache folder, so FN_ClearCache() resets all the counters.
+ *
+ * @param string $user
+ * @global array $_FN
+ * @return string
+ */
+function FN_LoginAttemptsFile($user)
+{
+    global $_FN;
+    $ip = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
+    return "{$_FN['datadir']}/_cache/login_" . hash('sha256', $user . '|' . $ip) . ".cache";
+}
+
+/**
+ * Records a login attempt of a username from the client IP, before the
+ * password is checked, so parallel requests cannot pass the limit.
+ * After $_FN['login_max_attempts'] attempts (default 5) in the last
+ * $_FN['login_lockout_minutes'] minutes (default 15) the attempt is refused.
+ * FN_LoginResetAttempts() clears the attempts after a successful login.
+ *
+ * @param string $user
+ * @global array $_FN
+ * @return bool false if the username is locked out from this IP
+ */
+function FN_LoginAttempt($user)
+{
+    global $_FN;
+    $max = !empty($_FN['login_max_attempts']) ? intval($_FN['login_max_attempts']) : 5;
+    $minutes = !empty($_FN['login_lockout_minutes']) ? intval($_FN['login_lockout_minutes']) : 15;
+    $file = FN_LoginAttemptsFile($user);
+    //wait for a concurrent request, a stale lock is removed by FN_UnlockFile
+    for ($i = 0; $i < 20 && !FN_LockFile($file); $i++)
+    {
+        usleep(50000);
+    }
+    $content = file_exists($file) ? file_get_contents($file) : "";
+    $attempts = array();
+    foreach (explode("\n", $content) as $time)
+    {
+        if (intval($time) > time() - $minutes * 60)
+            $attempts[] = intval($time);
+    }
+    $allowed = (count($attempts) < $max);
+    if ($allowed)
+    {
+        $attempts[] = time();
+        FN_Write(implode("\n", $attempts), $file);
+    }
+    elseif (strpos($content, "locked") === false)
+    {
+        //log once for each lockout
+        FN_Write(implode("\n", $attempts) . "\nlocked", $file);
+        FN_Log("User $user locked out for $minutes minutes after $max failed logins from " . FN_GetParam("REMOTE_ADDR", $_SERVER, "html"));
+    }
+    FN_UnlockFile($file);
+    return $allowed;
+}
+
+/**
+ * Clears the login attempts of a username from the client IP.
+ *
+ * @param string $user
+ */
+function FN_LoginResetAttempts($user)
+{
+    $file = FN_LoginAttemptsFile($user);
+    if (file_exists($file))
+    {
+        @unlink($file);
+    }
+}
+
 function FN_LoginInitUrl($script="")
 {
     global $_FN;
@@ -178,7 +252,7 @@ function FN_ManageLogin()
         if ($fnlogincode == "" || empty($captcha['fnlogin_code']) || $captcha['fnlogin_code'] != $fnlogincode)
         {
             $captcha_ok = false;
-            FN_SetSessionValue("captcha", array("fnlogin_code" => rand(1000, 9999)));
+            FN_SetSessionValue("captcha", array("fnlogin_code" => random_int(1000, 9999)));
         }
     }
     //-------------------captcha-----------------------------------------------<
@@ -188,8 +262,9 @@ function FN_ManageLogin()
     {
         if (empty($_FN['username_case_sensitive']))
             $fnuser = strtolower($fnuser);
-        if ($captcha_ok && FN_VerifyUserPassword($fnuser, $fnpwd))
+        if ($captcha_ok && FN_LoginAttempt($fnuser) && FN_VerifyUserPassword($fnuser, $fnpwd))
         {
+            FN_LoginResetAttempts($fnuser);
             FN_Login($fnuser, $rememberlogin);
             $justLoggedIn = true;
         }
@@ -310,7 +385,7 @@ function FN_HtmlLoginForm($templateForm = false, $url = "")
         $fnlogincode = FN_GetParam("fnlogin_code", $_POST);
         if ($fnlogincode == "" || empty($captcha['fnlogin_code']) || $captcha['fnlogin_code'] != $fnlogincode)
             $captcha_ok = false;
-        FN_SetSessionValue("captcha", array("fnlogin_code" => rand(1000, 9999)));
+        FN_SetSessionValue("captcha", array("fnlogin_code" => random_int(1000, 9999)));
         
         $htmlcaptcha .= "<img style=\"vertical-align:middle\" src=\"{$_FN['siteurl']}?fnapp=captcha&amp;t=fnlogin_code&amp;" . time() . "\" alt=\"\" title=\"\" /> <input size=\"4\" name=\"fnlogin_code\"  value = \"\" />";
         $tplvars['htmlcaptcha'] = $htmlcaptcha;
