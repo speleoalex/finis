@@ -402,6 +402,10 @@ Helpers in `src/include/auth/local.php`; the login module
     `login_lockout_minutes`; the counter is `{datadir}/_cache/login_<sha256(user|ip)>.cache`,
     so `FN_ClearCache()` resets it. `FN_LoginResetAttempts($user)` runs after a successful
     login. A locked out login gets the usual generic error and one `FN_Log` entry.
+*   **Captcha**: the session key `captcha` holds the code shown by `fnapp=captcha&t=<name>`
+    (`fnlogin_code` for the login when `$_FN['enable_captcha']`). The posted code is
+    compared with `hash_equals` and replaced after every check, right or wrong, so a solved
+    code is good for one attempt. A wrong captcha does not count as a login attempt.
 *   **Tokens in `fn_users.rnd`**: password recovery stores `<32 hex>.<timestamp>` (valid
     `recovery_link_minutes`), registration confirmation stores `<32 hex>` (single use). One
     is never accepted in place of the other, both are compared with `hash_equals`, and

@@ -274,11 +274,12 @@ function FN_ManageLogin()
     {
         $captcha = FN_GetSessionValue("captcha");
         $fnlogincode = FN_GetParam("fnlogin_code", $_POST);
-        if ($fnlogincode == "" || empty($captcha['fnlogin_code']) || $captcha['fnlogin_code'] != $fnlogincode)
+        if ($fnlogincode == "" || empty($captcha['fnlogin_code']) || !hash_equals((string) $captcha['fnlogin_code'], $fnlogincode))
         {
             $captcha_ok = false;
-            FN_SetSessionValue("captcha", array("fnlogin_code" => random_int(1000, 9999)));
         }
+        //each code is checked once: a new one for the next attempt
+        FN_SetSessionValue("captcha", array("fnlogin_code" => random_int(1000, 9999)));
     }
     //-------------------captcha-----------------------------------------------<
     $rememberlogin  = FN_GetParam("rememberlogin", $_POST);
