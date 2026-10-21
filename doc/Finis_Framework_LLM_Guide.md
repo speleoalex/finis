@@ -386,6 +386,13 @@ Helpers in `src/include/auth/local.php`; the login module
 *   **Site secret**: `FN_GetSiteSecret()` reads `{datadir}/secret.key.php` (starts with
     `<?php exit(0); ?>`, mode 0600) or creates it once with `random_bytes(32)`. Deleting the
     file logs out every user. Never commit it.
+*   **Server session**: `FN_GetSessionValue($key)` and `FN_SetSessionValue($key, $value)`
+    (`src/include/functions_sessions.inc.php`) keep values in
+    `{datadir}/_sessions/<fnsid>.session`, removed one hour after the last write.
+    `FN_GetSessionId()` takes `fnsid` only from the cookie and accepts only 32 hex chars;
+    otherwise it creates a random id and sends it in a session cookie (HttpOnly,
+    SameSite=Lax, `secure` when `FN_IsHttps()`). A `fnsid` in the url is ignored: API
+    clients without a cookie jar send `Cookie: fnsid=<id>` (the id is in `$_FN['return']`).
 *   **Passwords**: `FN_VerifyUserPassword($user, $password)` uses only `password_verify` for
     modern hashes (the stored hash sent as password is refused) and rehashes when
     `password_needs_rehash`. Legacy md5 and plaintext values are compared with `hash_equals`
@@ -403,12 +410,9 @@ Helpers in `src/include/auth/local.php`; the login module
     session (`session_oauth_state`, single use) and refuses callbacks without it. When the
     provider returns `email_verified` or `verified_email`, it must be true. The return url
     `session_oauth_returnurl` is followed only if `FN_IsInternalUrl($url)` (under
-    `$_FN['siteurl']`, or relative without scheme). Session reads take `fnsid` from the url
-    first, writes only from the cookie: OAuth requests with a `fnsid` in the url that differs
-    from the cookie are refused, so another browser's state or access token is never used.
+    `$_FN['siteurl']`, or relative without scheme).
 *   **Random values**: tokens, captcha codes and generated passwords use `random_bytes` or
-    `random_int`; do not use `rand`, `mt_rand` or `uniqid` for anything secret (the session
-    id `fnsid` still comes from `uniqid`).
+    `random_int`; do not use `rand`, `mt_rand` or `uniqid` for anything secret.
 
 Configuration keys (in `config.vars.local.php`, defaults in the code):
 

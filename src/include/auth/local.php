@@ -902,14 +902,6 @@ function FN_ManageLoginWithOpenAuthentication()
         return;
     }
     $config = $found_provider;
-    //state and access token are read from the session of the fnsid in the request (url first, then cookie) but written
-    //to the session of the cookie: a fnsid in the url can be the session of another browser (login CSRF), refuse it
-    $request_sid = FN_GetParam("fnsid", $_REQUEST, "html");
-    if (!empty($request_sid) && $request_sid !== FN_GetParam("fnsid", $_COOKIE, "html"))
-    {
-        FN_Log("OAuth login with provider {$config['id']} refused: session id not from the cookie");
-        return;
-    }
 
     // Check if the user is already authenticated
     if (empty($session_access_token))
