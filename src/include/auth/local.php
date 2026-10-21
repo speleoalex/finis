@@ -75,6 +75,31 @@ function FN_IsHttps()
 }
 
 /**
+ * True when the url points to this site: an absolute url under $_FN['siteurl']
+ * or a relative url without scheme and host.
+ * Check it before a redirect, so that it cannot lead to another site.
+ *
+ * @param string $url
+ * @global array $_FN
+ * @return bool
+ */
+function FN_IsInternalUrl($url)
+{
+    global $_FN;
+    //browsers drop tabs and newlines, trim spaces and read "\" as "/": "/\evil.com" is "//evil.com"
+    if (!is_string($url) || $url === "" || preg_match('/[\x00-\x20\x7F\\\\]/', $url) || substr($url, 0, 2) == "//")
+    {
+        return false;
+    }
+    if (!empty($_FN['siteurl']) && strpos($url, rtrim($_FN['siteurl'], "/") . "/") === 0)
+    {
+        return true;
+    }
+    //relative url: no scheme (http:, javascript:, data: ...)
+    return !preg_match('/^[a-z][a-z0-9+.-]*:/i', $url);
+}
+
+/**
  * File that keeps the recent login attempts of a username from the client IP.
  * It is in the cache folder, so FN_ClearCache() resets all the counters.
  *
@@ -885,11 +910,15 @@ function FN_ManageLoginWithOpenAuthentication()
         if (!isset($_GET['code']))
         {
             // Redirect to provider's authorization page
+            //random state kept in the session, the provider sends it back with the code
+            $state = bin2hex(random_bytes(16));
+            FN_SetSessionValue("session_oauth_state", $state);
             $params = array(
                 'client_id' => $config['client_id'],
                 'redirect_uri' => $redirectUri,
                 'response_type' => 'code',
                 'scope' => $config['scope'],
+                'state' => $state,
             );
 
             $authRedirect = $config['auth_url'] . '?' . http_build_query($params);
@@ -898,6 +927,14 @@ function FN_ManageLoginWithOpenAuthentication()
         }
         else
         {
+            //the code must come back with the state of this session (no login CSRF), each state is used once
+            $state = FN_GetSessionValue("session_oauth_state");
+            FN_SetSessionValue("session_oauth_state", "");
+            if (empty($state) || !is_string($state) || !hash_equals($state, FN_GetParam("state", $_GET)))
+            {
+                FN_Log("OAuth login with provider {$config['id']} refused: invalid state");
+                return;
+            }
             // Exchange the authorization code for an access token
             $postData = array(
                 'code' => $_GET['code'],
@@ -938,6 +975,15 @@ function FN_ManageLoginWithOpenAuthentication()
     $userInfo = json_decode($response, true);
     FN_SetSessionValue("session_provider", $session_provider);
     $user_email = isset($userInfo['email']) ? $userInfo['email'] : "";
+    //when the provider says whether the email is verified (email_verified in OpenID Connect, verified_email in Google v2) it must be true
+    foreach (array("email_verified", "verified_email") as $key)
+    {
+        if ($user_email && is_array($userInfo) && array_key_exists($key, $userInfo) && !in_array($userInfo[$key], array(true, "true", 1, "1"), true))
+        {
+            FN_Log("OAuth login with provider {$config['id']} refused: email $user_email not verified");
+            $user_email = "";
+        }
+    }
     $user_image = !empty($userInfo['picture']) ? $userInfo['picture'] : "";
     if (!$user_image || is_array($user_image))
     {
@@ -968,7 +1014,11 @@ function FN_ManageLoginWithOpenAuthentication()
         if (!empty($_FN['user']) && $returnurl)
         {
             FN_SetSessionValue("session_oauth_returnurl", "");
-            FN_Redirect($returnurl);
+            //only to pages of this site, never an open redirect
+            if (FN_IsInternalUrl($returnurl))
+            {
+                FN_Redirect($returnurl);
+            }
         }
         return;
     }
