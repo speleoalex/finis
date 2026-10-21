@@ -13,6 +13,67 @@ if (!defined("FN_AUTH_METHOD"))
     }
 }
 
+/**
+ * Returns the per-site secret used to sign the session cookie.
+ * Generated once with random_bytes() and stored in the data directory.
+ * The file starts with "<?php exit(0); ?>" like the xmetadb data files,
+ * so it is not readable even if the data directory is served via web.
+ *
+ * @global array $_FN
+ * @return string
+ */
+function FN_GetSiteSecret()
+{
+    global $_FN;
+    static $secret = null;
+    if ($secret !== null)
+        return $secret;
+    $file = "{$_FN['datadir']}/secret.key.php";
+    $header = "<?php exit(0); ?>\n";
+    if (file_exists($file))
+    {
+        $content = file_get_contents($file);
+        $secret = trim(substr($content, strlen($header)));
+    }
+    if (empty($secret) || strlen($secret) < 32)
+    {
+        $secret = bin2hex(random_bytes(32));
+        if (!FN_Write($header . $secret, $file))
+        {
+            FN_Log("Cannot write site secret to $file");
+        }
+        @chmod($file, 0600);
+    }
+    return $secret;
+}
+
+/**
+ * Computes the value of the "secid" cookie for a user.
+ * Changing the password of the user invalidates the cookie.
+ *
+ * @param string $user
+ * @param string $passwd stored password hash
+ * @return string
+ */
+function FN_GetSecid($user, $passwd)
+{
+    return hash_hmac('sha256', $user . '|' . $passwd, FN_GetSiteSecret());
+}
+
+/**
+ * True when the current request uses HTTPS (directly or behind a proxy).
+ *
+ * @return bool
+ */
+function FN_IsHttps()
+{
+    if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on")
+        return true;
+    if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == "https")
+        return true;
+    return false;
+}
+
 function FN_LoginInitUrl($script="")
 {
     global $_FN;
@@ -447,21 +508,23 @@ function FN_Login($fnuser, $rememberlogin = false)
         // setcookie() is a no-op in CLI mode (no HTTP context)
         if (empty($_FN['consolemode']))
         {
+            $remember_days = !empty($_FN['remember_login_days']) ? intval($_FN['remember_login_days']) : 30;
             $expires = (empty($_FN['remember_login']) || $rememberlogin == "")
                 ? 0
-                : time() + 99999999;
+                : time() + $remember_days * 86400;
             $cookieOpts = [
                 'expires'  => $expires,
                 'path'     => $_FN['urlcookie'],
+                'secure'   => FN_IsHttps(),
                 'httponly' => true,
                 'samesite' => 'Lax',
             ];
             setcookie("fnuser", $fnuser, $cookieOpts);
-            setcookie("secid",  md5($fnuser . $password), $cookieOpts);
+            setcookie("secid",  FN_GetSecid($fnuser, $password), $cookieOpts);
         }
         FN_Log("User $fnuser login (function FN_Login).");
         $_FN['user'] = $_COOKIE['fnuser'] = $fnuser;
-        $_COOKIE['secid'] = md5($fnuser . $password);
+        $_COOKIE['secid'] = FN_GetSecid($fnuser, $password);
 
         return true;
     }
@@ -500,7 +563,7 @@ function FN_Logout()
     }
 //---------------------url cookie----------------------------------------------<
 
-    $clearOpts = ['expires' => 1, 'httponly' => true, 'samesite' => 'Lax'];
+    $clearOpts = ['expires' => 1, 'secure' => FN_IsHttps(), 'httponly' => true, 'samesite' => 'Lax'];
     foreach ([$urlcookie, '/'] as $path) {
         setcookie("fnuser", "", $clearOpts + ['path' => $path]);
         setcookie("secid",  "", $clearOpts + ['path' => $path]);
@@ -605,8 +668,8 @@ function FN_CheckUser()
     $UserValues = FN_GetUser($_FN['user']);
     if (empty($secid) || empty($UserValues['passwd']))
         return false;
-    $RequiredSecid = md5($_FN['user'] . $UserValues['passwd']);
-    if ($RequiredSecid == $secid)
+    $RequiredSecid = FN_GetSecid($_FN['user'], $UserValues['passwd']);
+    if (hash_equals($RequiredSecid, (string) $secid))
         return true;
     return false;
 }
