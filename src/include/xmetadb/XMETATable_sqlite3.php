@@ -474,10 +474,7 @@ class XMETATable_sqlite3 extends \stdClass
             if (!$this->conn)
                 die("SQLite connection error: " . $this->sqlite_error);
             $pkey = $this->primarykey;
-            if ($this->fields[$this->primarykey]->type == "int")
-                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE " . $pkvalue;
-            else
-                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . \SQLite3::escapeString($pkvalue) . "'";
+            $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . \SQLite3::escapeString(xmetadb_escape_like($pkvalue)) . "' ESCAPE '!'";
             $result = $this->dbQuery($query);
             if (!$result)
             {

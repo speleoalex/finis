@@ -834,6 +834,18 @@ function xmetadb_remove_record_dir($tablepath, $pkvalue)
 }
 
 /**
+ * Escapes the wildcards % and _ of a LIKE pattern, to be used with ESCAPE '!'
+ * (the value is then matched exactly)
+ *
+ * @param string $value
+ * @return string
+ * */
+function xmetadb_escape_like($value)
+{
+    return strtr("$value", array("!" => "!!", "%" => "!%", "_" => "!_"));
+}
+
+/**
  * xmetadb_encode_preg_replace2nd
  * prepara la stringa per il secondo parametro
  * dell' preg_replace aggiungendo la \ savanti a \ e $

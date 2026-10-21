@@ -630,10 +630,7 @@ class XMETATable_mysql extends \stdClass
                 return false;
             }
             $pkey = $this->primarykey;
-            if ($this->fields[$this->primarykey]->type == "int")
-                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE " . $pkvalue;
-            else
-                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string($pkvalue) . "'";
+            $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string(xmetadb_escape_like($pkvalue)) . "' ESCAPE '!'";
             $result = $this->dbQuery($query);
             if (!$result)
             {
