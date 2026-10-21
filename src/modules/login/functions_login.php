@@ -713,11 +713,14 @@ function FNREG_ManageRegister($actionform = "")
             {
                 $captcha = FN_GetSessionValue("captcha");
                 $security_code = FN_GetParam("security_code", $_POST);
-                if (empty($captcha['security_code']) || $captcha['security_code'] != $security_code)
+                if (empty($captcha['security_code']) || !hash_equals((string) $captcha['security_code'], $security_code))
                 {
                     $captcha_ok = false;
                     $errors['security_code'] = array("title" => FN_Translate("captcha"), "field" => "captcha", "error" => FN_Translate("incorrect security code"));
                 }
+                //each code is checked once: the form shows a new one
+                unset($captcha['security_code']);
+                FN_SetSessionValue("captcha", $captcha);
             }
             //---check captcha-----------------------------------------------------<
             if (count($errors) == 0 && $conditions_ok == true && $captcha_ok == true)
@@ -874,7 +877,7 @@ function FNREG_ManageRegister($actionform = "")
         $tplvars['txt_error_security_code'] = "";
         FN_SetSessionValue("captcha", array("security_code" => random_int(1000, 9999)));
         $htmlcaptcha .= "<img style=\"\" src=\"{$_FN['siteurl']}?fnapp=captcha\" alt=\"\" title=\"\" /> <input style=\"\" size=\"4\" autocomplete=\"off\" name=\"security_code\"  value = \"\" />";
-        if (isset($_POST['security_code']) && $security_code != $captcha['security_code'])
+        if (isset($errors['security_code']))
             $tplvars['txt_error_security_code'] = FN_Translate("incorrect security code");
         $tplvars['htmlcaptcha'] = $htmlcaptcha;
     }
