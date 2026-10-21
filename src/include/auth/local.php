@@ -764,6 +764,7 @@ function FN_UpdateUser($user, $newvalues, $password = "")
  */
 function FN_AddUser($newvalues, $password = "")
 {
+    global $_FN;
     if ($newvalues['username'] != "")
     {
         if (empty($_FN['username_case_sensitive']))

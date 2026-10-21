@@ -412,6 +412,10 @@ Helpers in `src/include/auth/local.php`; the login module
     is), the registration removes its code, and each form shows a new one. A wrong captcha
     does not count as a login attempt. The image needs an `index.php` that calls
     `$FINIS->finis()`: `website()` does not serve `fnapp`.
+*   **Usernames**: `FN_AddUser()` saves the username in lowercase, and the login, the
+    registration, the resend of the code and the password recovery lowercase the typed name,
+    unless `$_FN['username_case_sensitive']` is set: then names are saved and looked up as
+    typed. The registration mails the code saved with the user to the address saved with it.
 *   **Tokens in `fn_users.rnd`**: password recovery stores `<32 hex>.<timestamp>` (valid
     `recovery_link_minutes`), registration confirmation stores `<32 hex>` (single use). One
     is never accepted in place of the other, both are compared with `hash_equals`, and

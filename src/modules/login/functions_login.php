@@ -22,6 +22,8 @@ function FNREG_ManageRecovery()
     $active_field = empty($form->fieldname_active) ? "username" : $form->fieldname_active;
     $recovery_minutes = !empty($_FN['recovery_link_minutes']) ? intval($_FN['recovery_link_minutes']) : 60;
     $postuser = FN_GetParam("username", $_REQUEST, "html");
+    if (empty($_FN['username_case_sensitive']))
+        $postuser = strtolower($postuser);
     $getuser = FN_GetParam("user", $_REQUEST, "html");
     $rnd = FN_GetParam("rnd", $_GET, "html");
     $errors = "";
@@ -550,6 +552,8 @@ function FNREG_ManageRegister($actionform = "")
         $tplvalues['error'] = false;
         $tplvalues['formaction'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=send_code");
         $user = trim(ltrim(FN_GetParam("username", $_REQUEST, "html")));
+        if (empty($_FN['username_case_sensitive']))
+            $user = strtolower($user);
         //the same answer for any username: it must not tell which users exist, nor their email address
         $resendvalues = $tplvalues;
         $resendvalues['message'] = "<br /><br />" . FN_Translate("if the registration is waiting for confirmation, an email has been sent with the instructions to complete it") . "<br />" . FN_Translate("check your inbox");
@@ -669,6 +673,11 @@ function FNREG_ManageRegister($actionform = "")
             $newvalues['username'] = $newvalues['email'];
         }
     }
+    //FN_AddUser saves the username in lowercase: the checks and the code sent by email use the saved name
+    if (empty($_FN['username_case_sensitive']))
+    {
+        $newvalues[$username_field] = strtolower($newvalues[$username_field]);
+    }
     $rnd = bin2hex(random_bytes(16));
     $newvalues['rnd'] = $rnd;
     $newvalues['ip'] = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
@@ -776,15 +785,10 @@ function FNREG_ManageRegister($actionform = "")
 
     if ($sendRegistrationCode)
     {
+        //the code saved with the user, mailed to the address saved with the user
         $newvalues = FN_GetUser($user);
         $name = $newvalues[$username_field];
         $rnd = $newvalues['rnd'];
-        // new code also when rnd is an old 5 chars code or a recovery token
-        if (!preg_match('/^[0-9a-f]{32}$/', $rnd))
-        {
-            $rnd = bin2hex(random_bytes(16));
-            FN_UpdateUser($name, array("rnd" => $rnd));
-        }
         $subject = FN_Translate("confirm registration site") . " " . $_FN['sitename'];
         $link = FN_RewriteLink("index.php?mod=" . $_FN['mod'] . "&op=end_reg&id=$rnd", "&", true);
         $tpl_filemail = FN_FromTheme("{$_FN['src_finis']}/modules/login/mailconfirm.{$_FN['lang']}.tp.html", false);
@@ -814,7 +818,7 @@ function FNREG_ManageRegister($actionform = "")
         {
             return FN_SendRegistrationCode($newvalues, $link);
         }
-        if (!FN_SendMail($email, $subject, $mailbody, $ishtml))
+        if (!FN_SendMail($newvalues['email'], $subject, $mailbody, $ishtml))
         {
 
             $tplvalues['message'] .= FN_Translate("the system failed to send the confirmation email");
@@ -822,7 +826,8 @@ function FNREG_ManageRegister($actionform = "")
         }
         else
         {
-            $tplvalues['message'] .= "<br /><br />" . FN_Translate("it has been sended one email to you to the address") . " " . htmlentities($newvalues['email']) . " " . FN_i18n("with the instructions to complete the registration") . "<br />";
+            //the address of the form: the saved one can be of another registration of the same username
+            $tplvalues['message'] .= "<br /><br />" . FN_Translate("it has been sended one email to you to the address") . " " . htmlentities($email) . " " . FN_i18n("with the instructions to complete the registration") . "<br />";
             $tplvalues['message'] .= FN_Translate("check your inbox");
 //            $tplvalues['message'].="<br /><br /><div ><a href=\"".FN_RewriteLink("index.php")."\" >".FN_Translate("next")." &gt;&gt;&gt;</a></div>";
         }
