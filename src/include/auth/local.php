@@ -433,7 +433,8 @@ function FN_HtmlLoginForm($templateForm = false, $url = "")
         $tplbasepath = dirname(FN_FromTheme("{$_FN['src_finis']}/modules/login/login.tp.html", false));
     }
     $querystring = FN_GetParam("QUERY_STRING", $_SERVER);
-    $querystring = str_replace("&", "&amp;", $querystring);
+    //the query string ends in the action attribute of the form
+    $querystring = htmlspecialchars($querystring, ENT_QUOTES);
     $querystring = str_replace("fnlogin=login&amp;", "", $querystring);
     $querystring = str_replace("fnlogin=logout&amp;", "", $querystring);
     $querystring = str_replace("?fnlogin=login", "?", $querystring);
@@ -519,7 +520,8 @@ function FN_HtmlLogoutForm($templateForm = false)
     }
     $tplvars = array();
     $querystring = FN_GetParam("QUERY_STRING", $_SERVER);
-    $querystring = str_replace("&", "&amp;", $querystring);
+    //the query string ends in the action attribute of the form
+    $querystring = htmlspecialchars($querystring, ENT_QUOTES);
     $tplvars['formaction'] = "?$querystring&amp;fnlogin=logout";
     $html = FN_TPL_ApplyTplString($templateForm, $tplvars, $tplbasepath);
     return $html;
