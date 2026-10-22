@@ -424,6 +424,11 @@ Helpers in `src/include/auth/local.php`; the login module
     `FN_Login($user, FN_GetParam("fnremember", $_COOKIE))` to renew the cookies with the same
     duration (the lifetime restarts). Renew them only when the edited user is `$_FN['user']`:
     an administrator who edits another user must stay logged in with the own account.
+*   **Password field**: `FN_GetUser()` returns the record with the bcrypt hash in `passwd`, and
+    `FN_UpdateUser()` hashes any non empty `passwd` it receives (form type `cryptpasswd`). When
+    the values to save come from `FN_GetUser()`, unset `passwd` (or set it to `""`, which
+    `FN_UpdateUser()` drops) and pass the new password as the third argument: otherwise the
+    stored hash is hashed again and the user can no longer log in.
 *   **Site secret**: `FN_GetSiteSecret()` reads `{datadir}/secret.key.php` (starts with
     `<?php exit(0); ?>`, mode 0600) or creates it once with `random_bytes(32)`. Deleting the
     file logs out every user. Never commit it.
