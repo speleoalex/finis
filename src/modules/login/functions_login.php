@@ -435,6 +435,9 @@ function FNREG_ManageEditRegister($user = "")
     }
     else
     {
+        //without a new password the stored hash is not saved: it would be hashed again
+        if (!isset($_POST[$form->fieldname_password]))
+            unset($newvalues[$form->fieldname_password]);
         if (false != FN_UpdateUser($newvalues[$username_field], $newvalues))
         {
             //FN_Log("User updated:{$newvalues['username']}");
