@@ -463,6 +463,9 @@ Helpers in `src/include/auth/local.php`; the login module
     `FN_AddUser()` returns true, and calls the hook `FN_OnAddUser()`, only when
     `InsertRecord()` returns the saved record: an existing username is refused (`xmlphp`
     returns an error string), except with the `serialize` driver, which overwrites it.
+    The registration confirms and logs in the user, or mails the code, only when
+    `FN_AddUser()` returns true: when another registration saved the same username first,
+    it shows the form again with the errors of `Verify()` ("this value already exists").
 *   **Tokens in `fn_users.rnd`**: password recovery stores `<32 hex>.<timestamp>` (valid
     `recovery_link_minutes`), registration confirmation stores `<32 hex>` (single use). One
     is never accepted in place of the other, both are compared with `hash_equals`, and
