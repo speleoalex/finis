@@ -439,7 +439,10 @@ function FNREG_ManageEditRegister($user = "")
         {
             //FN_Log("User updated:{$newvalues['username']}");
             echo FN_Translate("the data were successfully updated");
-            FN_Login($newvalues[$username_field]);
+            //the cookies are renewed (the password may be changed) only when the user edits the own profile:
+            //an administrator who edits another user stays logged in with the own account
+            if ($newvalues[$username_field] === $_FN['user'])
+                FN_Login($newvalues[$username_field]);
             array_merge($_FN['return'], $newvalues);
         }
         else
