@@ -765,12 +765,13 @@ function FNREG_ManageRegister($actionform = "")
                     else
                     {
                         $tplvalues['message'] .= FN_Translate("error");
+                        //the form is shown again: Verify finds the username saved in the meantime by another registration
+                        $errors = $form->Verify($newvalues);
                     }
                 }
-                else
+                elseif (FN_AddUser($newvalues))
                 {
                     $tplvalues['message'] .= "<br />" . FN_Translate("registration has been completed") . "<br />";
-                    FN_AddUser($newvalues);
                     FNREG_ConfirmUser($newvalues, !empty($config['send_welcome_message']));
                     if (function_exists("FN_OnConfirmUser"))
                     {
@@ -782,6 +783,11 @@ function FNREG_ManageRegister($actionform = "")
                         echo FN_TPL_ApplyTplFile($tplfile, $tplvalues);
                     }
                     return true;
+                }
+                else
+                {
+                    //the user is not created (eg. another registration saved the same username first): no confirmation and no login of that user, the form is shown again
+                    $errors = $form->Verify($newvalues);
                 }
             }
         }
