@@ -311,6 +311,9 @@ function FNREG_ManageEditRegister($user = "")
         {
             foreach ($form->formvals as $key => $fieldvalue)
             {
+                //fields managed by the framework: never taken from the post
+                if (in_array($key, array("apikey", "rnd", "ip", "registrationdate")))
+                    continue;
                 if (xmetadb_is_file_field($fieldvalue))
                 {
                     if (isset($_FILES[$key]['name']))
@@ -657,6 +660,9 @@ function FNREG_ManageRegister($actionform = "")
             $newvalues[$key] = FN_GetParam($key, $_POST, "flat");
         }
     }
+    //fields managed by the framework: never taken from the post
+    foreach (array("apikey", "rnd", "ip", "registrationdate") as $key)
+        unset($newvalues[$key]);
     if (!empty($_FN['registration_by_email']))
     {
         $newvalues[$active_field] = 0;

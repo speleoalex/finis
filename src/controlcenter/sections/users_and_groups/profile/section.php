@@ -117,6 +117,9 @@ function FNCC_ManageEditRegister($user = "", $formaction = "", $urlcancel = "", 
         {
             foreach ($form->formvals as $key => $fieldvalue)
             {
+                //fields managed by the framework: never taken from the post
+                if (in_array($key, array("apikey", "rnd", "ip", "registrationdate")))
+                    continue;
                 if (xmetadb_is_file_field($fieldvalue))
                 {
                     if (isset($_FILES[$key]['name']))
