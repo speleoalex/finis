@@ -858,6 +858,9 @@ function FN_CheckUser()
     $UserValues = FN_GetUser($_FN['user']);
     if (empty($secid) || empty($UserValues['passwd']))
         return false;
+    //a user deactivated after the login is logged out
+    if (!isset($UserValues['active']) || $UserValues['active'] != 1)
+        return false;
     $RequiredSecid = FN_GetSecid($_FN['user'], $UserValues['passwd']);
     if (hash_equals($RequiredSecid, (string) $secid))
         return true;
