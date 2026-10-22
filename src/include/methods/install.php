@@ -261,7 +261,12 @@ if (file_exists("{$_FN['datadir']}/firstinstall"))
                     $newvalues ['level'] = "10";
                     $newvalues ['group'] = "users";
                     $newvalues ['registrationdate'] = FN_Now();
-                    
+                    //FN_AddUser saves the username in lowercase: the login and the mail use the saved name
+                    if (!empty($newvalues['username']) && empty($_FN['username_case_sensitive']))
+                    {
+                        $newvalues['username'] = strtolower($newvalues['username']);
+                    }
+
                     if (count($err) == 0)
                     {
                         $newvalues['rnd'] = md5(rand(1000000000, 9999999999)) . md5(rand(1000000000, 9999999999));
