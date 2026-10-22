@@ -348,8 +348,8 @@ function FN_ManageLogin()
         if ($captcha_ok && FN_LoginAttempt($fnuser) && FN_VerifyUserPassword($fnuser, $fnpwd))
         {
             FN_LoginResetAttempts($fnuser);
-            FN_Login($fnuser, $rememberlogin);
-            $justLoggedIn = true;
+            //FN_Login fails when the user is not active: the cookies sent by the client are then checked as usual
+            $justLoggedIn = FN_Login($fnuser, $rememberlogin);
         }
         else
         {
