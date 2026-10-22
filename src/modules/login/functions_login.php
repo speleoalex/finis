@@ -711,6 +711,11 @@ function FNREG_ManageRegister($actionform = "")
         {
 
             $errors = $form->Verify($newvalues);
+            //the form does not require the password with pk___xdb_fn_users in the url (users editor): the registration always does
+            if (FN_GetParam("$password_field", $_REQUEST, "flat") == "")
+            {
+                $errors[$password_field] = array("title" => FN_Translate("password"), "field" => $password_field, "error" => FN_Translate("this field is required"));
+            }
             //FN_AddUser refuses a username made only of dots ("." or "..")
             if (!empty($newvalues[$username_field]) && trim($newvalues[$username_field], ".") == "")
             {
