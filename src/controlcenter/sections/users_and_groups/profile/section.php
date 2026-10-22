@@ -191,6 +191,9 @@ function FNCC_ManageEditRegister($user = "", $formaction = "", $urlcancel = "", 
     } else
     {
         $tplvars['htmlform'] = "";
+        //without a new password the stored hash is not saved: it would be hashed again
+        if (!isset($_POST[$form->fieldname_password]))
+            unset($newvalues[$form->fieldname_password]);
         if (false != FN_UpdateUser($newvalues[$username_field], $newvalues))
         {
             $tplvars['message'] = FN_Translate("the data were successfully updated");
