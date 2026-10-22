@@ -413,7 +413,17 @@ Helpers in `src/include/auth/local.php`; the login module
 *   **Session cookie**: `FN_Login($user)` sets `fnuser` and `secid` (HttpOnly, SameSite=Lax,
     `secure` when `FN_IsHttps()`). `secid` is `FN_GetSecid($user, $passwd_hash)`, an
     HMAC-SHA256 of `user|passwd` with the site secret, checked by `FN_CheckUser()` with
-    `hash_equals`. Changing the password invalidates the cookie.
+    `hash_equals`. Changing the password invalidates the cookie. `FN_CheckUser()` also
+    requires `active == 1`: a user deactivated after the login is logged out at the next
+    request. `FN_Login()` returns false for an inactive user, and `FN_ManageLogin()` then
+    checks the cookies sent by the client as on any other request (the check is skipped only
+    after a successful `FN_Login()`).
+*   **Remember me**: `FN_Login($user, $rememberlogin)` gives the cookies a lifetime of
+    `remember_login_days` and sets the cookie `fnremember=1` with the same lifetime (cleared
+    otherwise and by `FN_Logout()`). After saving a profile, call
+    `FN_Login($user, FN_GetParam("fnremember", $_COOKIE))` to renew the cookies with the same
+    duration (the lifetime restarts). Renew them only when the edited user is `$_FN['user']`:
+    an administrator who edits another user must stay logged in with the own account.
 *   **Site secret**: `FN_GetSiteSecret()` reads `{datadir}/secret.key.php` (starts with
     `<?php exit(0); ?>`, mode 0600) or creates it once with `random_bytes(32)`. Deleting the
     file logs out every user. Never commit it.
