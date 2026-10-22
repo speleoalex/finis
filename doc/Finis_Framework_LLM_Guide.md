@@ -428,7 +428,18 @@ Helpers in `src/include/auth/local.php`; the login module
     `FN_UpdateUser()` hashes any non empty `passwd` it receives (form type `cryptpasswd`). When
     the values to save come from `FN_GetUser()`, unset `passwd` (or set it to `""`, which
     `FN_UpdateUser()` drops) and pass the new password as the third argument: otherwise the
-    stored hash is hashed again and the user can no longer log in.
+    stored hash is hashed again and the user can no longer log in. The registration always
+    requires the password (`FN_GetUserForm()` makes it optional with `pk___xdb_fn_users` in the
+    url, which the users editor sends).
+*   **Fields managed by the framework**: `apikey`, `rnd`, `ip` and `registrationdate` are never
+    taken from the post by the registration and the profile forms (login module and control
+    center); the API key is created only by `regenerate_apikey` (`FN_ProfileApiKey()`). The
+    user record put in `$_FN['return']` (printed as JSON by `fnapp=api`) must not contain
+    `passwd`, `apikey` or `rnd`: `op=profile` and the control center profile unset them.
+*   **Templates**: the query string that the login and logout forms put in `{formaction}` is
+    escaped with `htmlspecialchars`; `FN_RewriteLink()` and `TPL_ApplyTplString()` escape
+    nothing, so a value from the request goes into a template only after `FN_GetParam(...,
+    "html")` or `{var.addHtmlEntities()}`.
 *   **Site secret**: `FN_GetSiteSecret()` reads `{datadir}/secret.key.php` (starts with
     `<?php exit(0); ?>`, mode 0600) or creates it once with `random_bytes(32)`. Deleting the
     file logs out every user. Never commit it.
