@@ -194,7 +194,8 @@ function FNCC_ManageEditRegister($user = "", $formaction = "", $urlcancel = "", 
         if (false != FN_UpdateUser($newvalues[$username_field], $newvalues))
         {
             $tplvars['message'] = FN_Translate("the data were successfully updated");
-            FN_Login($newvalues[$username_field]);
+            //keeps "remember me" of the login
+            FN_Login($newvalues[$username_field], FN_GetParam("fnremember", $_COOKIE));
             array_merge($_FN['return'], $newvalues);
         } else
         {

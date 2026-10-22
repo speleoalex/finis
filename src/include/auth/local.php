@@ -694,6 +694,11 @@ function FN_Login($fnuser, $rememberlogin = false)
             ];
             setcookie("fnuser", $fnuser, $cookieOpts);
             setcookie("secid",  FN_GetSecid($fnuser, $password), $cookieOpts);
+            //"remember me" is kept in a cookie: the cookies renewed after the save of the profile keep the same duration
+            if ($expires)
+                setcookie("fnremember", "1", $cookieOpts);
+            else
+                setcookie("fnremember", "", ['expires' => 1] + $cookieOpts);
         }
         FN_Log("User $fnuser login (function FN_Login).");
         $_FN['user'] = $_COOKIE['fnuser'] = $fnuser;
@@ -719,6 +724,7 @@ function FN_Logout()
     $_FN['user'] = "";
     unset($_COOKIE['fnuser']);
     unset($_COOKIE['secid']);
+    unset($_COOKIE['fnremember']);
 
     // setcookie() is a no-op in CLI mode
     if (!empty($_FN['consolemode'])) return;
@@ -740,6 +746,7 @@ function FN_Logout()
     foreach ([$urlcookie, '/'] as $path) {
         setcookie("fnuser", "", $clearOpts + ['path' => $path]);
         setcookie("secid",  "", $clearOpts + ['path' => $path]);
+        setcookie("fnremember", "", $clearOpts + ['path' => $path]);
     }
 }
 
