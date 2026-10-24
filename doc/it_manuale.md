@@ -62,8 +62,8 @@ Esempio di file `config.vars.local.php`:
 ```php
 <?php
 global $_FN;
-//display error, http://php.net/manual/it/errorfunc.configuration.php#ini.display-errors
-$_FN['display_errors'] = "on";
+//display error ("on" only while developing), http://php.net/manual/it/errorfunc.configuration.php#ini.display-errors
+$_FN['display_errors'] = "off";
 //authentication method (include/auth/)
 $_FN['default_auth_method'] = "local";
 //specific options for the mysql driver:

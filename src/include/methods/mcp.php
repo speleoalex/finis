@@ -993,6 +993,8 @@ FN_MCP_AddTool("update_user", "Update a user. Administrators only (level, group,
     $password = FN_MCP_Arg($args, "password", "");
     if (count($fields) == 0 && $password == "")
         FN_MCP_Fail("nothing to update");
+    //the stored hash is not saved again (it would be hashed twice): the new password is passed apart
+    unset($old['passwd']);
     $newvalues = array_merge($old, $fields);
     $r = FN_UpdateUser($username, $newvalues, $password);
     if (!$r)

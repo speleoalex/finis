@@ -620,7 +620,7 @@ class XMETATable_mysql extends \stdClass
                 return false;
             }
             #$this->conn->select_db ($this->mysqldatabasename);
-            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string($pvalue) . "'";
+            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string(xmetadb_escape_like($pvalue)) . "' ESCAPE '!'";
             $result = $this->dbQuery($query);
             if (!isset($result[0]))
             {
@@ -677,18 +677,14 @@ class XMETATable_mysql extends \stdClass
                 return false;
             }
             $pkey = $this->primarykey;
-            if ($this->fields[$this->primarykey]->type == "int")
-                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE " . $pkvalue;
-            else
-                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string($pkvalue) . "'";
+            $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string(xmetadb_escape_like($pkvalue)) . "' ESCAPE '!'";
             $result = $this->dbQuery($query);
             if (!$result)
             {
                 trigger_error("MySQL DELETE failed: " . $this->conn->error, E_USER_WARNING);
                 return false;
             }
-            if (strpos($pkvalue, "..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
-                xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
+            xmetadb_remove_record_dir("$path/$databasename/$tablename", $pkvalue);
             return true;
         }
         return false;
@@ -849,7 +845,7 @@ class XMETATable_mysql extends \stdClass
                     }
                     else
                     {
-                        if ($this->fields[$k]->type == "int" && $v !== '' && $v !== NULL)
+                        if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$v"))
                             $tf[] = $v;
                         else
                             $tf[] = "'" . $this->conn->real_escape_string($v) . "'";
@@ -935,7 +931,7 @@ class XMETATable_mysql extends \stdClass
                 }
                 else
                 {
-                    if ($this->fields[$k]->type == "int")
+                    if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$v"))
                         $tf[] = $v;
                     else
                         $tf[] = "'" . $this->conn->real_escape_string($v) . "'";
@@ -1005,7 +1001,7 @@ class XMETATable_mysql extends \stdClass
                         }
                         else
                         {
-                            if ($this->fields[$k]->type == "int")
+                            if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$value"))
                                 $query .= $this->conn->real_escape_string($value);
                             else
                                 $query .= "'" . $this->conn->real_escape_string($value) . "'";
@@ -1014,11 +1010,7 @@ class XMETATable_mysql extends \stdClass
                             $query .= ",";
                     }
                 }
-                $query .= " WHERE `$pkey`LIKE ";
-                if ($this->fields[$pkey]->type == "int")
-                    $query .= "$pvalue ";
-                else
-                    $query .= "'$pvalue' ";
+                $query .= " WHERE `$pkey` LIKE '" . $this->conn->real_escape_string(xmetadb_escape_like($pvalue)) . "' ESCAPE '!' ";
                 $ret = $this->dbQuery($query);
                 $this->gestfiles($values, $oldvalues);
                 if (!$ret)
@@ -1073,7 +1065,7 @@ class XMETATable_mysql extends \stdClass
                         }
                         else
                         {
-                                if ($this->fields[$k]->type == "int")
+                                if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$value"))
                                     $query .= $this->conn->real_escape_string($value);
                                 else
                                     $query .= "'" . $this->conn->real_escape_string($value) . "'";
@@ -1082,11 +1074,7 @@ class XMETATable_mysql extends \stdClass
                                 $query .= ",";
                         }
                     }
-                    $query .= " WHERE `$pkey`=";
-                    if ($this->fields[$pkey]->type == "int" || $this->fields[$pkey]->type == "float")
-                    $query .= "$pvalue ";
-                else
-                    $query .= "'$pvalue' ";
+                $query .= " WHERE `$pkey`='" . $this->conn->real_escape_string($pvalue) . "' ";
 
                 $ret = $this->dbQuery($query);
                 if (!$ret)

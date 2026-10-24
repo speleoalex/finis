@@ -72,6 +72,11 @@ if ($checkk_index == "index.php" && $_FN['enable_mod_rewrite'] > 0 && file_exist
             FN_BuildHtaccess();
         }
     }
+    //login urls were built by FN_ManageLogin() with the rewrite still enabled
+    if ($_FN['enable_mod_rewrite'] == 0 && function_exists("FN_LoginInitUrl"))
+    {
+        FN_LoginInitUrl();
+    }
 }
 //<-- AUTOBUID
 ?>

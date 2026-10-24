@@ -427,7 +427,7 @@ class XMETATable_sqlite3 extends \stdClass
         {
             if (!$this->conn)
                 die("error connection");
-            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . \SQLite3::escapeString($pvalue) . "'";
+            $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . \SQLite3::escapeString(xmetadb_escape_like($pvalue)) . "' ESCAPE '!'";
             $result = $this->dbQuery($query);
             if (!isset($result[0]))
             {
@@ -474,18 +474,14 @@ class XMETATable_sqlite3 extends \stdClass
             if (!$this->conn)
                 die("SQLite connection error: " . $this->sqlite_error);
             $pkey = $this->primarykey;
-            if ($this->fields[$this->primarykey]->type == "int")
-                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE " . $pkvalue;
-            else
-                $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . \SQLite3::escapeString($pkvalue) . "'";
+            $query = "DELETE FROM {$this->sqltable} WHERE $pkey LIKE '" . \SQLite3::escapeString(xmetadb_escape_like($pkvalue)) . "' ESCAPE '!'";
             $result = $this->dbQuery($query);
             if (!$result)
             {
                 echo $this->sqlite_error;
                 return false;
             }
-            if (strpos($pkvalue, "..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
-                xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
+            xmetadb_remove_record_dir("$path/$databasename/$tablename", $pkvalue);
             return true;
         }
         return false;
@@ -636,7 +632,7 @@ class XMETATable_sqlite3 extends \stdClass
                         else
                         {
                             if ($this->fields[$k]->type == "int")
-                                $query .= \SQLite3::escapeString($value);
+                                $query .= intval($value);
                             else
                                 $query .= "'" . \SQLite3::escapeString($value) . "'";
                         }
@@ -644,15 +640,7 @@ class XMETATable_sqlite3 extends \stdClass
                             $query .= ",";
                     }
                 }
-                $query .= " WHERE $pkey=";
-                if ($this->fields[$pkey]->type == "int")
-                {
-                    $query .= "$pvalue ";
-                }
-                else
-                {
-                    $query .= "'$pvalue' ";
-                }
+                $query .= " WHERE $pkey='" . \SQLite3::escapeString($pvalue) . "' ";
                 $ret = $this->dbQuery($query);
                 $this->gestfiles($values, $oldvalues);
                 if (!$ret)

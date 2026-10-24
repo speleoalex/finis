@@ -49,10 +49,14 @@ Il file `config.vars.local.php` contiene le impostazioni principali:
 <?php
 global $_FN;
 // Visualizzazione errori
-$_FN['display_errors'] = "on"; // impostare su "off" in produzione
+$_FN['display_errors'] = "off"; // "on" solo durante lo sviluppo
 
 // Metodo di autenticazione (in include/auth/)
 $_FN['default_auth_method'] = "local";
+
+// Dietro un reverse proxy: i suoi indirizzi IP, separati da virgola, perché il limite
+// dei tentativi di login legga l'indirizzo del client da X-Forwarded-For ("" = nessun proxy)
+$_FN['trusted_proxies'] = "";
 
 // Configurazione per MySQL:
 $_FN['default_database_driver'] = "mysql";
@@ -72,7 +76,7 @@ Se non si ha accesso a un database MySQL, FINIS può funzionare utilizzando file
 ```php
 <?php
 global $_FN;
-$_FN['display_errors'] = "on";
+$_FN['display_errors'] = "off";
 $_FN['default_auth_method'] = "local";
 $_FN['default_database_driver'] = "xmlphp"; // Utilizza file PHP/XML
 ```
