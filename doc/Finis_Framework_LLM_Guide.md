@@ -196,6 +196,14 @@ if (FN_UserInGroup('admin', 'administrators')) {
 *   `FN_Redirect($url)`: Redirects the user to another URL.
 *   `FN_FromTheme($file, $absolute = true)`: Returns the path of a file in the current theme.
 
+## Error display
+
+`$_FN['display_errors']` is "off" in `src/include/config.vars.php`: set it to "on" in the site's
+`config.vars.local.php` while developing (a value passed to `new FINIS(array(...))` is overwritten
+by `config.vars.php`). With "off", `website.php` also discards what is printed outside the theme
+template, e.g. an `echo` in an autoexec script. The control center and the file manager always
+display errors.
+
 # Database
 
 The application uses a custom XML-based database system called `xmetadb`. The database files are located in the `misc/fndatabase/` directory. Each `.php` file in this directory represents a table.
@@ -366,6 +374,29 @@ $query = "SELECT * FROM fn_users WHERE level > 5 ORDER BY username";
 $high_level_users = FN_XMETADBQuery($query);
 ```
 
+### Matching in the SQL drivers
+
+*   **Primary key**: `GetRecordByPk()`, `DelRecord()` and `UpdateRecordBypk()` of the `mysql`,
+    `sqlite3` and `sqlserver` drivers (and `UpdateRecordFast()` of `mysql`) touch only the
+    record with exactly that key: the value is always quoted and escaped, and `%` and `_` are
+    escaped (`xmetadb_escape_like()` with `ESCAPE '!'`, brackets on SQL Server). The case
+    follows the database: MySQL tables (`utf8_bin`) are case sensitive, the default SQL
+    Server collations are not, SQLite ignores the case of ASCII letters in `GetRecordByPk()`
+    and `DelRecord()` (`LIKE`) but not in `UpdateRecordBypk()` (`=`).
+*   **Restrictions**: a filter passed to `GetRecords($restr)` or `GetNumRecords($restr)` is
+    still a `LIKE` pattern on the SQL drivers (`_` and `%` in the value are wildcards), while
+    `xmlphp` compares the value exactly and reads a leading or trailing `%` as a wildcard
+    that ignores the case. When a value from the request must find one record, compare the
+    field again on the result: the OAuth login does it on the email (`strcasecmp`),
+    `FN_GetUserByApiKey()` on the key (`hash_equals`), the unique check of `Verify()` on the
+    fields of the filter (`strcasecmp`, so whether the case counts is still up to the driver).
+*   **`int` fields**: the `mysql` and `sqlserver` drivers write a value without quotes only
+    when it is an integer (`-?[0-9]+`); any other value is quoted and escaped, and the
+    database converts it or refuses it (MySQL rounds `1.5` to 2 and in strict mode refuses
+    `abc`, SQL Server refuses both). `sqlite3` casts the values with `intval`. Neither
+    `GetByPost()` nor `Verify()` checks that they are numbers: cast a value from the request
+    (`intval`) before saving it.
+
 ## Main Tables
 
 *   `fn_users`: Stores user information.
@@ -374,6 +405,131 @@ $high_level_users = FN_XMETADBQuery($query);
 *   `fn_settings`: Stores application settings.
 *   `fn_log`: Event log (`FN_LogEvent($event, $context)`), the `user` column is `$_FN['user']`.
 
+## Login security
+
+Helpers in `src/include/auth/local.php`; the login module
+(`src/modules/login/functions_login.php`) uses them for registration and password recovery.
+
+*   **Session cookie**: `FN_Login($user)` sets `fnuser` and `secid` (HttpOnly, SameSite=Lax,
+    `secure` when `FN_IsHttps()`). `secid` is `FN_GetSecid($user, $passwd_hash)`, an
+    HMAC-SHA256 of `user|passwd` with the site secret, checked by `FN_CheckUser()` with
+    `hash_equals`. Changing the password invalidates the cookie. `FN_CheckUser()` also
+    requires `active == 1`: a user deactivated after the login is logged out at the next
+    request. `FN_Login()` returns false for an inactive user, and `FN_ManageLogin()` then
+    checks the cookies sent by the client as on any other request (the check is skipped only
+    after a successful `FN_Login()`).
+*   **Remember me**: `FN_Login($user, $rememberlogin)` gives the cookies a lifetime of
+    `remember_login_days` and sets the cookie `fnremember=1` with the same lifetime (cleared
+    otherwise and by `FN_Logout()`). After saving a profile, call
+    `FN_Login($user, FN_GetParam("fnremember", $_COOKIE))` to renew the cookies with the same
+    duration (the lifetime restarts). Renew them only when the edited user is `$_FN['user']`:
+    an administrator who edits another user must stay logged in with the own account.
+*   **Password field**: `FN_GetUser()` returns the record with the bcrypt hash in `passwd`, and
+    `FN_UpdateUser()` hashes any non empty `passwd` it receives (form type `cryptpasswd`). When
+    the values to save come from `FN_GetUser()`, unset `passwd` (or set it to `""`, which
+    `FN_UpdateUser()` drops) and pass the new password as the third argument: otherwise the
+    stored hash is hashed again and the user can no longer log in. The registration always
+    requires the password (`FN_GetUserForm()` makes it optional with `pk___xdb_fn_users` in the
+    url, which the users editor sends).
+*   **Fields managed by the framework**: `apikey`, `rnd`, `ip` and `registrationdate` are never
+    taken from the post by the registration and the profile forms (login module and control
+    center); the API key is created only by `regenerate_apikey` (`FN_ProfileApiKey()`). The
+    user record put in `$_FN['return']` (printed as JSON by `fnapp=api`) must not contain
+    `passwd`, `apikey` or `rnd`: `op=profile` and the control center profile unset them.
+*   **Templates**: the query string that the login and logout forms put in `{formaction}` is
+    escaped with `htmlspecialchars`; `FN_RewriteLink()` and `TPL_ApplyTplString()` escape
+    nothing, so a value from the request goes into a template only after `FN_GetParam(...,
+    "html")` or `{var.addHtmlEntities()}`.
+*   **Site secret**: `FN_GetSiteSecret()` reads `{datadir}/secret.key.php` (starts with
+    `<?php exit(0); ?>`, mode 0600) or creates it once with `random_bytes(32)`. Deleting the
+    file logs out every user. Never commit it.
+*   **Server session**: `FN_GetSessionValue($key)` and `FN_SetSessionValue($key, $value)`
+    (`src/include/functions_sessions.inc.php`) keep values in
+    `{datadir}/_sessions/<fnsid>.session`, removed one hour after the last write.
+    `FN_GetSessionId()` takes `fnsid` only from the cookie and accepts only 32 hex chars;
+    otherwise it creates a random id and sends it in a session cookie (HttpOnly,
+    SameSite=Lax, `secure` when `FN_IsHttps()`). A `fnsid` in the url is ignored: API
+    clients without a cookie jar send `Cookie: fnsid=<id>` (the id is in `$_FN['return']`).
+*   **Passwords**: `FN_VerifyUserPassword($user, $password)` uses only `password_verify` for
+    modern hashes (the stored hash sent as password is refused) and rehashes when
+    `password_needs_rehash`. Legacy md5 and plaintext values are compared with `hash_equals`
+    and rehashed at the first successful login. An empty stored password never matches.
+*   **Brute force**: `FN_LoginAttempt($user)` runs before the password check and returns
+    false after `login_max_attempts` attempts of the same username from the same IP in
+    `login_lockout_minutes`; the counter is `{datadir}/_login_attempts/<sha256(user|ip)>.cache`,
+    outside the cache, so `FN_ClearCache()` does not reset it: to unlock a user before the
+    end of the window, delete the folder. Once in the window (`_login_attempts/cleanup`
+    keeps the time) the counters not updated in it are removed. `FN_LoginResetAttempts($user)`
+    runs after a successful login. A locked out login gets the usual generic error and one
+    `FN_Log` entry.
+*   **Client IP**: `FN_GetClientIp()` gives the address used by the limiter. It is
+    `REMOTE_ADDR`, unless that is one of `$_FN['trusted_proxies']`: then it is the last
+    address in `X-Forwarded-For` not added by a trusted proxy (the addresses on the left are
+    sent by the client and can be forged). Behind a reverse proxy, without the key all the
+    clients share the address of the proxy, so anyone can lock out a username for everybody.
+    The lockout log entry names the client address; the `ip` field of `fn_log` and the other
+    modules still record `REMOTE_ADDR`.
+*   **Captcha**: the session key `captcha` is an array with one code per form, drawn by
+    `fnapp=captcha&t=<name>`: `fnlogin_code` for the login when `$_FN['enable_captcha']`,
+    `security_code` for the registration when `enable_captcha` is set in the login module
+    config. `FN_NewCaptchaCode($name)` sets the code of one form and keeps the others, so
+    both forms work in the same session. The posted code is compared with `hash_equals` and
+    used once, right or wrong: `FN_ManageLogin()` checks and removes the login code only on a
+    login post with username and password (other requests, like the image, leave it as it
+    is), the registration removes its code, and each form shows a new one. A wrong captcha
+    does not count as a login attempt. The image needs an `index.php` that calls
+    `$FINIS->finis()`: `website()` does not serve `fnapp`.
+*   **Usernames**: `FN_AddUser()` saves the username in lowercase, and the login, the
+    registration, the resend of the code and the password recovery lowercase the typed name,
+    unless `$_FN['username_case_sensitive']` is set: then names are saved and looked up as
+    typed. The registration mails the code saved with the user to the address saved with it.
+    A username made only of dots (`.`, `..`) is refused: with the `xmlphp` driver it would
+    name the folder of the users or its parent. `FN_AddUser()` returns false, and the
+    registration and the installer show "the value is not valid" on the field.
+    `FN_AddUser()` returns true, and calls the hook `FN_OnAddUser()`, only when
+    `InsertRecord()` returns the saved record: an existing username is refused (`xmlphp`
+    returns an error string), except with the `serialize` driver, which overwrites it.
+    The registration confirms and logs in the user, or mails the code, only when
+    `FN_AddUser()` returns true: when another registration saved the same username first,
+    it shows the form again with the errors of `Verify()` ("this value already exists").
+*   **Tokens in `fn_users.rnd`**: password recovery stores `<32 hex>.<timestamp>` (valid
+    `recovery_link_minutes`), registration confirmation stores `<32 hex>` (single use). One
+    is never accepted in place of the other, both are compared with `hash_equals`, and
+    recovery answers the same way for existing and unknown users.
+*   **Registration code**: kept only while the registration waits for confirmation (user
+    not active, `rnd` of 32 hex). `FN_UpdateUser()` clears it when the user is activated
+    (confirmation, control center, api) or an active user is deactivated, unless the same
+    update sets `rnd`; recovery leaves it as it is and sends no token. The resend
+    (`op=send_code`) mails the same code only to such a user, and answers with the same page
+    and `$_FN['return']` for any username, without the email address. Old 5 character codes
+    are not resent: an administrator activates the user.
+*   **OAuth**: `FN_ManageLoginWithOpenAuthentication()` sends a random `state` kept in the
+    session (`session_oauth_state`, single use) and refuses callbacks without it. A callback
+    with `error` (e.g. `access_denied`) ends the login: the state is removed, the error code is
+    logged and the user is not sent to the provider again. When the
+    provider returns `email_verified` or `verified_email`, it must be true. The return url
+    `session_oauth_returnurl` is followed only if `FN_IsInternalUrl($url)` (under
+    `$_FN['siteurl']`, or relative without scheme). The user logged in is the one whose
+    `email` is exactly the address given by the provider (`_` and `%` are not wildcards; the
+    case is ignored only where the filter of the driver ignores it: `sqlite3` and the
+    default SQL Server collations, not `mysql` and `xmlphp`). Without one, a new user is
+    created when `$_FN['enable_registration']`, with the address as username (lowercase
+    unless `$_FN['username_case_sensitive']`), and logged in with the saved username. If it
+    is not created (e.g. another account already has that username), nobody is logged in
+    and the refusal is logged.
+*   **Random values**: tokens, captcha codes and generated passwords use `random_bytes` or
+    `random_int`; do not use `rand`, `mt_rand` or `uniqid` for anything secret.
+
+Configuration keys (in `config.vars.local.php`, defaults in the code):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `remember_login_days` | 30 | lifetime of the login cookies with "remember me" (`remember_login` enabled) |
+| `recovery_link_minutes` | 60 | validity of a password recovery link |
+| `login_max_attempts` | 5 | login attempts allowed per username and IP |
+| `login_lockout_minutes` | 15 | time window of the attempts, and longest lockout |
+| `trusted_proxies` | "" | reverse proxies whose `X-Forwarded-For` is trusted: IP addresses, comma separated or an array (no ranges) |
+
 ## API keys and MCP server
 
 Every user can have a personal API key (`apikey` field of `fn_users`, 48 hex chars,
@@ -381,7 +537,8 @@ Every user can have a personal API key (`apikey` field of `fn_users`, 48 hex cha
 (control center `users_and_groups/profile` and the login module `op=editreg`), with a
 "Regenerate API key" button. Helpers in `src/include/auth/local.php`:
 
-*   `FN_GetUserApiKey($user, $generate = true)`, `FN_GenerateApiKey($user)`
+*   `FN_GetUserApiKey($user, $generate = true)`, `FN_GenerateApiKey($user)` (`random_bytes(24)`;
+    without a random source it logs the error and returns "": no fallback key, the old key stays)
 *   `FN_GetRequestApiKey()`: reads `Authorization: Bearer <key>` or `X-Api-Key`
 *   `FN_GetUserByApiKey($apikey)`, `FN_LoginByApiKey($apikey)` (sets `$_FN['user']`,
     `$_FN['uservalues']` and `$_FN['auth_method'] = "apikey"`)

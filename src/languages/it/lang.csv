@@ -413,3 +413,4 @@
 "MCP endpoint","Endpoint MCP"
 "invalid API key","chiave API non valida"
 "regenerate the API key? The clients that use the current key will stop working","rigenerare la chiave API? I client che usano la chiave attuale smetteranno di funzionare"
+"if the registration is waiting for confirmation, an email has been sent with the instructions to complete it","se la registrazione è in attesa di conferma, è stata inviata una email con le istruzioni per completarla"

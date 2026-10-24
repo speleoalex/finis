@@ -930,6 +930,35 @@ function xmetadb_remove_dir_rec($dirtodelete)
 }
 
 /**
+ * Removes the folder with the files of a record, only if its real path is the
+ * folder of the table followed by the primary key (not ".", "..", "x/.." or a link)
+ *
+ * @param string $tablepath folder of the table
+ * @param string $pkvalue primary key of the record
+ * */
+function xmetadb_remove_record_dir($tablepath, $pkvalue)
+{
+    if (is_array($pkvalue) || strpos((string) $pkvalue, "\0") !== false)
+        return;
+    $tabledir = realpath($tablepath);
+    $recorddir = realpath("$tablepath/$pkvalue");
+    if ($tabledir && $recorddir && $recorddir === $tabledir . DIRECTORY_SEPARATOR . $pkvalue && is_dir($recorddir))
+        xmetadb_remove_dir_rec($recorddir);
+}
+
+/**
+ * Escapes the wildcards % and _ of a LIKE pattern, to be used with ESCAPE '!'
+ * (the value is then matched exactly)
+ *
+ * @param string $value
+ * @return string
+ * */
+function xmetadb_escape_like($value)
+{
+    return strtr("$value", array("!" => "!!", "%" => "!%", "_" => "!_"));
+}
+
+/**
  * xmetadb_encode_preg_replace2nd
  * prepara la stringa per il secondo parametro
  * dell' preg_replace aggiungendo la \ savanti a \ e $

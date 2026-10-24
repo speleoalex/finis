@@ -248,6 +248,11 @@ if (file_exists("{$_FN['datadir']}/firstinstall"))
                 {
                     $newvalues = $tabuser->getbypost();
                     $err = $tabuser->Verify($newvalues);
+                    //FN_AddUser refuses a username made only of dots ("." or "..")
+                    if (!empty($newvalues['username']) && trim($newvalues['username'], ".") == "")
+                    {
+                        $err['username'] = array("title" => FN_Translate("username"), "field" => "username", "error" => FN_Translate("the value is not valid"));
+                    }
                     foreach ($err as $field => $error)
                     {
                         $tabuser->setlayoutTag($field, "<b>", "</b><span style=\"color:red;background-color:#ffffff\">{$error['error']}</span><br />", "", "<br />");
@@ -256,7 +261,12 @@ if (file_exists("{$_FN['datadir']}/firstinstall"))
                     $newvalues ['level'] = "10";
                     $newvalues ['group'] = "users";
                     $newvalues ['registrationdate'] = FN_Now();
-                    
+                    //FN_AddUser saves the username in lowercase: the login and the mail use the saved name
+                    if (!empty($newvalues['username']) && empty($_FN['username_case_sensitive']))
+                    {
+                        $newvalues['username'] = strtolower($newvalues['username']);
+                    }
+
                     if (count($err) == 0)
                     {
                         $newvalues['rnd'] = md5(rand(1000000000, 9999999999)) . md5(rand(1000000000, 9999999999));
@@ -298,7 +308,7 @@ if (file_exists("{$_FN['datadir']}/firstinstall"))
                 echo "<h2>" . FN_Translate("please register the administrator") . "</h2>";
                 $newvalues ['passwd'] = "";
                 $tabuser->setlayoutTags("<b>", "</b><br />", "", "<br />");
-                $tabuser->ShowInsertForm(false, $newvalues);
+                $tabuser->ShowInsertForm(false, $newvalues, $err);
                 echo "<input type=\"hidden\" name=\"reg\" value=\"reg\" />";
                 FNINSTALLER_CloseInstallerBody();
                 echo "<button type=\"button\" onclick=\"window.location='?fnapp=install&step=" . ($step - 1) . "';\" >&#060;&#060; " . FN_Translate("back") . "</button>";

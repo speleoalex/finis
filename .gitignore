@@ -35,3 +35,4 @@ LOCAL_DEV.md
 /examples/fntest/
 /tests/
 /src/test_parser_cron.php
+secret.key.php

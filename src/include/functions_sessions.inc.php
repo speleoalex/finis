@@ -1,6 +1,36 @@
 <?php
 
 /**
+ * Return the session id of the browser, taken only from the fnsid cookie.
+ * A missing id or an id not generated here (32 hex characters) is replaced
+ * by a new random id, sent to the browser in a session cookie.
+ *
+ * @global array $_FN
+ * @return string
+ */
+function FN_GetSessionId()
+{
+    global $_FN;
+    //the id is part of the name of the session file: accept only the format generated below
+    $sid = FN_GetParam("fnsid", $_COOKIE);
+    if (!preg_match('/^[0-9a-f]{32}\z/', $sid))
+    {
+        $sid = bin2hex(random_bytes(16));
+        setcookie("fnsid", $sid, array(
+            'expires' => 0,
+            'path' => $_FN['urlcookie'] ?? "/",
+            'secure' => function_exists("FN_IsHttps") && FN_IsHttps(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ));
+        $_COOKIE["fnsid"] = $sid;
+    }
+    $_FN['fnsid'] = $sid;
+    $_FN['return']['fnsid'] = $sid;
+    return $sid;
+}
+
+/**
  *
  * @global array $_FN
  * @param string $varname
@@ -10,17 +40,7 @@ function FN_GetSessionValue($varname)
 {
     global $_FN;
     //---------------get sid--------------------------------------------------->
-    $_FN['fnsid'] = FN_GetParam("fnsid", $_REQUEST, "html");
-    if (empty($_FN['fnsid']))
-        $_FN['fnsid'] = FN_GetParam("fnsid", $_COOKIE, "html");
-    if (empty($_FN['fnsid']))
-    {
-        $_FN['fnsid'] = uniqid("_") . uniqid("x");
-        setcookie("fnsid", $_FN['fnsid'], time() + 999999999, $_FN ['urlcookie']);
-        $_COOKIE["fnsid"] = $_FN['fnsid'];
-    }
-    $_FN['return']['fnsid'] = $_FN['fnsid'];
-
+    FN_GetSessionId();
     //---------------get sid---------------------------------------------------<
     if (empty($_FN['fnsid']))
     {
@@ -46,15 +66,7 @@ function FN_SetSessionValue($key, $value)
     global $_FN;
     FN_ClearOldSessions();
     //---------------get sid--------------------------------------------------->
-    $_FN['fnsid'] = FN_GetParam("fnsid", $_COOKIE, "html");
-    if (empty($_FN['fnsid']))
-    {
-        $_FN['fnsid'] = uniqid("1") . uniqid("0");
-        setcookie("fnsid", $_FN['fnsid'], time() + 999999999, $_FN ['urlcookie']);
-        $_COOKIE["fnsid"] = $_FN['fnsid'];
-    }
-    $_FN['return']['fnsid'] = $_FN['fnsid'];
-
+    FN_GetSessionId();
     //---------------get sid---------------------------------------------------<
     if (!file_exists("{$_FN['datadir']}/_sessions/"))
     {
@@ -80,6 +92,24 @@ function FN_SetSessionValue($key, $value)
         $session[$key] = $value;
     }
     FN_Write(serialize($session), "{$_FN['datadir']}/_sessions/{$_FN['fnsid']}.session");
+}
+
+/**
+ * Create a new code for the captcha $name (fnlogin_code for the login form,
+ * security_code for the registration form), drawn by ?fnapp=captcha&t=$name.
+ * The codes of the other captchas are kept, so both forms can be used in the same session.
+ *
+ * @param string $name
+ * @return int
+ */
+function FN_NewCaptchaCode($name)
+{
+    $captcha = FN_GetSessionValue("captcha");
+    if (!is_array($captcha))
+        $captcha = array();
+    $captcha[$name] = random_int(1000, 9999);
+    FN_SetSessionValue("captcha", $captcha);
+    return $captcha[$name];
 }
 
 /**

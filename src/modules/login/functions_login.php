@@ -17,7 +17,13 @@ function FNREG_ManageRecovery()
     global $_FN;
     $_FN['result'] = array();
     $config = FN_LoadConfig("{$_FN['src_finis']}/modules/login/config.php");
+    $form = FN_GetUserForm();
+    $username_field = empty($form->fieldname_user) ? "username" : $form->fieldname_user;
+    $active_field = empty($form->fieldname_active) ? "username" : $form->fieldname_active;
+    $recovery_minutes = !empty($_FN['recovery_link_minutes']) ? intval($_FN['recovery_link_minutes']) : 60;
     $postuser = FN_GetParam("username", $_REQUEST, "html");
+    if (empty($_FN['username_case_sensitive']))
+        $postuser = strtolower($postuser);
     $getuser = FN_GetParam("user", $_REQUEST, "html");
     $rnd = FN_GetParam("rnd", $_GET, "html");
     $errors = "";
@@ -27,15 +33,23 @@ function FNREG_ManageRecovery()
     // step 1 generate rnd and send -------->
     if ($postuser != "")
     {
-        if (!FN_GetUser($postuser))
+        // same answer whether the user exists or not (no user enumeration)
+        $tplvars['txtresults'] = FN_Translate("an email has been sent to your email address with instructions to recover your password");
+        $uservalues = FN_GetUser($postuser);
+        if (!$uservalues)
         {
-            $errors = $postuser . ": " . fn_i18n("user does not exist");
+            FN_Log("Password recovery requested for unknown user $postuser");
+        }
+        elseif (empty($uservalues[$active_field]) && isset($uservalues['rnd']) && preg_match('/^[0-9a-f]{32}$/', $uservalues['rnd']))
+        {
+            //keep the code of a registration waiting for confirmation: the recovery token would replace it
+            FN_Log("Password recovery requested for user $postuser waiting for the registration confirmation");
         }
         else
         {
-            $uservalues = FN_GetUser($postuser);
-            $newrnd = substr(str_shuffle(str_repeat('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', mt_rand(1, 10))), 1, 10);
-            FN_UpdateUser($postuser, array("rnd" => $newrnd));
+            // recovery token: "<32 hex>.<timestamp>", the registration code has no dot
+            $newrnd = bin2hex(random_bytes(16));
+            FN_UpdateUser($postuser, array("rnd" => $newrnd . "." . time()));
             $server = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=recovery&user=$postuser&rnd=$newrnd&lang={$_FN['lang']}", "&", true);
             //$body=FN_Translate("password recovery")."\n"."\n".fn_i18n("to retrieve the password, please follow this link").":\n$server\n\n".FN_Translate("a new password will be generated and sent to your email address");
             $subject = FN_i18n("password recovery");
@@ -68,25 +82,24 @@ function FNREG_ManageRecovery()
             {
                 FN_SendMail($email, $subject, $body, false !== stristr($body, "<html"));
                 FN_Log("User $postuser recover password step 1.");
-                $tplvars['txtresults'] = FN_Translate("an email has been sent to your email address with instructions to recover your password");
             }
             else
             {
-                $tplvars['txtresults'] = FN_Translate("error");
+                FN_Log("Password recovery: user $postuser has no valid email address");
             }
-            $tplfile = FN_FromTheme("{$_FN['src_finis']}/modules/login/passwordrecovery_step1.tp.html", false);
-            $tplbasepath = dirname($tplfile) . "/";
-            $templateForm = file_get_contents($tplfile);
-            if ($_FN['username_is_email'])
-            {
-                $tplvars['txtusername'] = FN_Translate("email");
-            }
-            $tplvars['urlnext'] = FN_RewriteLink("index.php?mod=" . $_FN['mod'], "&", true);
-            $templateFormHtml = FN_TPL_ApplyTplString($templateForm, $tplvars, $tplbasepath);
-            echo $templateFormHtml;
-            $_FN['return']['txtresults'] = $tplvars['txtresults'];
-            return;
         }
+        $tplfile = FN_FromTheme("{$_FN['src_finis']}/modules/login/passwordrecovery_step1.tp.html", false);
+        $tplbasepath = dirname($tplfile) . "/";
+        $templateForm = file_get_contents($tplfile);
+        if ($_FN['username_is_email'])
+        {
+            $tplvars['txtusername'] = FN_Translate("email");
+        }
+        $tplvars['urlnext'] = FN_RewriteLink("index.php?mod=" . $_FN['mod'], "&", true);
+        $templateFormHtml = FN_TPL_ApplyTplString($templateForm, $tplvars, $tplbasepath);
+        echo $templateFormHtml;
+        $_FN['return']['txtresults'] = $tplvars['txtresults'];
+        return;
     }
     // step 1 generate rnd and send ---------<
     // step 2 generate password and send ---->
@@ -94,23 +107,35 @@ function FNREG_ManageRecovery()
     {
         $txtresults = "";
         $uservalues = FN_GetUser($getuser);
-        $email = trim(ltrim($uservalues['email']));
-        if ($email == "" && FN_CheckMail($uservalues[$username_field]))
+        $email = isset($uservalues['email']) ? trim($uservalues['email']) : "";
+        if ($email == "" && isset($uservalues[$username_field]) && FN_CheckMail($uservalues[$username_field]))
         {
             $email = $uservalues[$username_field];
         }
-        if (!$uservalues)
+        //----recovery token "<32 hex>.<timestamp>", valid for $recovery_minutes--->
+        $stored_rnd = isset($uservalues['rnd']) ? $uservalues['rnd'] : "";
+        $stored_token = "";
+        $stored_time = 0;
+        if (preg_match('/^([0-9a-f]{32})\.([0-9]+)$/', $stored_rnd, $matches))
         {
-            $errors = FN_i18n("user does not exist");
+            $stored_token = $matches[1];
+            $stored_time = intval($matches[2]);
         }
-        if ($uservalues['rnd'] == "")
+        if ($stored_rnd == "")
         {
+            // also for not existing users (no user enumeration)
             $errors = FN_Translate("the password has been sent to your email address, if you have not yet received it occurs in spam or repeat the procedure password recovery");
         }
-        elseif ($uservalues['rnd'] != $rnd)
+        elseif ($stored_token == "" || !hash_equals($stored_token, (string) $rnd))
         {
             $errors = FN_i18n("authentication failure");
         }
+        elseif (time() - $stored_time > $recovery_minutes * 60)
+        {
+            FN_Log("User $getuser: expired password recovery link");
+            $errors = FN_i18n("authentication failure");
+        }
+        //----recovery token "<32 hex>.<timestamp>", valid for $recovery_minutes---<
         if ($errors == "")
         {
             if (empty($config['change_password_online']))
@@ -119,7 +144,7 @@ function FNREG_ManageRecovery()
                 $newpass = "";
                 for ($i = 0; $i < 10; $i++)
                 {
-                    $ch = rand(0, 35);
+                    $ch = random_int(0, 35);
                     $newpass .= $chrs[$ch];
                 }
                 $subject = $_FN['sitename'] . " - " . FN_i18n("password recovery");
@@ -152,26 +177,26 @@ function FNREG_ManageRecovery()
                 //update password 
                 if (empty($_REQUEST['__NOSAVE']) && empty($_REQUEST['fnlogin']) && isset($_REQUEST['updateuser']) && isset($_POST['newpassword']))
                 {
-                    $form = FN_GetUserForm();
-                    $username_field = empty($form->fieldname_user) ? "username" : $form->fieldname_user;
                     $active_field = empty($form->fieldname_active) ? "username" : $form->fieldname_active;
                     $password_field = empty($form->fieldname_password) ? "passwd" : $form->fieldname_password;
 
                     $newvalues = $uservalues;
                     $passwd = FN_GetParam("newpassword", $_POST, "html");
                     $passwd2 = FN_GetParam("newpassword_retype", $_POST, "html");
+                    $errors = array();
                     if (empty($passwd))
                     {
-                        $errors = FN_Translate("enter a password");
+                        $errors[] = FN_Translate("enter a password");
                     }
                     if ($passwd != $passwd2)
                     {
-                        $errors = FN_Translate("passwords do not match");
+                        $errors[] = FN_Translate("passwords do not match");
                     }
-                    if (function_exists("FN_PasswordVerifyConstraints"))
+                    if (function_exists("FN_PasswordVerifyConstraints") && "" != ($constraint_error = FN_PasswordVerifyConstraints($passwd)))
                     {
-                        $errors = FN_PasswordVerifyConstraints($passwd);
+                        $errors[] = $constraint_error;
                     }
+                    $errors = implode("<br />", $errors);
                     if ($errors)
                     {
                         //form update password with errors
@@ -286,6 +311,9 @@ function FNREG_ManageEditRegister($user = "")
         {
             foreach ($form->formvals as $key => $fieldvalue)
             {
+                //fields managed by the framework: never taken from the post
+                if (in_array($key, array("apikey", "rnd", "ip", "registrationdate")))
+                    continue;
                 if (xmetadb_is_file_field($fieldvalue))
                 {
                     if (isset($_FILES[$key]['name']))
@@ -410,11 +438,17 @@ function FNREG_ManageEditRegister($user = "")
     }
     else
     {
+        //without a new password the stored hash is not saved: it would be hashed again
+        if (!isset($_POST[$form->fieldname_password]))
+            unset($newvalues[$form->fieldname_password]);
         if (false != FN_UpdateUser($newvalues[$username_field], $newvalues))
         {
             //FN_Log("User updated:{$newvalues['username']}");
             echo FN_Translate("the data were successfully updated");
-            FN_Login($newvalues[$username_field]);
+            //the cookies are renewed (the password may be changed) only when the user edits the own profile:
+            //an administrator who edits another user stays logged in with the own account
+            if ($newvalues[$username_field] === $_FN['user'])
+                FN_Login($newvalues[$username_field], FN_GetParam("fnremember", $_COOKIE));
             array_merge($_FN['return'], $newvalues);
         }
         else
@@ -527,17 +561,26 @@ function FNREG_ManageRegister($actionform = "")
         $tplvalues['error'] = false;
         $tplvalues['formaction'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=send_code");
         $user = trim(ltrim(FN_GetParam("username", $_REQUEST, "html")));
+        if (empty($_FN['username_case_sensitive']))
+            $user = strtolower($user);
+        //the same answer for any username: it must not tell which users exist, nor their email address
+        $resendvalues = $tplvalues;
+        $resendvalues['message'] = "<br /><br />" . FN_Translate("if the registration is waiting for confirmation, an email has been sent with the instructions to complete it") . "<br />" . FN_Translate("check your inbox");
         if ($user)
         {
             $uservalues = FN_GetUser($user);
-            $email = $uservalues['email'];
-            if ($uservalues)
+            //only a registration waiting for confirmation: user not active with the registration code (32 hex)
+            if ($uservalues && empty($uservalues[$active_field]) && isset($uservalues['rnd']) && preg_match('/^[0-9a-f]{32}$/', $uservalues['rnd']))
             {
+                $email = $uservalues['email'];
                 $sendRegistrationCode = true;
             }
             else
             {
-                $tplvalues['error'] = FN_Translate("the email address entered does not match any user");
+                FN_Log("Registration code not sent to $user: no registration waiting for confirmation");
+                echo FN_TPL_ApplyTplFile($tplfile, $resendvalues);
+                $_FN['return'] = $resendvalues;
+                return false;
             }
         }
         if (!$sendRegistrationCode)
@@ -554,7 +597,11 @@ function FNREG_ManageRegister($actionform = "")
     {
         $user = trim(ltrim(FN_GetParam("user", $_GET, "html")));
         $id = trim(ltrim(FN_GetParam("id", $_GET, "html")));
-
+        // registration code: 32 hex chars (the recovery token has a dot and is refused)
+        if (!preg_match('/^[0-9a-f]{32}$/', $id))
+        {
+            $id = "";
+        }
         if ($user == "" && $id != "")
         {
             $users = FN_GetUsers(array("rnd" => $id));
@@ -569,9 +616,10 @@ function FNREG_ManageRegister($actionform = "")
             $uservalues = FN_GetUser($user);
         }
         $message = "";
-        if ($user != "" && $id != "" && isset($uservalues['rnd']) && $uservalues['rnd'] == $id)
+        if ($user != "" && $id != "" && isset($uservalues['rnd']) && hash_equals((string) $uservalues['rnd'], $id))
         {
             FNREG_ConfirmUser($uservalues, !empty($config['send_welcome_message']));
+            FN_UpdateUser($user, array("rnd" => ""));
             //complete registration-------------------------------------------->
             if (function_exists("FN_OnConfirmUser"))
             {
@@ -612,6 +660,9 @@ function FNREG_ManageRegister($actionform = "")
             $newvalues[$key] = FN_GetParam($key, $_POST, "flat");
         }
     }
+    //fields managed by the framework: never taken from the post
+    foreach (array("apikey", "rnd", "ip", "registrationdate") as $key)
+        unset($newvalues[$key]);
     if (!empty($_FN['registration_by_email']))
     {
         $newvalues[$active_field] = 0;
@@ -634,7 +685,12 @@ function FNREG_ManageRegister($actionform = "")
             $newvalues['username'] = $newvalues['email'];
         }
     }
-    $rnd = substr(str_shuffle(str_repeat('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', mt_rand(1, 5))), 1, 5);
+    //FN_AddUser saves the username in lowercase: the checks and the code sent by email use the saved name
+    if (empty($_FN['username_case_sensitive']))
+    {
+        $newvalues[$username_field] = strtolower($newvalues[$username_field]);
+    }
+    $rnd = bin2hex(random_bytes(16));
     $newvalues['rnd'] = $rnd;
     $newvalues['ip'] = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
     $insgroup = array(0 => "users");
@@ -658,11 +714,22 @@ function FNREG_ManageRegister($actionform = "")
     $newvalues['group'] = implode(",", $insgroup);
     $errors = array();
 
-    if (empty($_REQUEST['__NOSAVE']) && empty($_REQUEST['fnlogin']))
+    //the resend of the registration code (op=send_code) also posts the username: it is not a registration
+    if ($op != "send_code" && empty($_REQUEST['__NOSAVE']) && empty($_REQUEST['fnlogin']))
         if (isset($_POST['email']) || isset($_POST[$username_field]))
         {
 
             $errors = $form->Verify($newvalues);
+            //the form does not require the password with pk___xdb_fn_users in the url (users editor): the registration always does
+            if (FN_GetParam("$password_field", $_REQUEST, "flat") == "")
+            {
+                $errors[$password_field] = array("title" => FN_Translate("password"), "field" => $password_field, "error" => FN_Translate("this field is required"));
+            }
+            //FN_AddUser refuses a username made only of dots ("." or "..")
+            if (!empty($newvalues[$username_field]) && trim($newvalues[$username_field], ".") == "")
+            {
+                $errors[$username_field] = array("title" => FN_Translate("username"), "field" => $username_field, "error" => FN_Translate("the value is not valid"));
+            }
             if (function_exists("FN_PasswordVerifyConstraints"))
             {
                 $passwd = FN_GetParam("$password_field", $_REQUEST, "flat");
@@ -691,11 +758,14 @@ function FNREG_ManageRegister($actionform = "")
             {
                 $captcha = FN_GetSessionValue("captcha");
                 $security_code = FN_GetParam("security_code", $_POST);
-                if (empty($captcha['security_code']) || $captcha['security_code'] != $security_code)
+                if (empty($captcha['security_code']) || !hash_equals((string) $captcha['security_code'], $security_code))
                 {
                     $captcha_ok = false;
                     $errors['security_code'] = array("title" => FN_Translate("captcha"), "field" => "captcha", "error" => FN_Translate("incorrect security code"));
                 }
+                //each code is checked once: the form shows a new one
+                unset($captcha['security_code']);
+                FN_SetSessionValue("captcha", $captcha);
             }
             //---check captcha-----------------------------------------------------<
             if (count($errors) == 0 && $conditions_ok == true && $captcha_ok == true)
@@ -712,12 +782,13 @@ function FNREG_ManageRegister($actionform = "")
                     else
                     {
                         $tplvalues['message'] .= FN_Translate("error");
+                        //the form is shown again: Verify finds the username saved in the meantime by another registration
+                        $errors = $form->Verify($newvalues);
                     }
                 }
-                else
+                elseif (FN_AddUser($newvalues))
                 {
                     $tplvalues['message'] .= "<br />" . FN_Translate("registration has been completed") . "<br />";
-                    FN_AddUser($newvalues);
                     FNREG_ConfirmUser($newvalues, !empty($config['send_welcome_message']));
                     if (function_exists("FN_OnConfirmUser"))
                     {
@@ -730,6 +801,11 @@ function FNREG_ManageRegister($actionform = "")
                     }
                     return true;
                 }
+                else
+                {
+                    //the user is not created (eg. another registration saved the same username first): no confirmation and no login of that user, the form is shown again
+                    $errors = $form->Verify($newvalues);
+                }
             }
         }
     //-----------------registration (post values)------------------------------<
@@ -737,14 +813,10 @@ function FNREG_ManageRegister($actionform = "")
 
     if ($sendRegistrationCode)
     {
+        //the code saved with the user, mailed to the address saved with the user
         $newvalues = FN_GetUser($user);
         $name = $newvalues[$username_field];
         $rnd = $newvalues['rnd'];
-        if ($rnd == "")
-        {
-            $rnd = substr(str_shuffle(str_repeat('0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', mt_rand(1, 5))), 1, 5);
-            FN_UpdateUser($name, array("rnd" => $rnd));
-        }
         $subject = FN_Translate("confirm registration site") . " " . $_FN['sitename'];
         $link = FN_RewriteLink("index.php?mod=" . $_FN['mod'] . "&op=end_reg&id=$rnd", "&", true);
         $tpl_filemail = FN_FromTheme("{$_FN['src_finis']}/modules/login/mailconfirm.{$_FN['lang']}.tp.html", false);
@@ -774,16 +846,24 @@ function FNREG_ManageRegister($actionform = "")
         {
             return FN_SendRegistrationCode($newvalues, $link);
         }
-        if (!FN_SendMail($email, $subject, $mailbody, $ishtml))
+        if (!FN_SendMail($newvalues['email'], $subject, $mailbody, $ishtml))
         {
 
             $tplvalues['message'] .= FN_Translate("the system failed to send the confirmation email");
+            FN_Log("Registration code not sent to $name: mail error");
         }
         else
         {
-            $tplvalues['message'] .= "<br /><br />" . FN_Translate("it has been sended one email to you to the address") . " " . htmlentities($newvalues['email']) . " " . FN_i18n("with the instructions to complete the registration") . "<br />";
+            //the address of the form: the saved one can be of another registration of the same username
+            $tplvalues['message'] .= "<br /><br />" . FN_Translate("it has been sended one email to you to the address") . " " . htmlentities($email) . " " . FN_i18n("with the instructions to complete the registration") . "<br />";
             $tplvalues['message'] .= FN_Translate("check your inbox");
 //            $tplvalues['message'].="<br /><br /><div ><a href=\"".FN_RewriteLink("index.php")."\" >".FN_Translate("next")." &gt;&gt;&gt;</a></div>";
+        }
+        if ($op == "send_code")
+        {
+            //resend: the same answer given for any other username
+            $tplvalues = $resendvalues;
+            $_FN['return'] = $resendvalues;
         }
         echo FN_TPL_ApplyTplFile($tplfile, $tplvalues);
         return false;
@@ -849,9 +929,9 @@ function FNREG_ManageRegister($actionform = "")
     if (!empty($config['enable_captcha']))
     {
         $tplvars['txt_error_security_code'] = "";
-        FN_SetSessionValue("captcha", array("security_code" => rand(1000, 9999)));
+        FN_NewCaptchaCode("security_code");
         $htmlcaptcha .= "<img style=\"\" src=\"{$_FN['siteurl']}?fnapp=captcha\" alt=\"\" title=\"\" /> <input style=\"\" size=\"4\" autocomplete=\"off\" name=\"security_code\"  value = \"\" />";
-        if (isset($_POST['security_code']) && $security_code != $captcha['security_code'])
+        if (isset($errors['security_code']))
             $tplvars['txt_error_security_code'] = FN_Translate("incorrect security code");
         $tplvars['htmlcaptcha'] = $htmlcaptcha;
     }

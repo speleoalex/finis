@@ -505,8 +505,7 @@ class XMETATable_sqlite extends \stdClass
                 trigger_error("SQLite DELETE error: " . $this->sqlite_error, E_USER_WARNING);
                 return false;
             }
-            if (strpos($pkvalue,"..") === false && file_exists("$path/$databasename/$tablename/$pkvalue/") && is_dir("$path/$databasename/$tablename/$pkvalue/"))
-                xmetadb_remove_dir_rec("$path/$databasename/$tablename/$pkvalue");
+            xmetadb_remove_record_dir("$path/$databasename/$tablename", $pkvalue);
             return true;
         }
         return false;

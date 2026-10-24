@@ -117,6 +117,9 @@ function FNCC_ManageEditRegister($user = "", $formaction = "", $urlcancel = "", 
         {
             foreach ($form->formvals as $key => $fieldvalue)
             {
+                //fields managed by the framework: never taken from the post
+                if (in_array($key, array("apikey", "rnd", "ip", "registrationdate")))
+                    continue;
                 if (xmetadb_is_file_field($fieldvalue))
                 {
                     if (isset($_FILES[$key]['name']))
@@ -191,10 +194,14 @@ function FNCC_ManageEditRegister($user = "", $formaction = "", $urlcancel = "", 
     } else
     {
         $tplvars['htmlform'] = "";
+        //without a new password the stored hash is not saved: it would be hashed again
+        if (!isset($_POST[$form->fieldname_password]))
+            unset($newvalues[$form->fieldname_password]);
         if (false != FN_UpdateUser($newvalues[$username_field], $newvalues))
         {
             $tplvars['message'] = FN_Translate("the data were successfully updated");
-            FN_Login($newvalues[$username_field]);
+            //keeps "remember me" of the login
+            FN_Login($newvalues[$username_field], FN_GetParam("fnremember", $_COOKIE));
             array_merge($_FN['return'], $newvalues);
         } else
         {

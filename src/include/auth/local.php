@@ -13,6 +13,219 @@ if (!defined("FN_AUTH_METHOD"))
     }
 }
 
+/**
+ * Returns the per-site secret used to sign the session cookie.
+ * Generated once with random_bytes() and stored in the data directory.
+ * The file starts with "<?php exit(0); ?>" like the xmetadb data files,
+ * so it is not readable even if the data directory is served via web.
+ *
+ * @global array $_FN
+ * @return string
+ */
+function FN_GetSiteSecret()
+{
+    global $_FN;
+    static $secret = null;
+    if ($secret !== null)
+        return $secret;
+    $file = "{$_FN['datadir']}/secret.key.php";
+    $header = "<?php exit(0); ?>\n";
+    if (file_exists($file))
+    {
+        $content = file_get_contents($file);
+        $secret = trim(substr($content, strlen($header)));
+    }
+    if (empty($secret) || strlen($secret) < 32)
+    {
+        $secret = bin2hex(random_bytes(32));
+        if (!FN_Write($header . $secret, $file))
+        {
+            FN_Log("Cannot write site secret to $file");
+        }
+        @chmod($file, 0600);
+    }
+    return $secret;
+}
+
+/**
+ * Computes the value of the "secid" cookie for a user.
+ * Changing the password of the user invalidates the cookie.
+ *
+ * @param string $user
+ * @param string $passwd stored password hash
+ * @return string
+ */
+function FN_GetSecid($user, $passwd)
+{
+    return hash_hmac('sha256', $user . '|' . $passwd, FN_GetSiteSecret());
+}
+
+/**
+ * True when the current request uses HTTPS (directly or behind a proxy).
+ *
+ * @return bool
+ */
+function FN_IsHttps()
+{
+    if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on")
+        return true;
+    if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == "https")
+        return true;
+    return false;
+}
+
+/**
+ * IP address of the client. Behind a reverse proxy REMOTE_ADDR is the address
+ * of the proxy: when it is in $_FN['trusted_proxies'] (IP addresses, comma
+ * separated or an array) the client is the last address in X-Forwarded-For
+ * not added by a trusted proxy. Without trusted proxies the header is ignored,
+ * since any client can send it.
+ *
+ * @global array $_FN
+ * @return string
+ */
+function FN_GetClientIp()
+{
+    global $_FN;
+    $ip = FN_GetParam("REMOTE_ADDR", $_SERVER, "html");
+    $proxies = !empty($_FN['trusted_proxies']) ? $_FN['trusted_proxies'] : array();
+    if (!is_array($proxies))
+        $proxies = explode(",", $proxies);
+    $proxies = array_filter(array_map("trim", $proxies));
+    if (in_array($ip, $proxies, true) && !empty($_SERVER['HTTP_X_FORWARDED_FOR']) && is_string($_SERVER['HTTP_X_FORWARDED_FOR']))
+    {
+        //each proxy appends the address the request comes from: the addresses on the left can be forged
+        foreach (array_reverse(explode(",", $_SERVER['HTTP_X_FORWARDED_FOR'])) as $hop)
+        {
+            $hop = trim($hop);
+            if (!filter_var($hop, FILTER_VALIDATE_IP))
+                break;
+            $ip = $hop;
+            if (!in_array($hop, $proxies, true))
+                break;
+        }
+    }
+    return $ip;
+}
+
+/**
+ * True when the url points to this site: an absolute url under $_FN['siteurl']
+ * or a relative url without scheme and host.
+ * Check it before a redirect, so that it cannot lead to another site.
+ *
+ * @param string $url
+ * @global array $_FN
+ * @return bool
+ */
+function FN_IsInternalUrl($url)
+{
+    global $_FN;
+    //browsers drop tabs and newlines, trim spaces and read "\" as "/": "/\evil.com" is "//evil.com"
+    if (!is_string($url) || $url === "" || preg_match('/[\x00-\x20\x7F\\\\]/', $url) || substr($url, 0, 2) == "//")
+    {
+        return false;
+    }
+    if (!empty($_FN['siteurl']) && strpos($url, rtrim($_FN['siteurl'], "/") . "/") === 0)
+    {
+        return true;
+    }
+    //relative url: no scheme (http:, javascript:, data: ...)
+    return !preg_match('/^[a-z][a-z0-9+.-]*:/i', $url);
+}
+
+/**
+ * File that keeps the recent login attempts of a username from the client IP
+ * (FN_GetClientIp()).
+ * It is in {datadir}/_login_attempts, not in the cache folder: FN_ClearCache()
+ * does not reset the counters.
+ *
+ * @param string $user
+ * @global array $_FN
+ * @return string
+ */
+function FN_LoginAttemptsFile($user)
+{
+    global $_FN;
+    $ip = FN_GetClientIp();
+    return "{$_FN['datadir']}/_login_attempts/" . hash('sha256', $user . '|' . $ip) . ".cache";
+}
+
+/**
+ * Records a login attempt of a username from the client IP, before the
+ * password is checked, so parallel requests cannot pass the limit.
+ * After $_FN['login_max_attempts'] attempts (default 5) in the last
+ * $_FN['login_lockout_minutes'] minutes (default 15) the attempt is refused.
+ * FN_LoginResetAttempts() clears the attempts after a successful login.
+ * Once in the time window, the files of the counters not updated in it are removed.
+ *
+ * @param string $user
+ * @global array $_FN
+ * @return bool false if the username is locked out from this IP
+ */
+function FN_LoginAttempt($user)
+{
+    global $_FN;
+    $max = !empty($_FN['login_max_attempts']) ? intval($_FN['login_max_attempts']) : 5;
+    $minutes = !empty($_FN['login_lockout_minutes']) ? intval($_FN['login_lockout_minutes']) : 15;
+    $file = FN_LoginAttemptsFile($user);
+    //once in the time window, remove the counters not updated in it: they have only expired attempts
+    $dir = dirname($file);
+    if (!file_exists("$dir/cleanup") || filemtime("$dir/cleanup") < time() - $minutes * 60)
+    {
+        FN_MkDir($dir);
+        @touch("$dir/cleanup");
+        $files = glob("$dir/*.cache");
+        if (is_array($files))
+        {
+            foreach ($files as $oldfile)
+            {
+                if (@filemtime($oldfile) < time() - $minutes * 60)
+                    @unlink($oldfile);
+            }
+        }
+    }
+    //wait for a concurrent request, a stale lock is removed by FN_UnlockFile
+    for ($i = 0; $i < 20 && !FN_LockFile($file); $i++)
+    {
+        usleep(50000);
+    }
+    $content = file_exists($file) ? file_get_contents($file) : "";
+    $attempts = array();
+    foreach (explode("\n", $content) as $time)
+    {
+        if (intval($time) > time() - $minutes * 60)
+            $attempts[] = intval($time);
+    }
+    $allowed = (count($attempts) < $max);
+    if ($allowed)
+    {
+        $attempts[] = time();
+        FN_Write(implode("\n", $attempts), $file);
+    }
+    elseif (strpos($content, "locked") === false)
+    {
+        //log once for each lockout
+        FN_Write(implode("\n", $attempts) . "\nlocked", $file);
+        FN_Log("User $user locked out for $minutes minutes after $max failed logins from " . FN_GetClientIp());
+    }
+    FN_UnlockFile($file);
+    return $allowed;
+}
+
+/**
+ * Clears the login attempts of a username from the client IP.
+ *
+ * @param string $user
+ */
+function FN_LoginResetAttempts($user)
+{
+    $file = FN_LoginAttemptsFile($user);
+    if (file_exists($file))
+    {
+        @unlink($file);
+    }
+}
+
 function FN_LoginInitUrl($script="")
 {
     global $_FN;
@@ -110,15 +323,20 @@ function FN_ManageLogin()
     $captcha_ok = true;
     FN_ManageLoginWithOpenAuthentication();
     //-------------------captcha----------------------------------------------->
-    if (!empty($_FN['enable_captcha']))
+    //checked only on a login: the other requests (e.g. the captcha image) leave the code as it is
+    if (!empty($_FN['enable_captcha']) && $fnlogin == "login" && $fnuser != "" && $fnpwd != "")
     {
         $captcha = FN_GetSessionValue("captcha");
+        if (!is_array($captcha))
+            $captcha = array();
         $fnlogincode = FN_GetParam("fnlogin_code", $_POST);
-        if ($fnlogincode == "" || empty($captcha['fnlogin_code']) || $captcha['fnlogin_code'] != $fnlogincode)
+        if ($fnlogincode == "" || empty($captcha['fnlogin_code']) || !hash_equals((string) $captcha['fnlogin_code'], $fnlogincode))
         {
             $captcha_ok = false;
-            FN_SetSessionValue("captcha", array("fnlogin_code" => rand(1000, 9999)));
         }
+        //each code is checked once: the login form shows a new one, the code of the registration form is kept
+        unset($captcha['fnlogin_code']);
+        FN_SetSessionValue("captcha", $captcha);
     }
     //-------------------captcha-----------------------------------------------<
     $rememberlogin  = FN_GetParam("rememberlogin", $_POST);
@@ -127,10 +345,11 @@ function FN_ManageLogin()
     {
         if (empty($_FN['username_case_sensitive']))
             $fnuser = strtolower($fnuser);
-        if ($captcha_ok && FN_VerifyUserPassword($fnuser, $fnpwd))
+        if ($captcha_ok && FN_LoginAttempt($fnuser) && FN_VerifyUserPassword($fnuser, $fnpwd))
         {
-            FN_Login($fnuser, $rememberlogin);
-            $justLoggedIn = true;
+            FN_LoginResetAttempts($fnuser);
+            //FN_Login fails when the user is not active: the cookies sent by the client are then checked as usual
+            $justLoggedIn = FN_Login($fnuser, $rememberlogin);
         }
         else
         {
@@ -214,7 +433,8 @@ function FN_HtmlLoginForm($templateForm = false, $url = "")
         $tplbasepath = dirname(FN_FromTheme("{$_FN['src_finis']}/modules/login/login.tp.html", false));
     }
     $querystring = FN_GetParam("QUERY_STRING", $_SERVER);
-    $querystring = str_replace("&", "&amp;", $querystring);
+    //the query string ends in the action attribute of the form
+    $querystring = htmlspecialchars($querystring, ENT_QUOTES);
     $querystring = str_replace("fnlogin=login&amp;", "", $querystring);
     $querystring = str_replace("fnlogin=logout&amp;", "", $querystring);
     $querystring = str_replace("?fnlogin=login", "?", $querystring);
@@ -241,16 +461,11 @@ function FN_HtmlLoginForm($templateForm = false, $url = "")
     $tplvars['txtusername'] = (!empty($_FN['username_is_email'])) ? FN_Translate("email") : FN_Translate("username");
 
     //------------------------------------ captcha ---------------------------->
-    $captcha_ok = true;
     $htmlcaptcha = "";
     if (!empty($_FN['enable_captcha']))
     {
-        $captcha = FN_GetSessionValue("captcha");
-        $fnlogincode = FN_GetParam("fnlogin_code", $_POST);
-        if ($fnlogincode == "" || empty($captcha['fnlogin_code']) || $captcha['fnlogin_code'] != $fnlogincode)
-            $captcha_ok = false;
-        FN_SetSessionValue("captcha", array("fnlogin_code" => rand(1000, 9999)));
-        
+        //the code is checked by FN_ManageLogin
+        FN_NewCaptchaCode("fnlogin_code");
         $htmlcaptcha .= "<img style=\"vertical-align:middle\" src=\"{$_FN['siteurl']}?fnapp=captcha&amp;t=fnlogin_code&amp;" . time() . "\" alt=\"\" title=\"\" /> <input size=\"4\" name=\"fnlogin_code\"  value = \"\" />";
         $tplvars['htmlcaptcha'] = $htmlcaptcha;
     }
@@ -305,7 +520,8 @@ function FN_HtmlLogoutForm($templateForm = false)
     }
     $tplvars = array();
     $querystring = FN_GetParam("QUERY_STRING", $_SERVER);
-    $querystring = str_replace("&", "&amp;", $querystring);
+    //the query string ends in the action attribute of the form
+    $querystring = htmlspecialchars($querystring, ENT_QUOTES);
     $tplvars['formaction'] = "?$querystring&amp;fnlogin=logout";
     $html = FN_TPL_ApplyTplString($templateForm, $tplvars, $tplbasepath);
     return $html;
@@ -334,27 +550,47 @@ function FN_VerifyUserPassword($fnuser, $fnpwd)
     {
         return $_FN['FN_VerifyUserPassword']($fnuser, $fnpwd);
     }
-    $lpass = md5($fnpwd);
-    $us = FN_GetUser($fnuser);
-    $passwd = !empty($us['passwd']) ? $us['passwd'] : "";
-    if ($passwd == $lpass)
-        return true;
-    if ($passwd == $fnpwd)
-        return true;
-
-    if (function_exists("password_hash") && function_exists("password_verify"))
-    {
-
-        if (password_verify($fnpwd, $passwd))
-        {
-            return true;
-        }
-    }
-    else
+    if (!function_exists("password_hash") || !function_exists("password_verify"))
     {
         die("functions password_hash password_verify dont exists ");
     }
-    return false;
+    $us = FN_GetUser($fnuser);
+    $passwd = !empty($us['passwd']) ? $us['passwd'] : "";
+    if ($passwd === "" || $fnpwd === "")
+        return false;
+    $info = password_get_info($passwd);
+    //----modern hash: only password_verify (no pass-the-hash)---------------->
+    if (!empty($info['algo']))
+    {
+        if (!password_verify($fnpwd, $passwd))
+            return false;
+        if (password_needs_rehash($passwd, FN_AUTH_METHOD, array('cost' => FN_AUTH_COST)))
+        {
+            FN_UpdateUser($fnuser, array(), $fnpwd);
+        }
+        return true;
+    }
+    //----modern hash: only password_verify (no pass-the-hash)----------------<
+    //----legacy: md5, crypt() or plaintext, rehashed at the first login------>
+    if (preg_match('/^[0-9a-f]{32}$/i', $passwd))
+    {
+        $ok = hash_equals(strtolower($passwd), md5($fnpwd));
+    }
+    elseif ($passwd[0] == '$')
+    {
+        $ok = password_verify($fnpwd, $passwd);
+    }
+    else
+    {
+        $ok = hash_equals($passwd, (string) $fnpwd);
+    }
+    if ($ok)
+    {
+        FN_UpdateUser($fnuser, array(), $fnpwd);
+        FN_Log("User $fnuser: legacy password rehashed");
+    }
+    //----legacy: md5, crypt() or plaintext, rehashed at the first login------<
+    return $ok;
 }
 
 /**
@@ -447,21 +683,28 @@ function FN_Login($fnuser, $rememberlogin = false)
         // setcookie() is a no-op in CLI mode (no HTTP context)
         if (empty($_FN['consolemode']))
         {
+            $remember_days = !empty($_FN['remember_login_days']) ? intval($_FN['remember_login_days']) : 30;
             $expires = (empty($_FN['remember_login']) || $rememberlogin == "")
                 ? 0
-                : time() + 99999999;
+                : time() + $remember_days * 86400;
             $cookieOpts = [
                 'expires'  => $expires,
                 'path'     => $_FN['urlcookie'],
+                'secure'   => FN_IsHttps(),
                 'httponly' => true,
                 'samesite' => 'Lax',
             ];
             setcookie("fnuser", $fnuser, $cookieOpts);
-            setcookie("secid",  md5($fnuser . $password), $cookieOpts);
+            setcookie("secid",  FN_GetSecid($fnuser, $password), $cookieOpts);
+            //"remember me" is kept in a cookie: the cookies renewed after the save of the profile keep the same duration
+            if ($expires)
+                setcookie("fnremember", "1", $cookieOpts);
+            else
+                setcookie("fnremember", "", ['expires' => 1] + $cookieOpts);
         }
         FN_Log("User $fnuser login (function FN_Login).");
         $_FN['user'] = $_COOKIE['fnuser'] = $fnuser;
-        $_COOKIE['secid'] = md5($fnuser . $password);
+        $_COOKIE['secid'] = FN_GetSecid($fnuser, $password);
 
         return true;
     }
@@ -483,6 +726,7 @@ function FN_Logout()
     $_FN['user'] = "";
     unset($_COOKIE['fnuser']);
     unset($_COOKIE['secid']);
+    unset($_COOKIE['fnremember']);
 
     // setcookie() is a no-op in CLI mode
     if (!empty($_FN['consolemode'])) return;
@@ -500,10 +744,11 @@ function FN_Logout()
     }
 //---------------------url cookie----------------------------------------------<
 
-    $clearOpts = ['expires' => 1, 'httponly' => true, 'samesite' => 'Lax'];
+    $clearOpts = ['expires' => 1, 'secure' => FN_IsHttps(), 'httponly' => true, 'samesite' => 'Lax'];
     foreach ([$urlcookie, '/'] as $path) {
         setcookie("fnuser", "", $clearOpts + ['path' => $path]);
         setcookie("secid",  "", $clearOpts + ['path' => $path]);
+        setcookie("fnremember", "", $clearOpts + ['path' => $path]);
     }
 }
 
@@ -523,9 +768,11 @@ function FN_DeleteUser($user)
         {
             FN_OnDeleteUser($uservalues);
         }
-        if (file_exists("{$_FN['datadir']}/fndatabase/fn_users/" . $user))
+        //folder with the files of the user: only the folder named as the user right inside fn_users (no "..", "." or links)
+        $userdir = realpath("{$_FN['datadir']}/fndatabase/fn_users/" . $user);
+        if ($userdir && is_dir($userdir) && basename($userdir) == $user && dirname($userdir) == realpath("{$_FN['datadir']}/fndatabase/fn_users"))
         {
-            remove_dir_rec("{$_FN['datadir']}/fndatabase/fn_users/" . $user);
+            FN_RemoveDir($userdir);
         }
     }
 }
@@ -548,6 +795,18 @@ function FN_UpdateUser($user, $newvalues, $password = "")
             unset($newvalues['passwd']);
         }
         $table = FN_GetUserForm();
+        //the registration code (32 hex) is needed only until the first activation: a user activated
+        //without it (control center, api) or deactivated after the activation must not keep it,
+        //otherwise the code would activate the user again
+        $active_field = empty($table->fieldname_active) ? "active" : $table->fieldname_active;
+        if (isset($newvalues[$active_field]) && !isset($newvalues['rnd']))
+        {
+            $oldvalues = $table->xmltable->GetRecordByPrimaryKey($newvalues['username']);
+            if (isset($oldvalues['rnd']) && preg_match('/^[0-9a-f]{32}$/', $oldvalues['rnd']) && (!empty($newvalues[$active_field]) || !empty($oldvalues[$active_field])))
+            {
+                $newvalues['rnd'] = "";
+            }
+        }
         //dprint_r($newvalues);
         $newvalues = $table->UpdateRecord($newvalues);
         if ($newvalues && function_exists("FN_OnUpdateUser"))
@@ -567,7 +826,9 @@ function FN_UpdateUser($user, $newvalues, $password = "")
  */
 function FN_AddUser($newvalues, $password = "")
 {
-    if ($newvalues['username'] != "")
+    global $_FN;
+    //a username made only of dots ("." or "..") would name the folder of the users or its parent
+    if ($newvalues['username'] != "" && trim($newvalues['username'], ".") != "")
     {
         if (empty($_FN['username_case_sensitive']))
         {
@@ -581,7 +842,8 @@ function FN_AddUser($newvalues, $password = "")
         {
             unset($newvalues['passwd']);
         }
-        if ($table->InsertRecord($newvalues))
+        //InsertRecord returns the saved record (the xmlphp driver returns an error string when the insert fails)
+        if (is_array($table->InsertRecord($newvalues)))
         {
             if (function_exists("FN_OnAddUser"))
             {
@@ -605,8 +867,11 @@ function FN_CheckUser()
     $UserValues = FN_GetUser($_FN['user']);
     if (empty($secid) || empty($UserValues['passwd']))
         return false;
-    $RequiredSecid = md5($_FN['user'] . $UserValues['passwd']);
-    if ($RequiredSecid == $secid)
+    //a user deactivated after the login is logged out
+    if (!isset($UserValues['active']) || $UserValues['active'] != 1)
+        return false;
+    $RequiredSecid = FN_GetSecid($_FN['user'], $UserValues['passwd']);
+    if (hash_equals($RequiredSecid, (string) $secid))
         return true;
     return false;
 }
@@ -726,12 +991,23 @@ function FN_ManageLoginWithOpenAuthentication()
         // If not authenticated, start the OAuth flow
         if (!isset($_GET['code']))
         {
+            //error from the provider (access_denied when the user does not allow the login): no new authorization request, it would send the user back to the provider
+            if (isset($_GET['error']))
+            {
+                FN_SetSessionValue("session_oauth_state", "");
+                FN_Log("OAuth login with provider {$config['id']} not completed: " . substr(preg_replace('/[^A-Za-z0-9_.-]/', "", FN_GetParam("error", $_GET)), 0, 64));
+                return;
+            }
             // Redirect to provider's authorization page
+            //random state kept in the session, the provider sends it back with the code
+            $state = bin2hex(random_bytes(16));
+            FN_SetSessionValue("session_oauth_state", $state);
             $params = array(
                 'client_id' => $config['client_id'],
                 'redirect_uri' => $redirectUri,
                 'response_type' => 'code',
                 'scope' => $config['scope'],
+                'state' => $state,
             );
 
             $authRedirect = $config['auth_url'] . '?' . http_build_query($params);
@@ -740,6 +1016,14 @@ function FN_ManageLoginWithOpenAuthentication()
         }
         else
         {
+            //the code must come back with the state of this session (no login CSRF), each state is used once
+            $state = FN_GetSessionValue("session_oauth_state");
+            FN_SetSessionValue("session_oauth_state", "");
+            if (empty($state) || !is_string($state) || !hash_equals($state, FN_GetParam("state", $_GET)))
+            {
+                FN_Log("OAuth login with provider {$config['id']} refused: invalid state");
+                return;
+            }
             // Exchange the authorization code for an access token
             $postData = array(
                 'code' => $_GET['code'],
@@ -780,6 +1064,15 @@ function FN_ManageLoginWithOpenAuthentication()
     $userInfo = json_decode($response, true);
     FN_SetSessionValue("session_provider", $session_provider);
     $user_email = isset($userInfo['email']) ? $userInfo['email'] : "";
+    //when the provider says whether the email is verified (email_verified in OpenID Connect, verified_email in Google v2) it must be true
+    foreach (array("email_verified", "verified_email") as $key)
+    {
+        if ($user_email && is_array($userInfo) && array_key_exists($key, $userInfo) && !in_array($userInfo[$key], array(true, "true", 1, "1"), true))
+        {
+            FN_Log("OAuth login with provider {$config['id']} refused: email $user_email not verified");
+            $user_email = "";
+        }
+    }
     $user_image = !empty($userInfo['picture']) ? $userInfo['picture'] : "";
     if (!$user_image || is_array($user_image))
     {
@@ -788,6 +1081,19 @@ function FN_ManageLoginWithOpenAuthentication()
     if ($user_email)
     {
         $users = FN_GetUsers(array("email" => $user_email));
+        //in the filter _ and % are wildcards (LIKE): keep only this email, ignoring the case
+        $found = array();
+        if (is_array($users))
+        {
+            foreach ($users as $user)
+            {
+                if (isset($user['email']) && strcasecmp("{$user['email']}", "$user_email") == 0)
+                {
+                    $found[] = $user;
+                }
+            }
+        }
+        $users = $found;
         if ($users)
         {
             $uservalues = $users[0];
@@ -798,8 +1104,20 @@ function FN_ManageLoginWithOpenAuthentication()
             if ($_FN['enable_registration'])
             {
                 $uservalues = array("username" => $user_email, "email" => $user_email, "active" => 1);
-                $res = FN_AddUser($uservalues, generateSecurePassword());
-                FN_Login($uservalues['username']);
+                //FN_AddUser saves the username in lowercase: the login uses the saved name
+                if (empty($_FN['username_case_sensitive']))
+                {
+                    $uservalues['username'] = strtolower($uservalues['username']);
+                }
+                //no login when the user is not created (eg. another user already has this username)
+                if (FN_AddUser($uservalues, generateSecurePassword()))
+                {
+                    FN_Login($uservalues['username']);
+                }
+                else
+                {
+                    FN_Log("OAuth login with provider {$config['id']} refused: user $user_email not created");
+                }
             }
         }
         $_FN['userimage'] = $user_image;
@@ -810,7 +1128,11 @@ function FN_ManageLoginWithOpenAuthentication()
         if (!empty($_FN['user']) && $returnurl)
         {
             FN_SetSessionValue("session_oauth_returnurl", "");
-            FN_Redirect($returnurl);
+            //only to pages of this site, never an open redirect
+            if (FN_IsInternalUrl($returnurl))
+            {
+                FN_Redirect($returnurl);
+            }
         }
         return;
     }
@@ -840,8 +1162,8 @@ function generateSecurePassword($length = 12)
     // Generate a password of the specified length
     for ($i = 0; $i < $length; $i++)
     {
-        // Select a random character from the shuffled character set
-        $randomIndex = rand(0, strlen($shuffledChars) - 1);
+        // Select a random character from the shuffled character set (random_int is cryptographically secure, rand is not)
+        $randomIndex = random_int(0, strlen($shuffledChars) - 1);
         $password .= $shuffledChars[$randomIndex];
     }
 
@@ -956,7 +1278,9 @@ function FN_GenerateApiKey($user)
     }
     catch (Exception $e)
     {
-        $apikey = hash("sha256", uniqid("", true) . mt_rand() . $user);
+        //never a predictable key: no key at all
+        FN_LogEvent("API key not generated for user $user: " . $e->getMessage(), "apikey");
+        return "";
     }
     $table = FN_GetUserForm();
     $result = $table->xmltable->UpdateRecordBypk(array("apikey" => $apikey), $table->xmltable->primarykey, $user);

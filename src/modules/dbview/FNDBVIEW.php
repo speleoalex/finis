@@ -2693,14 +2693,16 @@ set_changed();
                 } else {
                     $titlename .= "{$data[$titleitem]}&nbsp;";
                 }
-            } else {
-                if (is_array($data))
-                    foreach ($data as $tv) {
-                        $titlename = $tv;
-                        break;
-                    }
-                $titlename = isset($titlename[1]) ? $titlename[1] : "";
             }
+        // titlefield missing from the table: use the first non-empty value after the primary key
+        if ($titlename == "" && is_array($data)) {
+            foreach ($data as $k => $tv) {
+                if ($k != $Table->xmltable->primarykey && is_scalar($tv) && trim($tv) != "") {
+                    $titlename = $tv;
+                    break;
+                }
+            }
+        }
         $tplvars['item_title'] = FN_FixEncoding($titlename);
         //----title--------------------------------<
         //-------------------------------valori----------------------------------->
