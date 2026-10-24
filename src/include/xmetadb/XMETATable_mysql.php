@@ -49,6 +49,7 @@ class XMETATable_mysql extends \stdClass
     var $mysqldatabasename;
     var $nullfields;
     var $mysqlfields;
+    var $legacynotnull;
     var $sqltable;
     var $conn;
     var $connection;
@@ -307,7 +308,7 @@ class XMETATable_mysql extends \stdClass
             // create table -----<
             //--synchronize fields --->
             if (empty($dbcache[$this->mysqldatabasename][$sqltable]['describe']))
-                $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $this->dbQuery("DESCRIBE " . $this->sqltable);
+                $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $this->dbQuery("DESCRIBE " . $this->sqltable, false);
             $xmlfield = $this->fields;
             $result = $dbcache[$this->mysqldatabasename][$sqltable]['describe'];
             $exists = false;
@@ -375,7 +376,7 @@ class XMETATable_mysql extends \stdClass
             }
             if ($flag_tablechanged)
             {
-                $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $this->dbQuery("DESCRIBE " . $this->sqltable);
+                $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $this->dbQuery("DESCRIBE " . $this->sqltable, false);
                 // Update mysql_fields with newly added fields
                 foreach ($dbcache[$this->mysqldatabasename][$sqltable]['describe'] as $tmp)
                 {
@@ -507,9 +508,11 @@ class XMETATable_mysql extends \stdClass
      * dbQuery
      *
      * @param string $query
+     * @param bool $fixnull false keeps NULL values (DESCRIBE: a NULL
+     *             Default is a column without a default)
      * @return array|bool|null
      */
-    function dbQuery($query)
+    function dbQuery($query, $fixnull = true)
     {
         try
         {
@@ -538,7 +541,8 @@ class XMETATable_mysql extends \stdClass
                 $res = array();
                 while ($tmp = $result->fetch_assoc())
                 {
-                    $tmp = $this->fix_null($tmp);
+                    if ($fixnull)
+                        $tmp = $this->fix_null($tmp);
                     $res[] = $tmp;
                 }
             }
@@ -680,6 +684,78 @@ class XMETATable_mysql extends \stdClass
     }
 
     /**
+     * Columns of a database created by an older version that are NOT NULL
+     * without a default (MariaDB/MySQL strict mode rejects an INSERT that
+     * leaves them out), with the value non-strict MySQL used to store:
+     * 0 for numbers, the zero date for dates, the first value of an ENUM,
+     * '' otherwise. Built once per table from the DESCRIBE result that the
+     * constructor already reads (and caches), so it costs no query.
+     *
+     * @return array column => SQL literal
+     */
+    function LegacyNotNullColumns()
+    {
+        if (is_array($this->legacynotnull))
+            return $this->legacynotnull;
+        // not described yet (records copied while the table is created)
+        if (!is_array($this->mysqlfields))
+            return array();
+        $this->legacynotnull = array();
+        foreach ($this->mysqlfields as $name => $col)
+        {
+            if (!is_array($col) || $col['Null'] != "NO" || $col['Default'] !== NULL || $name == $this->primarykey)
+                continue;
+            // autoincrement and generated columns get their value from the server
+            if (preg_match('/auto_increment|generated|virtual|stored|persistent/i', isset($col['Extra']) ? $col['Extra'] : ""))
+                continue;
+            $type = strtolower($col['Type']);
+            if (preg_match('/^(tinyint|smallint|mediumint|int|integer|bigint|decimal|numeric|float|double|real|bit|year|bool)/', $type))
+                $literal = "0";
+            elseif (preg_match('/^date$/', $type))
+                $literal = "'0000-00-00'";
+            elseif (preg_match('/^(datetime|timestamp)/', $type))
+                $literal = "'0000-00-00 00:00:00'";
+            elseif (preg_match('/^time/', $type))
+                $literal = "'00:00:00'";
+            elseif (preg_match("/^enum\\('((?:[^']|'')*)'/i", $col['Type'], $m))
+                $literal = "'" . $this->conn->real_escape_string(str_replace("''", "'", $m[1])) . "'";
+            else
+                $literal = "''";
+            $this->legacynotnull[$name] = $literal;
+        }
+        return $this->legacynotnull;
+    }
+
+    /**
+     * @param string $field
+     * @return bool true when the column is NOT NULL without a default
+     */
+    function IsLegacyNotNull($field)
+    {
+        $legacy = $this->LegacyNotNullColumns();
+        return isset($legacy[$field]);
+    }
+
+    /**
+     * legacy NOT NULL columns (see LegacyNotNullColumns()) that an INSERT
+     * of these values would leave out
+     *
+     * @param array $values
+     * @return array column => SQL literal
+     */
+    function LegacyMissingColumns($values)
+    {
+        $ret = array();
+        foreach ($this->LegacyNotNullColumns() as $name => $literal)
+        {
+            // the INSERT writes only the values of fields in the descriptor
+            if (!array_key_exists($name, $values) || !isset($this->fields[$name]))
+                $ret[$name] = $literal;
+        }
+        return $ret;
+    }
+
+    /**
      * InsertRecord
      * Adds a record
      *
@@ -715,6 +791,9 @@ class XMETATable_mysql extends \stdClass
                     $tf[] = "`$k`";
                 }
             }
+            $legacy = $this->LegacyMissingColumns($values);
+            foreach ($legacy as $k => $v)
+                $tf[] = "`$k`";
             $query .= implode(",", $tf);
             $query .= ") VALUES (";
             $tf = array();
@@ -726,6 +805,10 @@ class XMETATable_mysql extends \stdClass
                     {
                         $tf[] = "NULL";
                     }
+                    elseif (($v === '' || $v === NULL) && $this->IsLegacyNotNull($k))
+                    {
+                        $tf[] = $this->legacynotnull[$k];
+                    }
                     else
                     {
                         if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$v"))
@@ -735,6 +818,8 @@ class XMETATable_mysql extends \stdClass
                     }
                 }
             }
+            foreach ($legacy as $v)
+                $tf[] = $v;
             $query .= implode(",", $tf);
             $query .= ")";
 
@@ -792,6 +877,9 @@ class XMETATable_mysql extends \stdClass
                 $tf[] = "`$k`";
             }
         }
+        $legacy = $this->LegacyMissingColumns($values);
+        foreach ($legacy as $k => $v)
+            $tf[] = "`$k`";
         $query .= implode(",", $tf);
         $query .= ") VALUES (";
         $tf = array();
@@ -803,6 +891,10 @@ class XMETATable_mysql extends \stdClass
                 {
                     $tf[] = "NULL";
                 }
+                elseif (($v === '' || $v === NULL) && $this->IsLegacyNotNull($k))
+                {
+                    $tf[] = $this->legacynotnull[$k];
+                }
                 else
                 {
                     if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$v"))
@@ -812,6 +904,8 @@ class XMETATable_mysql extends \stdClass
                 }
             }
         }
+        foreach ($legacy as $v)
+            $tf[] = $v;
         $query .= implode(",", $tf);
         $query .= ");";
 
@@ -866,6 +960,10 @@ class XMETATable_mysql extends \stdClass
                         if ($this->mysqlfields[$k]['Null'] == "YES" && $value == "")
                         {
                             $query .= "NULL";
+                        }
+                        elseif (($value === '' || $value === NULL) && $this->IsLegacyNotNull($k))
+                        {
+                            $query .= $this->legacynotnull[$k];
                         }
                         else
                         {
@@ -926,6 +1024,10 @@ class XMETATable_mysql extends \stdClass
                         if ($this->mysqlfields[$k]['Null'] == "YES" && $value == "")
                         {
                             $query .= "NULL";
+                        }
+                        elseif (($value === '' || $value === NULL) && $this->IsLegacyNotNull($k))
+                        {
+                            $query .= $this->legacynotnull[$k];
                         }
                         else
                         {
