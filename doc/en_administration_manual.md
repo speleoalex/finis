@@ -82,6 +82,36 @@ To configure the registration process:
    - Terms and conditions
 3. Customize emails sent to users in **Settings > Email**
 
+### Login and Password Security
+These rules apply to every user, administrators included.
+
+**Passwords**
+- Passwords are stored as one-way hashes (`password_hash`). Old accounts imported from earlier versions may still have an MD5 hash. Those users log in with their usual password, and the hash is replaced with a modern one at that login. Nothing changes for the user, and no reset is needed. An MD5 hash stays in the database until its owner logs in again.
+- The stored hash is never accepted as a password ("pass-the-hash" is refused).
+- The only built-in rule is that a password cannot contain spaces. A site can add its own rules by defining `FN_PasswordVerifyConstraints_overwrite($password)`. It returns an error message, or an empty string when the password is accepted.
+- Saving a profile without typing a new password keeps the current password.
+
+**Failed logins and lockout**
+- After 5 failed attempts for the same username from the same IP address within 15 minutes, further attempts are refused, even with the right password, until the 15 minutes have passed. A successful login clears the counter.
+- Each lockout is written once to the system log ("User ... locked out for 15 minutes ...").
+- There is nothing to unlock by hand: the lock expires on its own. To clear it at once, delete the files in `misc/_login_attempts/`. Clearing the cache doesn't reset the counters.
+- Settings (in `config.vars.local.php`): `$_FN['login_max_attempts']` (default 5) and `$_FN['login_lockout_minutes']` (default 15).
+- **Behind a reverse proxy** (Caddy, nginx, Traefik), set `$_FN['trusted_proxies']` to the proxy's IP addresses. If it isn't set, every visitor appears with the proxy's address. A username is then locked for everyone after 5 wrong attempts from anywhere.
+
+**Sessions and "remember me"**
+- The session cookie is signed with a secret key specific to the site, `misc/secret.key.php`, which is created automatically. Include this file in backups. If it is lost or changes, every user is logged out once and has to log in again. The same happens once when a site is updated to this version.
+- "Remember me" keeps the user logged in for 30 days (`$_FN['remember_login_days']`). Setting `$_FN['remember_login'] = 0` turns the option off.
+- A user who is deactivated is logged out at their next request.
+
+**Password recovery and registration**
+- "Forgot password" emails a single-use link that is valid for 60 minutes (`$_FN['recovery_link_minutes']`). Links sent before an update to this version no longer work, so the user has to request a new one.
+- The recovery and "resend code" pages give the same answer whether or not the username exists, so they can't be used to find out which accounts exist.
+- Registration confirmation codes are random and single use. Captcha codes are single use too.
+- Usernames are saved in lowercase unless `$_FN['username_case_sensitive']` is set. Usernames made only of dots are refused.
+
+**API keys**
+- When `$_FN['apikey_groups']` is set, only administrators and the members of those groups can use or see an API key.
+
 ## Content Management
 
 ### Site Structure
@@ -390,7 +420,7 @@ To manage newsletter subscriptions:
 - **Solution**:
   1. Check CAPS LOCK
   2. Request a new password
-  3. Check in settings that your account is not locked
+  3. After 5 wrong passwords the login is locked for 15 minutes, even with the right password. Wait, or delete the files in `misc/_login_attempts/` (see Login and Password Security)
   4. If nothing works, access the database and manually reset the password
 
 #### Blank Page or 500 Error
@@ -426,7 +456,7 @@ If you can't resolve an issue:
 - Keep FINIS and all modules updated
 - Use complex passwords and change them regularly
 - Limit administrative access to known IPs if possible
-- Perform regular backups
+- Perform regular backups, including `misc/secret.key.php`
 - Regularly check logs for suspicious activity
 
 ### Performance
