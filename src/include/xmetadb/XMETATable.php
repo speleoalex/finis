@@ -448,20 +448,41 @@ class XMETATable extends \stdClass
         return $siteurl;
     }
 
+    /**
+     * Web address of a record's file (or of its thumbnail).
+     *
+     * By default the file's own path in the data folder. An application that
+     * protects its files sets $_FN['xmetadb_file_url'] to a function
+     * ($table, $recordvalues, $recordkey, $thumb) that returns the address to
+     * use instead, for example an opaque link to a script that checks who may
+     * read the file; the data folder can then be closed to direct requests.
+     *
+     * @param array $recordvalues
+     * @param string $recordkey field name
+     * @param bool $thumb the thumbnail instead of the file
+     * @return string|false
+     */
+    function getFileUrl($recordvalues, $recordkey, $thumb = false)
+    {
+        global $_FN;
+        if (!empty($_FN['xmetadb_file_url']) && is_callable($_FN['xmetadb_file_url']))
+        {
+            return call_user_func($_FN['xmetadb_file_url'], $this, $recordvalues, $recordkey, $thumb);
+        }
+        $file = $thumb ? $this->getThumbPath($recordvalues, $recordkey) : $this->getFilePath($recordvalues, $recordkey);
+        if ($file && ($file[0] == "?" || file_exists($file)))
+            return (!empty($_FN['siteurl']) ? $_FN['siteurl'] : $this->_buildSiteUrl()) . $file;
+        return false;
+    }
+
     function get_file($recordvalues, $recordkey)
     {
-        $file = $this->getFilePath($recordvalues, $recordkey);
-        if ($file && ($file[0] == "?" || file_exists($file)))
-            return $this->_buildSiteUrl() . $file;
-        return false;
+        return $this->getFileUrl($recordvalues, $recordkey, false);
     }
 
     function get_thumb($recordvalues, $recordkey)
     {
-        $file = $this->getThumbPath($recordvalues, $recordkey);
-        if ($file && file_exists($file))
-            return $this->_buildSiteUrl() . $file;
-        return false;
+        return $this->getFileUrl($recordvalues, $recordkey, true);
     }
 
     function SetFile($key, $filepath, $filename = "")
