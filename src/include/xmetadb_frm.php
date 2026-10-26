@@ -1914,6 +1914,16 @@ $frm_endgroupfooter
                     }
                 }
             }
+            // checks of the field type (the date layout of a datetime field)
+            if (isset($newvalues[$key]) && $newvalues[$key] != "" && !empty($this->formclass[$key]) && method_exists($this->formclass[$key], "verify"))
+            {
+                $fielderr = $this->formclass[$key]->verify($newvalues[$key], $value);
+                if ($fielderr != "")
+                {
+                    $err .= $errsep . $fielderr;
+                    $errsep = " - ";
+                }
+            }
             if ($err != "")
             {
                 $ret[$key]['title'] = $value['title'];
