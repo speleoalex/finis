@@ -30,7 +30,8 @@ class xmetadbfrm_field_image
                 $res = "height=\"$tsize\"";
             else
                 $res = "width=\"$tsize\"";
-            $html .= "<table cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px dotted;height:$tsize" . "px;width:$tsize" . "px\"><tr><td valign=\"center\"><img style=\"vertical-align: middle;\" $res src=\"{$params['fieldform']->siteurl}" . $imgthsrc . "\" alt=\"$oldval\" border=\"0\" />";
+            $imgthurl = $params['fieldform']->xmltable->getFileUrl($oldvalues, $params['name'], true);
+            $html .= "<table cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px dotted;height:$tsize" . "px;width:$tsize" . "px\"><tr><td valign=\"center\"><img style=\"vertical-align: middle;\" $res src=\"" . $imgthurl . "\" alt=\"$oldval\" border=\"0\" />";
             $html .= "<span style=\"white-space:nowrap\" ><label><input type=\"checkbox\" value=\"null\" name=\"__isnull__" . $params['name'] . "\" />" . $params['messages']["_XMLDBDELETE"] . "</label>";
             $html .= "</span></td></tr></table>";
         }
@@ -67,9 +68,11 @@ class xmetadbfrm_field_image
         //	$filethumb = isset ( $row ['id'] ) ? "thumb.php?d=$databasename&amp;t=$tablename&amp;i=" . $row ['id'] . "&amp;h=$hh&amp;w=$ww&amp;c=" . $field ['name'] : "";
         if ($fileimage != "" && file_exists($fileimage))
         {
-            $htmlout .= "\n<a href=\"{$params['fieldform']->siteurl}$fileimage\" onclick=\"window.open(this.href);return false;\" ><img alt=\"\" title=\"";
+            $urlimage = $params['fieldform']->xmltable->getFileUrl($values, $params['name']);
+            $urlthumb = $params['fieldform']->xmltable->getFileUrl($values, $params['name'], true);
+            $htmlout .= "\n<a href=\"$urlimage\" onclick=\"window.open(this.href);return false;\" ><img alt=\"\" title=\"";
             $htmlout .= XMETADB_i18n("click to zoom in") . "\"";
-            $htmlout .= " border=\"0\" src=\"{$params['fieldform']->siteurl}$filethumb\"></a><br />";
+            $htmlout .= " border=\"0\" src=\"$urlthumb\"></a><br />";
         }
         else
         {

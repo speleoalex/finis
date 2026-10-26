@@ -28,7 +28,7 @@ class xmetadbfrm_field_file
         $html .= "<br />";
         if ($oldval != "" && isset($oldvalues[$primarykey]))
         {
-            $url = $params['fieldform']->xmltable->getFilePath($oldvalues, $params['name']);
+            $url = $params['fieldform']->xmltable->getFileUrl($oldvalues, $params['name']);
 //            $html .= "<br /><a href=\"{$params['fieldform']->siteurl}" . $params['fieldform']->path . "/" . $params['fieldform']->databasename . "/" . $tablepath . "/" . $oldvalues[$primarykey] . "/" . $params['name'] . "/$oldval\" >$oldval</a>";
             $html .= "<br /><a href=\"$url\" >$oldval</a>";
             $html .= "<input $toltips type=\"checkbox\" value=\"null\" name=\"__isnull__" . $params['name'] . "\" />" . $params['messages']["_XMLDBDELETE"];
@@ -50,7 +50,8 @@ class xmetadbfrm_field_file
 
         $attributes = isset($params["htmlattributes"]) ? $params["htmlattributes"] : "";
 
-        $htmlout .= "\n<a $attributes title=\"Download $value\" href=\"{$params['fieldform']->siteurl}$fileimage\"  >$value</a>";
+        $urlfile = $fileimage != "" ? $params['fieldform']->xmltable->getFileUrl($values, $params['name']) : "";
+        $htmlout .= "\n<a $attributes title=\"Download $value\" href=\"$urlfile\"  >$value</a>";
         $downloadfile = FN_GetParam("xmetadb_ddfile_{$params['name']}", $_GET);
         $fsize = 0;
         if (file_exists($fileimage))
