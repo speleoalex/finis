@@ -1915,9 +1915,9 @@ $frm_endgroupfooter
                 }
             }
             // checks of the field type (the date layout of a datetime field)
-            if (isset($newvalues[$key]) && $newvalues[$key] != "" && !empty($this->formclass[$key]) && method_exists($this->formclass[$key], "verify"))
+            if (isset($newvalues[$key]) && $newvalues[$key] != "" && !empty($this->formclass[$key]) && method_exists($this->formclass[$key], "checkformvalue"))
             {
-                $fielderr = $this->formclass[$key]->verify($newvalues[$key], $value);
+                $fielderr = $this->formclass[$key]->checkformvalue($newvalues[$key], $value);
                 if ($fielderr != "")
                 {
                     $err .= $errsep . $fielderr;
