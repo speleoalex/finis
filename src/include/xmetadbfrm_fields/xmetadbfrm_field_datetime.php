@@ -117,6 +117,89 @@ if (window.addEventListener) {
      * @param array $params
      * @return string 
      */
+    /**
+     * Checks a date typed in the form against frm_dateformat (y-mm-dd by
+     * default): formtovalue reads the digits by position, so a date in another
+     * layout (31/12/2020 in a y-mm-dd field) or an impossible one (2020-02-31)
+     * would be saved as a different date. The time part may be left out.
+     *
+     * @param string $str
+     * @param array $params
+     * @return string the error, "" if the date is valid
+     */
+    function verify($str,$params)
+    {
+        $str=trim($str);
+        if ($str == "")
+            return "";
+        $dateformat="y-mm-dd 00:00:00";
+        if (isset($params['frm_dateformat']) && $params['frm_dateformat']!= "")
+            $dateformat=$params['frm_dateformat'];
+        $dateformat=strtolower($dateformat);
+        // the format as a pattern (=== since " 0" == "00" in PHP): y = year, mm = month, dd = day, 00:00:00 / 00:00 / 00 = time
+        $pattern="";
+        $parts=array();
+        $time="";
+        for ($i=0; $i < strlen($dateformat);)
+        {
+            if (substr($dateformat,$i,1) === "y")
+            {
+                $pattern.="([0-9]{4})";
+                $parts[]="y";
+                $i++;
+            }
+            elseif (substr($dateformat,$i,2) === "mm" || substr($dateformat,$i,2) === "dd")
+            {
+                $pattern.="([0-9]{2})";
+                $parts[]=substr($dateformat,$i,1);
+                $i+=2;
+            }
+            elseif (substr($dateformat,$i,2) === "00" && $time === "")
+            {
+                $time=substr($dateformat,$i,8) === "00:00:00" ? "00:00:00" : (substr($dateformat,$i,5) === "00:00" ? "00:00" : "00");
+                // the separator before the time is part of the optional time
+                $sep="";
+                if ($pattern != "" && substr($pattern,-1) != ")")
+                {
+                    $sep=preg_quote(substr($dateformat,$i - 1,1),"/");
+                    $pattern=substr($pattern,0,-strlen($sep));
+                }
+                $pattern.="(?:$sep".str_replace("00","([0-9]{2})",$time).")?";
+                foreach (explode(":",$time) as $t)
+                    $parts[]="t";
+                $i+=strlen($time);
+            }
+            else
+            {
+                $pattern.=preg_quote(substr($dateformat,$i,1),"/");
+                $i++;
+            }
+        }
+        $display=str_replace(array("y","mm","dd","00:00:00","00:00"),array("YYYY","MM","DD","hh:mm:ss","hh:mm"),$dateformat);
+        $error=XMETADB_i18n("the date is not valid, use the format")." $display";
+        if (!preg_match("/^$pattern\$/",$str,$m))
+            return $error;
+        $y=$mo=$d=0;
+        $t=array();
+        foreach ($parts as $k => $part)
+        {
+            $v=isset($m[$k + 1]) ? $m[$k + 1] : "";
+            if ($part === "y")
+                $y=intval($v);
+            elseif ($part === "m")
+                $mo=intval($v);
+            elseif ($part === "d")
+                $d=intval($v);
+            else
+                $t[]=($v === "") ? 0 : intval($v);
+        }
+        if (($mo != 0 || $d != 0 || in_array("m",$parts)) && !checkdate(in_array("m",$parts) ? $mo : 1,in_array("d",$parts) ? $d : 1,$y > 0 ? $y : 2000))
+            return $error;
+        if ((isset($t[0]) && $t[0] > 23) || (isset($t[1]) && $t[1] > 59) || (isset($t[2]) && $t[2] > 59))
+            return $error;
+        return "";
+    }
+
     function formtovalue($str,$params)
     {
         if ($str == "")
