@@ -120,6 +120,29 @@ trait FNDBVIEWPermissions
     }
 
     /**
+     * Check if the current user may save changes to an existing record.
+     * With per-record edit groups enabled, only the users IsAdminRecord()
+     * accepts and the users enabled on the record may edit it: being allowed
+     * to add records to the section is not enough.
+     * @param array $row
+     * @return bool
+     */
+    function CanUpdateRecord($row)
+    {
+        global $_FN;
+        if (!is_array($row) || count($row) == 0)
+            return false;
+        if ($this->IsAdminRecord($row))
+            return true;
+        // users enabled on this record ("users" page)
+        if ($this->UserCanEditField($_FN['user'], $row))
+            return true;
+        if (!empty($this->config['enable_permissions_edit_each_records']) && $this->config['enable_permissions_edit_each_records'] == 1)
+            return false;
+        return $this->CanAddRecord();
+    }
+
+    /**
      * Check if user can add records
      * @return bool
      */
