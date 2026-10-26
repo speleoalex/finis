@@ -1734,6 +1734,8 @@ select_allcke = function(el){
         //--config--<
         $tb = FN_XMDBTable($tablename);
         $row = $tb->GetRecordByPk($id_record);
+        if (!$this->CanUpdateRecord($row))
+            return FN_Translate("you may not do that");
         $tpvars['navigationbar'] = $this->Toolbar($config, $row);
 
         $html = "";
@@ -2027,6 +2029,11 @@ set_changed();
         $Table = FN_XMDBTable($tablename);
         $row = $Table->GetRecordByPrimaryKey($id_record);
         $pk = $Table->primarykey;
+        // only who may manage the record can enable or remove users on it,
+        // before any change is made
+        if (!is_array($row) || !$this->IsAdminRecord($row)) {
+            return (FN_Translate("you may not do that"));
+        }
         $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/users.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/users.tp.html" : FN_FromTheme("{$this->moddir}/users.tp.html", false);
         $template = file_get_contents($tplfile);
         $tpvars = array();
