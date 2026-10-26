@@ -37,7 +37,7 @@ trait FNDBVIEWCRUD
         $pk = FN_GetParam($Table->xmltable->primarykey, $_POST);
         $oldvalues = $Table->xmltable->GetRecordByPrimarykey($pkold);
 
-        if (!$this->CanAddRecord() && !$this->UserCanEditField($username, $oldvalues) && !$this->IsAdminRecord($oldvalues))
+        if (!$this->CanUpdateRecord($oldvalues))
             return (FN_Translate("you may not do that"));
 
         $toupdate = $this->checkIfUpdateNeeded($oldvalues, $newvalues, $Table);

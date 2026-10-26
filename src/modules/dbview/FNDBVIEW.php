@@ -1734,6 +1734,8 @@ select_allcke = function(el){
         //--config--<
         $tb = FN_XMDBTable($tablename);
         $row = $tb->GetRecordByPk($id_record);
+        if (!$this->CanUpdateRecord($row))
+            return FN_Translate("you may not do that");
         $tpvars['navigationbar'] = $this->Toolbar($config, $row);
 
         $html = "";
