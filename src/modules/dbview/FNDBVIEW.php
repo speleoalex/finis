@@ -125,6 +125,51 @@ class FNDBVIEW
         return implode(",", $out);
     }
 
+    /**
+     * Tells how a field must be sorted when it is the order field of the list.
+     * Returns "numeric" or "abs" (numeric on the absolute value) for fields whose
+     * values are numbers stored as text, false for the plain column order.
+     * Set with frm_sort="numeric"|"abs" in the table definition, or by a field
+     * class exposing SortNumeric().
+     *
+     * @param object $t XMETADBForm of the table
+     * @param string $field
+     * @return string|false
+     */
+    function FieldNumericSort($t, $field)
+    {
+        if (!is_object($t) || !isset($t->formvals[$field])) {
+            return false;
+        }
+        $mode = "";
+        if (!empty($t->formvals[$field]['frm_sort'])) {
+            $mode = strtolower(trim($t->formvals[$field]['frm_sort']));
+        } elseif (!empty($t->formclass[$field]) && method_exists($t->formclass[$field], "SortNumeric")) {
+            $mode = $t->formclass[$field]->SortNumeric();
+            $mode = ($mode === true) ? "numeric" : strtolower((string) $mode);
+        }
+        return in_array($mode, array("numeric", "abs"), true) ? $mode : false;
+    }
+
+    /**
+     * ORDER BY expression sorting a text column by its numeric value: empty
+     * values last, comma accepted as decimal separator.
+     *
+     * @param string $field
+     * @param string $mode "numeric" or "abs"
+     * @param bool $desc
+     * @return string
+     */
+    function NumericOrderExpression($field, $mode, $desc)
+    {
+        $q = $this->QuoteField($field, true);
+        $num = "CAST(REPLACE(TRIM($q), ',', '.') AS DECIMAL(20,6))";
+        if ($mode == "abs") {
+            $num = "ABS($num)";
+        }
+        return "($q IS NULL OR TRIM($q) = '') ASC, $num " . ($desc ? "DESC" : "ASC");
+    }
+
     function Init()
     {
         global $_FN;
@@ -566,7 +611,11 @@ class FNDBVIEW
         if ($wherequery == "")
             $wherequery = "1";
         $orderquery = "";
-        if ($order != "") {
+        // numbers stored as text (e.g. lengths) are sorted by value, not alphabetically
+        $order_numeric = ($native && $order != "" && strpos($order, ",") === false) ? $this->FieldNumericSort($t, trim($order)) : false;
+        if ($order_numeric) {
+            $orderquery .= " ORDER BY " . $this->NumericOrderExpression(trim($order), $order_numeric, $desc != "");
+        } elseif ($order != "") {
             $orderquery .= " ORDER BY " . $this->QuoteFieldList($order, $native);
             if ($desc != "")
                 $orderquery .= " DESC";
@@ -579,6 +628,7 @@ class FNDBVIEW
             'order' => $orderquery,
             'order_field' => $order,
             'order_desc' => ($desc != ""),
+            'order_numeric' => $order_numeric,
             'native' => $native,
         );
     }
@@ -1457,8 +1507,9 @@ select_allcke = function(el){
         $qinfo = $this->BuildResultsQuery($config, false, $rule_result);
         $of = ($qinfo !== false) ? $qinfo['order_field'] : "";
         // Optimizable case: native SQL driver, ordering on a single field present in the record
+        // (not with a numeric order: the keyset predicates compare the values as text)
         $cankeyset = ($qinfo !== false) && !empty($qinfo['native']) && $of !== ""
-            && strpos($of, ",") === false && array_key_exists($of, $row);
+            && strpos($of, ",") === false && array_key_exists($of, $row) && empty($qinfo['order_numeric']);
 
         if ($cankeyset) {
             $total = $this->GetResultsCount($config);
