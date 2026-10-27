@@ -814,7 +814,7 @@ function FNREG_ManageRegister($actionform = "")
     if ($sendRegistrationCode)
     {
         //the code saved with the user, mailed to the address saved with the user
-        $newvalues = FN_GetUser($user);
+        $newvalues = FN_GetUser($user, false);
         $name = $newvalues[$username_field];
         $rnd = $newvalues['rnd'];
         $subject = FN_Translate("confirm registration site") . " " . $_FN['sitename'];
