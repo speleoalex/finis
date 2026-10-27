@@ -484,6 +484,8 @@ function FN_InitSections()
                 $flag_mod_st = true;
                 $table = FN_XMDBTable("fn_sectionstypes");
                 $table->InsertRecord($tmp);
+                // known from now on: the next module folders scanned may hold the same module
+                $_FN['sectionstypes'][$sectiontype] = $tmp;
             }
         }
     }
@@ -511,6 +513,8 @@ function FN_InitSections()
                 $flag_mod_st = true;
                 $table = FN_XMDBTable("fn_sectionstypes");
                 $table->InsertRecord($tmp);
+                // known from now on: the next module folders scanned may hold the same module
+                $_FN['sectionstypes'][$sectiontype] = $tmp;
             }
         }
     }
@@ -543,6 +547,7 @@ function FN_InitSections()
                         $flag_mod_st = true;
                         $table = FN_XMDBTable("fn_sectionstypes");
                         $table->InsertRecord($tmp);
+                        $_FN['sectionstypes'][$sectiontype] = $tmp;
                     }
                 }
             }
