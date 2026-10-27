@@ -727,8 +727,11 @@ function FN_InitTables($force = false)
     if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_groups.php")) {
         FN_Copy("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_groups.php", "{$_FN['datadir']}/{$_FN['database']}/fn_groups.php");
         $table = FN_XMDBTable("fn_groups");
-        $r['groupname'] = 'users';
-        $table->InsertRecord($r);
+        // an existing database (a migrated or restored site) may have it already
+        if (!$table->GetRecordByPrimaryKey('users')) {
+            $r['groupname'] = 'users';
+            $table->InsertRecord($r);
+        }
     }
     if ($force || !file_exists("{$_FN['datadir']}/fndatabase/fn_avatars") && file_exists("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_avatars")) {
         FN_CopyDir("{$_FN['src_finis']}/include/install/misc/fndatabase/fn_avatars", "{$_FN['datadir']}/{$_FN['database']}/");
