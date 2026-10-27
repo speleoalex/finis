@@ -62,7 +62,7 @@ if ($op== "view")
     $image="";
     if ($config['image_titlefield'] && !empty($row[$config['image_titlefield']]))
     {
-        $image=$_FN['siteurl'].$Table->xmltable->getFilePath($row,$config['image_titlefield']);
+        $image=$Table->xmltable->getFileUrl($row,$config['image_titlefield']);
     }
     $vars['image']=$image;
     $vars['url']=FN_RewriteLink("index.php?mod={$_FN['mod']}&amp;op=view&amp;id=$id","",true);

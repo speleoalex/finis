@@ -17,6 +17,37 @@ if ($format!= "jpg")
 {
     $format="png";
 }
+//-----------------------------protected files---------------------------------->
+// With $_FN['xmetadb_file_access'] set, the application protects the files of
+// its records:
+//  - a thumbnail asked by table+id+field is served only to who may read that
+//    record (the application decides, through the callback);
+//  - a thumbnail asked by a raw path "f" may be any file EXCEPT one inside the
+//    data folder, whose files have their own protected endpoint and must not
+//    be reachable here. Other paths (the application's own images, external
+//    documents) keep working as before.
+if (!empty($_FN['xmetadb_file_access']) && is_callable($_FN['xmetadb_file_access']))
+{
+    if ($table!= "" || $id!= "" || $field!= "")
+    {
+        if ($table== "" || $id== "" || $field== "" || !call_user_func($_FN['xmetadb_file_access'],$table,$id,$field))
+        {
+            http_response_code(403);
+            die();
+        }
+    }
+    elseif ($filename!= "")
+    {
+        $real=realpath($filename);
+        $datadir=realpath($_FN['datadir']);
+        if ($real && $datadir && strpos($real,$datadir.DIRECTORY_SEPARATOR)=== 0)
+        {
+            http_response_code(403);
+            die();
+        }
+    }
+}
+//-----------------------------protected files----------------------------------<
 //-----------------------------files in xmetadb---------------------------------->
 if ($d== "")
     $d="fndatabase";
