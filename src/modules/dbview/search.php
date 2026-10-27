@@ -61,7 +61,7 @@ function FNSEARCH_module_dbview($tosearch_array,$method,$sectionvalues,$maxres)
     {
         $query.=" AND username = '".$_FN['user']."'";
     }
-    $query.=" LIMIT 1,$maxres";
+    $query.=" LIMIT 0,".intval($maxres);
     //--search query ----------------------------------------------------------<
     $records=$DB->Query("$query");
     $cont=0;
@@ -90,11 +90,13 @@ function FNSEARCH_module_dbview($tosearch_array,$method,$sectionvalues,$maxres)
             $results[$cont]['text']="";
             if (!empty($data[$config['descriptionfield']]))
             {
-                $results[$cont]['text']=substr(strip_tags($data[$config['descriptionfield']]),0,100);
+                $results[$cont]['text']=FN_FixEncoding(strip_tags($data[$config['descriptionfield']]));
+                if (mb_strlen($results[$cont]['text'],"UTF-8") > 160)
+                {
+                    $results[$cont]['text']=mb_substr($results[$cont]['text'],0,160,"UTF-8")."...";
+                }
             }
-            else{
-                $results[$cont]['text']=$sectionvalues['title'];
-            }
+
             $cont++;
         }
     }
