@@ -2713,6 +2713,14 @@ set_changed();
         }
         $tplvars['item_title'] = FN_FixEncoding($titlename);
         //----title--------------------------------<
+        // Raw record values, usable by the list template as {value_fieldname}
+        if (is_array($data)) {
+            foreach ($data as $value_k => $value_v) {
+                if (is_scalar($value_v)) {
+                    $tplvars['value_' . $value_k] = FN_FixEncoding($value_v);
+                }
+            }
+        }
         //-------------------------------valori----------------------------------->
         $row = $data;
         $t = FN_XMDBForm($tablename);
