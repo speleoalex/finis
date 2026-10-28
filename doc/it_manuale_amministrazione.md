@@ -310,6 +310,18 @@ Per creare moduli di contatto personalizzati:
    - Vai alla tab "Risposte"
    - Esporta dati se necessario
 
+#### Ricerca nel sito
+La sezione **ricerca** cerca le parole in tutte le sezioni che il visitatore può aprire:
+
+- i risultati sono raggruppati per sezione, con al massimo 30 risultati per sezione e 500 in tutto; il template del tema riceve, per ogni sezione, il numero di risultati mostrati (`{count}`), un indicatore quando la sezione ne ha altri (`{more}`), un'ancora (`{anchor}`) e, per le sezioni di database, un link all'elenco della sezione filtrato con lo stesso testo (`{url_list}`). Compaiono solo nei temi il cui `modules/search/searchform.tp.html` li usa;
+- una casella di ricerca senza il campo "metodo" (per esempio quella nel menu) cerca le pagine che contengono tutte le parole;
+- il testo sotto ogni risultato è formato dai primi 160 caratteri della descrizione del record, e resta vuoto quando il record non ha descrizione;
+- i record che il visitatore non può vedere vengono scartati dopo che il database ha restituito le prime 31 corrispondenze di una sezione, quindi una sezione può mostrare meno risultati di quelli che quel visitatore ha davvero. Per trovare gli altri usare parole più precise, oppure la ricerca della sezione stessa.
+
+#### Viste di database (dbview): ordinamento e template degli elenchi
+- Un campo che contiene numeri salvati come testo (sviluppi, dislivelli) viene ordinato per valore quando la definizione della tabella imposta `frm_sort` a `numeric` (o `abs`, sul valore assoluto), oppure quando lo richiede la classe del campo. I valori vuoti vanno in fondo e la virgola è accettata come separatore decimale. Con questo ordinamento i link "precedente/successivo" della scheda usano il percorso generico, più lento.
+- I template degli elenchi possono mostrare qualunque campo del record come `{value_<campo>}`. Il valore è quello grezzo salvato nel database: non è tradotto né sottoposto a escape, e non si applicano le regole di visibilità del campo. Usarlo solo per campi che tutti i visitatori dell'elenco possono vedere e che non contengono HTML scritto dagli utenti.
+
 ## Manutenzione e Backup
 
 ### Backup del Sistema

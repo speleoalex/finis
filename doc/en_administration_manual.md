@@ -310,6 +310,18 @@ To create custom contact forms:
    - Go to the "Responses" tab
    - Export data if needed
 
+#### Site Search
+The **search** section looks for the words in every section the visitor may open:
+
+- results are grouped by section, with at most 30 results for each section and 500 in all; the theme template receives, for each section, the number of results shown (`{count}`), a flag when the section has more (`{more}`), an anchor (`{anchor}`) and, for database sections, a link to the section list filtered by the same text (`{url_list}`). These appear only in themes whose `modules/search/searchform.tp.html` uses them;
+- a search box without the "method" field (for example the one in the menu) looks for pages that contain all the words;
+- the text under each result is the first 160 characters of the record description, and is left empty when the record has no description;
+- records the visitor may not see are left out after the database has returned the first 31 matches of a section, so a section can show fewer results than it really has for that visitor. Use more specific words, or the search of the section itself, to find the others.
+
+#### Database Views (dbview): Sorting and List Templates
+- A field holding numbers stored as text (lengths, depths) is sorted by its value when the table definition sets `frm_sort` to `numeric` (or `abs`, on the absolute value), or when its field class asks for it. Empty values go last and the comma is accepted as the decimal separator. With such an order the "previous/next" links of a record sheet use the slower generic path.
+- List templates can show any field of the record as `{value_<field>}`. The value is the raw one stored in the database: it is neither translated nor escaped, and the field's visibility rules are not applied. Use it only for fields every visitor of the list may see and that hold no HTML typed by users.
+
 ## Maintenance and Backup
 
 ### System Backup

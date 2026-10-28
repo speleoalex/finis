@@ -12,9 +12,16 @@ global $_FN;
 //-----------------------------get request vars-------------------------------->
 $q=trim(ltrim(FN_GetParam("q",$_REQUEST,"html")));
 $method=FN_GetParam("method",$_REQUEST,"html");
+// a search box without the method field (e.g. in the menu) looks for all the words
+if (!isset($_REQUEST['method']))
+{
+    $method="AND";
+}
 $where=FN_GetParam("where",$_REQUEST,"html");
 $op=FN_GetParam("op",$_REQUEST,"html");
-$maxres=100;
+$maxres=500;
+// results shown for each section: the others are reachable from the section list
+$maxres_section=30;
 $contares=0;
 $array_result_tp=array();
 $text_result="";
@@ -103,9 +110,25 @@ if (count($tosearch_array) > 0)
             $method=$method;
             include_once ($search_module_file."/search.php");
             $results=array();
-            if (function_exists("$search_function_name"))
+            if (function_exists("$search_function_name") && $contares < $maxres)
             {
-                $results=$search_function_name($tosearch_array,$method,$sectionvalues,$maxres - $contares);
+                // one more than shown, to know whether the section has other results
+                $results=$search_function_name($tosearch_array,$method,$sectionvalues,min($maxres_section + 1,$maxres - $contares));
+            }
+            $section_more=false;
+            if (is_array($results) && count($results) > $maxres_section)
+            {
+                $results=array_slice($results,0,$maxres_section);
+                $section_more=true;
+            }
+            if (is_array($results) && count($results) > 0)
+            {
+                if (!isset($array_result_tp[$sectionvalues['id']]))
+                {
+                    $array_result_tp[$sectionvalues['id']]=$sectionvalues;
+                    $array_result_tp[$sectionvalues['id']]['results']=array();
+                }
+                $array_result_tp[$sectionvalues['id']]['more']=$section_more;
             }
             if (is_array($results))
             {
@@ -189,6 +212,14 @@ if (count($tosearch_array) > 0)
                 }
             }
         }
+    }
+    // per section: number of results, link to the section list filtered by the same text
+    foreach($array_result_tp as $k=> $section_result)
+    {
+        $array_result_tp[$k]['count']=count($section_result['results']);
+        $array_result_tp[$k]['more']=!empty($section_result['more']) ? true : "";
+        $array_result_tp[$k]['anchor']="search_".preg_replace('/[^a-zA-Z0-9_]/',"_",$k);
+        $array_result_tp[$k]['url_list']=(isset($section_result['type']) && $section_result['type']== "dbview") ? FN_RewriteLink("index.php?mod=$k&q=".urlencode($q),"&") : "";
     }
     if ($contares > 0 && $q!= "")
     {
