@@ -2,6 +2,7 @@
 namespace Xmetadb;
 
 include_once __DIR__ . "/XMETAField.php";
+include_once __DIR__ . "/XMETAFKLookup.php";
 
 /**
  * Classe per la gestione dei files xml per avere funzioni
@@ -447,20 +448,41 @@ class XMETATable extends \stdClass
         return $siteurl;
     }
 
+    /**
+     * Web address of a record's file (or of its thumbnail).
+     *
+     * By default the file's own path in the data folder. An application that
+     * protects its files sets $_FN['xmetadb_file_url'] to a function
+     * ($table, $recordvalues, $recordkey, $thumb) that returns the address to
+     * use instead, for example an opaque link to a script that checks who may
+     * read the file; the data folder can then be closed to direct requests.
+     *
+     * @param array $recordvalues
+     * @param string $recordkey field name
+     * @param bool $thumb the thumbnail instead of the file
+     * @return string|false
+     */
+    function getFileUrl($recordvalues, $recordkey, $thumb = false)
+    {
+        global $_FN;
+        if (!empty($_FN['xmetadb_file_url']) && is_callable($_FN['xmetadb_file_url']))
+        {
+            return call_user_func($_FN['xmetadb_file_url'], $this, $recordvalues, $recordkey, $thumb);
+        }
+        $file = $thumb ? $this->getThumbPath($recordvalues, $recordkey) : $this->getFilePath($recordvalues, $recordkey);
+        if ($file && ($file[0] == "?" || file_exists($file)))
+            return (!empty($_FN['siteurl']) ? $_FN['siteurl'] : $this->_buildSiteUrl()) . $file;
+        return false;
+    }
+
     function get_file($recordvalues, $recordkey)
     {
-        $file = $this->getFilePath($recordvalues, $recordkey);
-        if ($file && ($file[0] == "?" || file_exists($file)))
-            return $this->_buildSiteUrl() . $file;
-        return false;
+        return $this->getFileUrl($recordvalues, $recordkey, false);
     }
 
     function get_thumb($recordvalues, $recordkey)
     {
-        $file = $this->getThumbPath($recordvalues, $recordkey);
-        if ($file && file_exists($file))
-            return $this->_buildSiteUrl() . $file;
-        return false;
+        return $this->getFileUrl($recordvalues, $recordkey, true);
     }
 
     function SetFile($key, $filepath, $filename = "")
@@ -503,6 +525,22 @@ class XMETATable extends \stdClass
         return $this->driverclass ? $this->driverclass->GetAutoincrement($field) : null;
     }
 
+    /**
+     * Moves the id counters past the highest id in the table, e.g. after
+     * records were inserted directly in the database (MySQL only).
+     *
+     * @param string|false $field false for every autoincrement field
+     * @return array field => next id
+     */
+    function SyncAutoincrement($field = false)
+    {
+        if ($this->driverclass && method_exists($this->driverclass, 'SyncAutoincrement'))
+        {
+            return $this->driverclass->SyncAutoincrement($field);
+        }
+        return array();
+    }
+
     function InsertRecord($values)
     {
         if (defined("XMETADB_DEBUG_FILE_LOG") && XMETADB_DEBUG_FILE_LOG)
@@ -519,6 +557,7 @@ class XMETATable extends \stdClass
 
     function SetLastUpdateTime()
     {
+        XMETAFKLookup::Forget($this);
         @touch("{$this->path}/{$this->databasename}/{$this->tablename}/updated");
     }
 
@@ -559,6 +598,7 @@ class XMETATable extends \stdClass
 
     function Truncate()
     {
+        XMETAFKLookup::Forget($this);
         return $this->driverclass ? $this->driverclass->Truncate() : null;
     }
 

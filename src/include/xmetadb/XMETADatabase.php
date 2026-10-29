@@ -12,7 +12,9 @@ class XMETADatabase
     private $path;
     private $databasename;    
     private $params;
-    
+    // number of SELECTs this object ran natively (see nativeSelect)
+    public $nativequeries = 0;
+
     function __construct($databasename, $path = "misc",$params=array())
     {
         $this->databasename = $databasename;
@@ -164,6 +166,15 @@ class XMETADatabase
             //dprint_r($qitems);
             //dprint_r($where2);
             //----CONDIZIONE----------------------<
+            // On MySQL, run the query in the database (indexes, no full table
+            // read): nativeSelect() returns null when it can't, and the PHP
+            // engine below takes over
+            if (count($tbl) == 1)
+            {
+                $native = $this->nativeSelect($qitems, reset($tbl));
+                if ($native !== null)
+                    return $native;
+            }
             $ret = $this->getrecords($qitems, $tbl);
             $count = false;
             if (stristr($qitems['fields'], "COUNT(*)"))
@@ -381,6 +392,317 @@ class XMETADatabase
             }
         }
         return null;
+    }
+
+    /**
+     * Runs a parsed single-table SELECT directly on the MySQL driver, giving the
+     * same results as getrecords() without reading the whole table into PHP.
+     *
+     * The caller's SQL is never sent as is: the WHERE is tokenized and rebuilt
+     * from comparisons between a descriptor field and a quoted string, an
+     * integer or another field, joined by AND / OR and parentheses; field names
+     * are quoted and values escaped. Anything else (several tables, ORDER BY on
+     * more than one field, COUNT(*) with LIMIT or DISTINCT, unknown fields,
+     * other drivers) returns null and the PHP engine runs the query instead.
+     * $_FN['xmetadb_native_query'] = "0" turns this off.
+     *
+     * Kept identical to the PHP engine:
+     *  - NULL values are compared as ''
+     *  - LIKE / = '%x%', 'x%', '%x' are case-insensitive and '_' is literal;
+     *    without % they are an exact match
+     *  - ORDER BY sorts empty values first, then numbers numerically, then text
+     *  - LIMIT a,b starts from row a counting from 1, LIMIT n is ignored
+     *  - SELECT * returns the descriptor's fields, COUNT(*) an integer
+     *
+     * @return array|null
+     */
+    private function nativeSelect($qitems, $tbl)
+    {
+        if (isset($this->params['xmetadb_native_query']) && (string)$this->params['xmetadb_native_query'] === "0")
+            return null;
+        if (!is_object($tbl) || !isset($tbl->driverclass) || !($tbl->driverclass instanceof XMETATable_mysql))
+            return null;
+        $drv = $tbl->driverclass;
+        if (empty($drv->conn) || empty($drv->sqltable) || !is_array($tbl->fields))
+            return null;
+        $fields = $tbl->fields;
+        $distinct = strtoupper($qitems['option']) == "DISTINCT";
+        $haslimit = (bool)$qitems['min'];
+
+        // fields
+        $select = trim($qitems['fields']);
+        $count = false;
+        $countkey = "COUNT(*)";
+        $aliases = array();
+        $selected = null; // source fields of a field list, null for *
+        if ($select === "*")
+        {
+            $cols = array();
+            foreach ($fields as $name => $field)
+                $cols[] = "`$name`";
+            $selectsql = implode(",", $cols);
+        }
+        elseif (preg_match('/^COUNT\(\*\)(\s+AS\s+([A-Za-z0-9_]+))?$/i', $select, $m))
+        {
+            if ($haslimit || $distinct)
+                return null;
+            $count = true;
+            if (!empty($m[2]))
+                $countkey = $m[2];
+            $selectsql = "COUNT(*) AS `c`";
+        }
+        else
+        {
+            $cols = array();
+            $selected = array();
+            foreach (explode(",", $select) as $part)
+            {
+                if (!preg_match('/^\s*([A-Za-z_][A-Za-z0-9_]*)(\s+AS\s+([A-Za-z0-9_]+))?\s*$/i', $part, $m) || !isset($fields[$m[1]]))
+                    return null;
+                $alias = !empty($m[3]) ? $m[3] : $m[1];
+                $aliases[] = $alias;
+                $selected[] = $m[1];
+                $cols[] = "`{$m[1]}` AS `$alias`";
+            }
+            $selectsql = implode(",", $cols);
+        }
+        $sql = "SELECT " . ($distinct ? "DISTINCT " : "") . "$selectsql FROM {$drv->sqltable}";
+
+        // WHERE
+        if (trim($qitems['where']) !== "")
+        {
+            $tokens = $this->nativeTokenize($qitems['where']);
+            if ($tokens === null)
+                return null;
+            $pos = 0;
+            $where = $this->nativeExpr($tokens, $pos, $fields, $drv->conn);
+            if ($where === null || $pos != count($tokens))
+                return null;
+            $sql .= " WHERE $where";
+        }
+
+        // ORDER BY (one field)
+        if (!$count && trim($qitems['orderby']) !== "")
+        {
+            if (!preg_match('/^([A-Za-z_][A-Za-z0-9_]*)(\s+(ASC|DESC))?$/i', trim($qitems['orderby']), $m) || !isset($fields[$m[1]]))
+                return null;
+            // DISTINCT only when sorting the one selected field: MySQL refuses
+            // ORDER BY expressions outside the select list, and the PHP engine
+            // keeps ties in first-seen order, which SQL cannot reproduce
+            if ($distinct && $selected !== array($m[1]))
+                return null;
+            $f = "`{$m[1]}`";
+            $dir = (isset($m[3]) && strtoupper($m[3]) == "DESC") ? "DESC" : "ASC";
+            $numeric = "$f REGEXP '^[[:space:]]*[-+]?([0-9]+[.]?[0-9]*|[.][0-9]+)([eE][-+]?[0-9]+)?[[:space:]]*$'";
+            // ties keep the table order, as the PHP engine's stable sort does
+            // (with DISTINCT there are no ties: the sort keys only depend on the field)
+            $tie = (!$distinct && is_string($tbl->primarykey) && isset($fields[$tbl->primarykey])) ? ", `{$tbl->primarykey}`" : "";
+            $sql .= " ORDER BY CASE WHEN IFNULL($f,'') = '' THEN 0 WHEN $numeric THEN 1 ELSE 2 END $dir,"
+                . " CASE WHEN $numeric THEN $f + 0 END $dir, IFNULL($f,'') $dir$tie";
+        }
+
+        // LIMIT
+        if ($haslimit)
+        {
+            $offset = max(0, intval($qitems['min']) - 1);
+            $length = $qitems['length'] ? intval($qitems['length']) : "18446744073709551615";
+            $sql .= " LIMIT $offset,$length";
+        }
+
+        $res = $drv->dbQuery($sql);
+        if (!is_array($res))
+            return null;
+        $this->nativequeries++;
+        if ($count)
+            return array(0 => array($countkey => isset($res[0]['c']) ? intval($res[0]['c']) : 0));
+        if ($aliases)
+        {
+            // the PHP engine turns NULL into false in the selected fields
+            foreach ($res as $k => $row)
+                foreach ($aliases as $alias)
+                    if (!isset($row[$alias]))
+                        $res[$k][$alias] = false;
+        }
+        return $res;
+    }
+
+    /**
+     * Splits a WHERE clause into tokens: array(type, value) with type one of
+     * ( ) op word string number. Returns null on anything else.
+     */
+    private function nativeTokenize($where)
+    {
+        $tokens = array();
+        $len = strlen($where);
+        $i = 0;
+        while ($i < $len)
+        {
+            $ch = $where[$i];
+            if (ctype_space($ch))
+            {
+                $i++;
+            }
+            elseif ($ch == "(" || $ch == ")")
+            {
+                $tokens[] = array($ch, $ch);
+                $i++;
+            }
+            elseif ($ch == "'" || $ch == '"')
+            {
+                // backslash escapes the quote and itself, as in a PHP string
+                $str = "";
+                $i++;
+                $closed = false;
+                while ($i < $len)
+                {
+                    $c = $where[$i];
+                    if ($c == "\\" && $i + 1 < $len && ($where[$i + 1] == $ch || $where[$i + 1] == "\\"))
+                    {
+                        $str .= $where[$i + 1];
+                        $i += 2;
+                    }
+                    elseif ($c == $ch)
+                    {
+                        $i++;
+                        $closed = true;
+                        break;
+                    }
+                    else
+                    {
+                        $str .= $c;
+                        $i++;
+                    }
+                }
+                if (!$closed)
+                    return null;
+                $tokens[] = array("string", $str);
+            }
+            elseif (preg_match('/\G(<>|>=|<=|=|>|<)/', $where, $m, 0, $i))
+            {
+                $tokens[] = array("op", $m[1]);
+                $i += strlen($m[1]);
+            }
+            elseif (preg_match('/\G[0-9]+(?![A-Za-z_])/', $where, $m, 0, $i))
+            {
+                $tokens[] = array("number", $m[0]);
+                $i += strlen($m[0]);
+            }
+            elseif (preg_match('/\G[A-Za-z_][A-Za-z0-9_]*/', $where, $m, 0, $i))
+            {
+                $tokens[] = array("word", $m[0]);
+                $i += strlen($m[0]);
+            }
+            else
+            {
+                return null;
+            }
+        }
+        return $tokens;
+    }
+
+    /**
+     * expr := term ((AND | OR) term)*
+     */
+    private function nativeExpr($tokens, &$pos, $fields, $conn)
+    {
+        $sql = $this->nativeTerm($tokens, $pos, $fields, $conn);
+        if ($sql === null)
+            return null;
+        while ($pos < count($tokens) && $tokens[$pos][0] == "word" && in_array(strtoupper($tokens[$pos][1]), array("AND", "OR")))
+        {
+            $op = strtoupper($tokens[$pos][1]);
+            $pos++;
+            $right = $this->nativeTerm($tokens, $pos, $fields, $conn);
+            if ($right === null)
+                return null;
+            $sql .= " $op $right";
+        }
+        return $sql;
+    }
+
+    /**
+     * term := ( expr ) | field op value     value := string | number | field
+     */
+    private function nativeTerm($tokens, &$pos, $fields, $conn)
+    {
+        if (!isset($tokens[$pos]))
+            return null;
+        if ($tokens[$pos][0] == "(")
+        {
+            $pos++;
+            $sql = $this->nativeExpr($tokens, $pos, $fields, $conn);
+            if ($sql === null || !isset($tokens[$pos]) || $tokens[$pos][0] != ")")
+                return null;
+            $pos++;
+            return "($sql)";
+        }
+        if (!isset($tokens[$pos + 2]) || $tokens[$pos][0] != "word" || !isset($fields[$tokens[$pos][1]]))
+            return null;
+        $f = "`{$tokens[$pos][1]}`";
+        if ($tokens[$pos + 1][0] == "op")
+            $op = $tokens[$pos + 1][1];
+        elseif ($tokens[$pos + 1][0] == "word" && strtoupper($tokens[$pos + 1][1]) == "LIKE")
+            $op = "=";
+        else
+            return null;
+        list($type, $value) = $tokens[$pos + 2];
+        $pos += 3;
+        $ordering = in_array($op, array(">", ">=", "<", "<="));
+
+        if ($type == "word")
+        {
+            if (!isset($fields[$value]))
+                return null;
+            return "IFNULL($f,'') $op IFNULL(`$value`,'')";
+        }
+        if ($type == "number")
+            return $this->nativeNumericCompare($f, $op, $value);
+        if ($type != "string")
+            return null;
+
+        $esc = function ($s) use ($conn) {
+            return "'" . $conn->real_escape_string($s) . "'";
+        };
+        $like = function ($s) {
+            return addcslashes($s, "\\%_");
+        };
+        $plen = strlen($value);
+        if ($op == "=")
+        {
+            if ($plen >= 2 && $value[0] == "%" && $value[$plen - 1] == "%")
+                return "LOWER(IFNULL($f,'')) LIKE LOWER(" . $esc("%" . $like(substr($value, 1, -1)) . "%") . ")";
+            if ($plen >= 1 && $value[0] == "%")
+                return "LOWER(IFNULL($f,'')) LIKE LOWER(" . $esc("%" . $like(substr($value, 1))) . ")";
+            if ($plen >= 1 && $value[$plen - 1] == "%")
+                return "LOWER(IFNULL($f,'')) LIKE LOWER(" . $esc($like(substr($value, 0, -1)) . "%") . ")";
+            if ($value === "")
+                return "($f = '' OR $f IS NULL)";
+            return "$f = " . $esc($value);
+        }
+        if ($op == "<>")
+        {
+            if ($plen >= 2 && $value[0] == "%" && $value[$plen - 1] == "%")
+                return "LOWER(IFNULL($f,'')) NOT LIKE LOWER(" . $esc("%" . $like(substr($value, 1, -1)) . "%") . ")";
+            if ($value === "")
+                return "$f <> ''";
+            return "($f <> " . $esc($value) . " OR $f IS NULL)";
+        }
+        // > >= < <= : numeric strings compare as numbers, as in PHP
+        if (preg_match('/^-?[0-9]+(\.[0-9]+)?$/', $value))
+            return $this->nativeNumericCompare($f, $op, $value);
+        return "IFNULL($f,'') $op " . $esc($value);
+    }
+
+    /**
+     * Field compared with a number the way PHP 8 does it: as numbers when the
+     * value is a numeric string, as strings otherwise (MySQL alone would turn
+     * any text into 0).
+     */
+    private function nativeNumericCompare($f, $op, $number)
+    {
+        $v = "IFNULL($f,'')";
+        $numeric = "$v REGEXP '^[[:space:]]*[-+]?([0-9]+[.]?[0-9]*|[.][0-9]+)([eE][-+]?[0-9]+)?[[:space:]]*$'";
+        return "(CASE WHEN $numeric THEN $v + 0 $op $number ELSE $v $op '$number' END)";
     }
 
     private function getrecords($qitems, $tbl)

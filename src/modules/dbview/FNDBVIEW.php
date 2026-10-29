@@ -2656,11 +2656,10 @@ set_changed();
                     $groupcontentstitle = FN_Translate("---");
                 else {
                     if ($tablegroup && $pklink != "") {
-                        $restr = array($pklink => $group['name']);
-                        $t = $tablegroup->GetRecord($restr);
                         $ttitles = $groupname;
                         if (isset($Table->xmltable->fields[$groupname]->fk_show_field))
                             $ttitles = explode(",", $Table->xmltable->fields[$groupname]->fk_show_field);
+                        $t = XMETAFKLookup::GetRecord($tablegroup, $pklink, $group['name'], $ttitles);
                         $groupcontentstitle = "";
                         $sep = "";
                         foreach ($ttitles as $tt) {
@@ -2716,17 +2715,22 @@ set_changed();
         //dprint_r($data);
         //-----image----------------------->
         $photo = isset($data[$config['image_titlefield']]) ? $Table->xmltable->getFilePath($data, $config['image_titlefield']) : "";
-        $photo_fullsize = isset($data[$config['image_titlefield']]) ? $_FN['siteurl'] . $Table->xmltable->getFilePath($data, $config['image_titlefield']) : "";
+        $photo_fullsize = $photo != "" ? $Table->xmltable->getFileUrl($data, $config['image_titlefield']) : "";
 
-        if ($photo != "") {
-            //        $photo="{$_FN['datadir']}/fndatabase/{$tablename}/{$data[$Table->xmltable->primarykey]}/{$config['image_titlefield']}/{$data[$config['image_titlefield']]}";
-        } elseif (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/default.png")) {
-            $photo = "{$_FN['siteurl']}/sections/{$_FN['mod']}/default.png";
-        } else
-            $photo = FN_PathSite("{$this->moddir}/default.png",false);
         if (empty($config['image_size']))
             $config['image_size'] = 200;
-        $img = "{$_FN['siteurl']}index.php?fnapp=thumb&format=png&h={$config['image_size']}&w={$config['image_size_h']}&f=" . $photo;
+        if ($photo != "" && !empty($_FN['xmetadb_file_url'])) {
+            // protected files: the record's own thumbnail, through the checked link
+            $img = $Table->xmltable->getFileUrl($data, $config['image_titlefield'], true);
+        } else {
+            if ($photo != "") {
+                //        $photo="{$_FN['datadir']}/fndatabase/{$tablename}/{$data[$Table->xmltable->primarykey]}/{$config['image_titlefield']}/{$data[$config['image_titlefield']]}";
+            } elseif (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/default.png")) {
+                $photo = "{$_FN['siteurl']}/sections/{$_FN['mod']}/default.png";
+            } else
+                $photo = FN_PathSite("{$this->moddir}/default.png",false);
+            $img = "{$_FN['siteurl']}index.php?fnapp=thumb&format=png&h={$config['image_size']}&w={$config['image_size_h']}&f=" . $photo;
+        }
 
         $counteritems = 0;
         //-----image-----------------------<

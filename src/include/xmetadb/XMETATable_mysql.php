@@ -49,6 +49,7 @@ class XMETATable_mysql extends \stdClass
     var $mysqldatabasename;
     var $nullfields;
     var $mysqlfields;
+    var $legacynotnull;
     var $sqltable;
     var $conn;
     var $connection;
@@ -151,30 +152,47 @@ class XMETATable_mysql extends \stdClass
                 $this->mysqldatabasename = $this->databasename;
             }
 
-            try
+            // session settings: once per connection, not once per table
+            static $initializedconn = null;
+            if ($initializedconn !== $this->conn)
             {
-                $this->conn->query("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'");
-            } catch (\Exception $e)
-            {
-                
-            }
-            if (!empty($_FN['xmetadb_timezone']))
-            {
-                try{
-                    $this->conn->query("SET time_zone = '" . $this->conn->real_escape_string($_FN['xmetadb_timezone']) . "'");
-
-                }catch (\Exception $e)
+                $initializedconn = $this->conn;
+                try
                 {
-                    trigger_error($e, E_USER_WARNING);
+                    $this->conn->query("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'");
+                } catch (\Exception $e)
+                {
+                    
+                }
+                if (!empty($_FN['xmetadb_timezone']))
+                {
+                    try{
+                        $this->conn->query("SET time_zone = '" . $this->conn->real_escape_string($_FN['xmetadb_timezone']) . "'");
+
+                    }catch (\Exception $e)
+                    {
+                        trigger_error($e, E_USER_WARNING);
+                    }
                 }
             }
-            try
+            global $xmetadb_mysqlcurrentdb;
+            if ($xmetadb_mysqlcurrentdb === $this->mysqldatabasename)
             {
-                $this->conn->select_db($this->mysqldatabasename);
                 $exists = true;
-            } catch (\Exception $e)
+            }
+            else
             {
-                $exists = false;
+                try
+                {
+                    $exists = $this->conn->select_db($this->mysqldatabasename);
+                } catch (\Exception $e)
+                {
+                    $exists = false;
+                }
+                if ($exists)
+                {
+                    $xmetadb_mysqlcurrentdb = $this->mysqldatabasename;
+                }
             }
 
             if (!$exists)
@@ -206,10 +224,32 @@ class XMETATable_mysql extends \stdClass
                     }
                 }
             }
-            $exists = false;
-            if (empty($dbcache['tables'][$this->mysqldatabasename]))
+            // Cross-request schema cache (APCu): the DESCRIBE result of a
+            // table already in sync with its descriptor. The key includes the
+            // descriptor content, so editing the descriptor runs the sync
+            // again; the TTL bounds how long a table dropped or altered
+            // outside xmetadb goes unnoticed. FN_ClearCache() empties it.
+            $schemattl = isset($_FN['xmetadb_mysql_schema_cache_ttl']) ? intval($_FN['xmetadb_mysql_schema_cache_ttl']) : 600;
+            $schemacachekey = "mysqlschema_" . xmetadb_cache_hash($mysql['host'] . "|" . $mysql['port'] . "|" . $this->mysqldatabasename . "|" . $sqltable . "|" . $xml);
+            $schemafromapcu = false;
+            if ($schemattl > 0 && empty($dbcache[$this->mysqldatabasename][$sqltable]['describe']))
+            {
+                $describe = xmetadb_cache_fetch($schemacachekey, $schemafromapcu);
+                if ($schemafromapcu && is_array($describe) && count($describe) > 0)
+                {
+                    $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $describe;
+                }
+                else
+                {
+                    $schemafromapcu = false;
+                }
+            }
+            // a table already described (in this request or in the cache) exists
+            $schemacached = !empty($dbcache[$this->mysqldatabasename][$sqltable]['describe']);
+            $exists = $schemacached;
+            if (!$schemacached && empty($dbcache['tables'][$this->mysqldatabasename]))
                 $dbcache['tables'][$this->mysqldatabasename] = $this->dbQuery("SHOW tables");
-            $result = $dbcache['tables'][$this->mysqldatabasename];
+            $result = $schemacached ? false : $dbcache['tables'][$this->mysqldatabasename];
 
             if ($result)
             {
@@ -297,7 +337,7 @@ class XMETATable_mysql extends \stdClass
             // create table -----<
             //--synchronize fields --->
             if (empty($dbcache[$this->mysqldatabasename][$sqltable]['describe']))
-                $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $this->dbQuery("DESCRIBE " . $this->sqltable);
+                $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $this->dbQuery("DESCRIBE " . $this->sqltable, false);
             $xmlfield = $this->fields;
             $result = $dbcache[$this->mysqldatabasename][$sqltable]['describe'];
             $exists = false;
@@ -365,7 +405,7 @@ class XMETATable_mysql extends \stdClass
             }
             if ($flag_tablechanged)
             {
-                $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $this->dbQuery("DESCRIBE " . $this->sqltable);
+                $dbcache[$this->mysqldatabasename][$sqltable]['describe'] = $this->dbQuery("DESCRIBE " . $this->sqltable, false);
                 // Update mysql_fields with newly added fields
                 foreach ($dbcache[$this->mysqldatabasename][$sqltable]['describe'] as $tmp)
                 {
@@ -377,6 +417,10 @@ class XMETATable_mysql extends \stdClass
                 }
             }
             $this->mysqlfields = $mysql_fields;
+            if ($schemattl > 0 && !$schemafromapcu)
+            {
+                xmetadb_cache_store($schemacachekey, $dbcache[$this->mysqldatabasename][$sqltable]['describe'], $schemattl);
+            }
             //--synchronize fields ---<
         }
         else
@@ -497,9 +541,11 @@ class XMETATable_mysql extends \stdClass
      * dbQuery
      *
      * @param string $query
+     * @param bool $fixnull false keeps NULL values (DESCRIBE: a NULL
+     *             Default is a column without a default)
      * @return array|bool|null
      */
-    function dbQuery($query)
+    function dbQuery($query, $fixnull = true)
     {
         try
         {
@@ -528,7 +574,8 @@ class XMETATable_mysql extends \stdClass
                 $res = array();
                 while ($tmp = $result->fetch_assoc())
                 {
-                    $tmp = $this->fix_null($tmp);
+                    if ($fixnull)
+                        $tmp = $this->fix_null($tmp);
                     $res[] = $tmp;
                 }
             }
@@ -661,7 +708,85 @@ class XMETATable_mysql extends \stdClass
             trigger_error("MySQL TRUNCATE failed: " . $this->conn->error, E_USER_WARNING);
             return false;
         }
+        // the ids start again from 1
+        $this->maxautoincrement = array();
+        if ($this->SequencesAvailable())
+        {
+            $this->dbQuery("DELETE FROM `fn_sequences` WHERE `seq_table` = '" . $this->conn->real_escape_string($this->sqltable) . "'");
+        }
         return true;
+    }
+
+    /**
+     * Columns of a database created by an older version that are NOT NULL
+     * without a default (MariaDB/MySQL strict mode rejects an INSERT that
+     * leaves them out), with the value non-strict MySQL used to store:
+     * 0 for numbers, the zero date for dates, the first value of an ENUM,
+     * '' otherwise. Built once per table from the DESCRIBE result that the
+     * constructor already reads (and caches), so it costs no query.
+     *
+     * @return array column => SQL literal
+     */
+    function LegacyNotNullColumns()
+    {
+        if (is_array($this->legacynotnull))
+            return $this->legacynotnull;
+        // not described yet (records copied while the table is created)
+        if (!is_array($this->mysqlfields))
+            return array();
+        $this->legacynotnull = array();
+        foreach ($this->mysqlfields as $name => $col)
+        {
+            if (!is_array($col) || $col['Null'] != "NO" || $col['Default'] !== NULL || $name == $this->primarykey)
+                continue;
+            // autoincrement and generated columns get their value from the server
+            if (preg_match('/auto_increment|generated|virtual|stored|persistent/i', isset($col['Extra']) ? $col['Extra'] : ""))
+                continue;
+            $type = strtolower($col['Type']);
+            if (preg_match('/^(tinyint|smallint|mediumint|int|integer|bigint|decimal|numeric|float|double|real|bit|year|bool)/', $type))
+                $literal = "0";
+            elseif (preg_match('/^date$/', $type))
+                $literal = "'0000-00-00'";
+            elseif (preg_match('/^(datetime|timestamp)/', $type))
+                $literal = "'0000-00-00 00:00:00'";
+            elseif (preg_match('/^time/', $type))
+                $literal = "'00:00:00'";
+            elseif (preg_match("/^enum\\('((?:[^']|'')*)'/i", $col['Type'], $m))
+                $literal = "'" . $this->conn->real_escape_string(str_replace("''", "'", $m[1])) . "'";
+            else
+                $literal = "''";
+            $this->legacynotnull[$name] = $literal;
+        }
+        return $this->legacynotnull;
+    }
+
+    /**
+     * @param string $field
+     * @return bool true when the column is NOT NULL without a default
+     */
+    function IsLegacyNotNull($field)
+    {
+        $legacy = $this->LegacyNotNullColumns();
+        return isset($legacy[$field]);
+    }
+
+    /**
+     * legacy NOT NULL columns (see LegacyNotNullColumns()) that an INSERT
+     * of these values would leave out
+     *
+     * @param array $values
+     * @return array column => SQL literal
+     */
+    function LegacyMissingColumns($values)
+    {
+        $ret = array();
+        foreach ($this->LegacyNotNullColumns() as $name => $literal)
+        {
+            // the INSERT writes only the values of fields in the descriptor
+            if (!array_key_exists($name, $values) || !isset($this->fields[$name]))
+                $ret[$name] = $literal;
+        }
+        return $ret;
     }
 
     /**
@@ -700,6 +825,9 @@ class XMETATable_mysql extends \stdClass
                     $tf[] = "`$k`";
                 }
             }
+            $legacy = $this->LegacyMissingColumns($values);
+            foreach ($legacy as $k => $v)
+                $tf[] = "`$k`";
             $query .= implode(",", $tf);
             $query .= ") VALUES (";
             $tf = array();
@@ -711,6 +839,10 @@ class XMETATable_mysql extends \stdClass
                     {
                         $tf[] = "NULL";
                     }
+                    elseif (($v === '' || $v === NULL) && $this->IsLegacyNotNull($k))
+                    {
+                        $tf[] = $this->legacynotnull[$k];
+                    }
                     else
                     {
                         if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$v"))
@@ -720,6 +852,8 @@ class XMETATable_mysql extends \stdClass
                     }
                 }
             }
+            foreach ($legacy as $v)
+                $tf[] = $v;
             $query .= implode(",", $tf);
             $query .= ")";
 
@@ -777,6 +911,9 @@ class XMETATable_mysql extends \stdClass
                 $tf[] = "`$k`";
             }
         }
+        $legacy = $this->LegacyMissingColumns($values);
+        foreach ($legacy as $k => $v)
+            $tf[] = "`$k`";
         $query .= implode(",", $tf);
         $query .= ") VALUES (";
         $tf = array();
@@ -788,6 +925,10 @@ class XMETATable_mysql extends \stdClass
                 {
                     $tf[] = "NULL";
                 }
+                elseif (($v === '' || $v === NULL) && $this->IsLegacyNotNull($k))
+                {
+                    $tf[] = $this->legacynotnull[$k];
+                }
                 else
                 {
                     if ($this->fields[$k]->type == "int" && preg_match('/^-?[0-9]+$/', "$v"))
@@ -797,6 +938,8 @@ class XMETATable_mysql extends \stdClass
                 }
             }
         }
+        foreach ($legacy as $v)
+            $tf[] = $v;
         $query .= implode(",", $tf);
         $query .= ");";
 
@@ -851,6 +994,10 @@ class XMETATable_mysql extends \stdClass
                         if ($this->mysqlfields[$k]['Null'] == "YES" && $value == "")
                         {
                             $query .= "NULL";
+                        }
+                        elseif (($value === '' || $value === NULL) && $this->IsLegacyNotNull($k))
+                        {
+                            $query .= $this->legacynotnull[$k];
                         }
                         else
                         {
@@ -911,6 +1058,10 @@ class XMETATable_mysql extends \stdClass
                         if ($this->mysqlfields[$k]['Null'] == "YES" && $value == "")
                         {
                             $query .= "NULL";
+                        }
+                        elseif (($value === '' || $value === NULL) && $this->IsLegacyNotNull($k))
+                        {
+                            $query .= $this->legacynotnull[$k];
                         }
                         else
                         {
@@ -1021,22 +1172,184 @@ class XMETATable_mysql extends \stdClass
      *
      * manages the autoincrement of a table field
      *
+     * The ids are VARCHAR without AUTO_INCREMENT, so the next one comes from a
+     * per-table counter in the fn_sequences table instead of a scan of the
+     * whole table on each insert. The counter is seeded once from the current
+     * highest numeric id and moved with an atomic UPDATE, so concurrent
+     * inserts never get the same id. It corrects itself: when the id it gives
+     * is already taken (rows inserted directly in the database) the table is
+     * scanned once and the counter moves past the highest id. Without the
+     * rights to create fn_sequences it falls back to the scan.
+     *
      * @param string field name
      * @return next available index
      */
     function GetAutoincrement($field)
     {
-        static $last = "";
+        if ($this->SequencesAvailable())
+        {
+            for ($try = 0; $try < 3; $try++)
+            {
+                $newid = $this->SequenceNext($field);
+                if ($newid === false)
+                {
+                    break;
+                }
+                if (!$this->AutoincrementTaken($field, $newid))
+                {
+                    return $newid;
+                }
+                $this->SyncAutoincrement($field);
+            }
+        }
         if (isset($this->maxautoincrement[$field]))
         {
             return $this->maxautoincrement[$field] + 1;
         }
-        // todo autoincrement offset SHOW VARIABLES;
-        $record = $this->dbQuery("SELECT MAX(CAST($field AS UNSIGNED)) AS $field FROM {$this->sqltable} WHERE $field NOT LIKE '%[a-z]%' ");
-        if (!isset($record[0][$field]))
-            return 1;
-        $max = $record[0][$field];
-        return intval($max) + 1;
+        return $this->GetMaxNumericId($field) + 1;
+    }
+
+    /**
+     * highest numeric value of the field (full scan), 0 when there is none
+     *
+     * @param string $field
+     * @return int
+     */
+    function GetMaxNumericId($field)
+    {
+        $record = $this->dbQuery("SELECT MAX(CAST(`$field` AS UNSIGNED)) AS maxid FROM `{$this->sqltable}` WHERE `$field` REGEXP '^[0-9]+$'");
+        if (!isset($record[0]['maxid']))
+            return 0;
+        return intval($record[0]['maxid']);
+    }
+
+    /**
+     * @param string $field
+     * @param int $id
+     * @return bool true when a record already has this id
+     */
+    function AutoincrementTaken($field, $id)
+    {
+        $record = $this->dbQuery("SELECT 1 AS taken FROM `{$this->sqltable}` WHERE `$field` = '" . intval($id) . "' LIMIT 1");
+        return !empty($record);
+    }
+
+    /**
+     * creates fn_sequences when missing
+     *
+     * @return bool false when the counters cannot be used
+     */
+    function SequencesAvailable()
+    {
+        static $available = array();
+        $db = $this->mysqldatabasename;
+        if (!isset($available[$db]))
+        {
+            $available[$db] = false;
+            // dbQuery() selects the database first
+            if ($this->conn && $this->dbQuery("SELECT 1") !== false)
+            {
+                // not dbQuery(): a user without the CREATE right is not an
+                // error to log on every insert, the scan is used instead
+                try
+                {
+                    $available[$db] = (bool) $this->conn->query("CREATE TABLE IF NOT EXISTS `fn_sequences` (
+                        `seq_table` VARCHAR(191) NOT NULL,
+                        `seq_field` VARCHAR(191) NOT NULL,
+                        `n` BIGINT UNSIGNED NOT NULL DEFAULT 0,
+                        PRIMARY KEY (`seq_table`, `seq_field`)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                } catch (\Exception $e)
+                {
+                    $available[$db] = false;
+                }
+            }
+        }
+        return $available[$db];
+    }
+
+    /**
+     * @param string $field
+     * @return string the WHERE condition of the field's counter
+     */
+    function SequenceWhere($field)
+    {
+        return "`seq_table` = '" . $this->conn->real_escape_string($this->sqltable) . "' AND `seq_field` = '" . $this->conn->real_escape_string($field) . "'";
+    }
+
+    /**
+     * moves the counter by one and returns it, seeding it from the table the
+     * first time
+     *
+     * @param string $field
+     * @return int|false
+     */
+    function SequenceNext($field)
+    {
+        for ($try = 0; $try < 2; $try++)
+        {
+            if (!$this->dbQuery("UPDATE `fn_sequences` SET `n` = LAST_INSERT_ID(`n` + 1) WHERE " . $this->SequenceWhere($field)))
+            {
+                return false;
+            }
+            if ($this->conn->affected_rows > 0)
+            {
+                // LAST_INSERT_ID(expr) in an UPDATE sets insert_id
+                return intval($this->conn->insert_id);
+            }
+            // no counter yet: seed it (a concurrent seed wins, both then
+            // move the same counter)
+            $this->dbQuery("INSERT IGNORE INTO `fn_sequences` (`seq_table`, `seq_field`, `n`) VALUES ('" . $this->conn->real_escape_string($this->sqltable) . "', '" . $this->conn->real_escape_string($field) . "', " . $this->GetMaxNumericId($field) . ")");
+        }
+        return false;
+    }
+
+    /**
+     * moves the counter past the highest numeric id in the table, e.g. after
+     * records were inserted directly in the database. Counters not seeded yet
+     * are left alone: they are seeded from the table on the first insert.
+     *
+     * @param string|false $field false for every autoincrement field
+     * @return array field => next id, for the counters that exist
+     */
+    function SyncAutoincrement($field = false)
+    {
+        $ret = array();
+        if (!$this->conn || !$this->SequencesAvailable())
+        {
+            return $ret;
+        }
+        $fields = array();
+        if ($field !== false)
+        {
+            $fields[] = $field;
+        }
+        else
+        {
+            foreach ($this->fields as $k => $f)
+            {
+                if (isset($f->extra) && $f->extra == "autoincrement" && (!isset($f->nativeautoincrement) || $f->nativeautoincrement != 1))
+                {
+                    $fields[] = $k;
+                }
+            }
+        }
+        foreach ($fields as $k)
+        {
+            $record = $this->dbQuery("SELECT `n` FROM `fn_sequences` WHERE " . $this->SequenceWhere($k));
+            if (empty($record))
+            {
+                continue;
+            }
+            $max = $this->GetMaxNumericId($k);
+            $this->dbQuery("UPDATE `fn_sequences` SET `n` = GREATEST(`n`, $max) WHERE " . $this->SequenceWhere($k));
+            $record = $this->dbQuery("SELECT `n` FROM `fn_sequences` WHERE " . $this->SequenceWhere($k));
+            if (isset($record[0]['n']))
+            {
+                $ret[$k] = intval($record[0]['n']) + 1;
+            }
+        }
+        return $ret;
     }
 }
 

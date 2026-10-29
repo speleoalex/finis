@@ -173,6 +173,85 @@ define("_MAX_FILE_ACCESS_ATTEMPTS", "1000");
 define("_MAX_FILES_PER_FOLDER", "10000");
 define("_MAX_LOCK_TIME", "30"); // seconds
 
+// ---------------------------------------------------------------------------
+// Cross-request cache for the schema work done when a table is opened
+// (descriptor parsing, MySQL DESCRIBE). Kept in APCu when it is available;
+// without APCu every helper is a no-op and the old per-request behaviour
+// stays.
+// ---------------------------------------------------------------------------
+
+/**
+ * True when APCu can be used for the xmetadb caches.
+ * @return bool
+ */
+function xmetadb_cache_enabled()
+{
+    static $enabled = null;
+    if ($enabled === null)
+    {
+        $enabled = function_exists('apcu_enabled') && apcu_enabled();
+    }
+    return $enabled;
+}
+
+/**
+ * Short content hash used to build cache keys: a key built from the
+ * content changes when the content changes, so it never needs invalidating.
+ * @param string $str
+ * @return string
+ */
+function xmetadb_cache_hash($str)
+{
+    static $algo = null;
+    if ($algo === null)
+    {
+        $algo = in_array('xxh128', hash_algos()) ? 'xxh128' : 'md5';
+    }
+    return hash($algo, $str);
+}
+
+/**
+ * @param string $key
+ * @param bool $found set to true when the key was in the cache
+ * @return mixed
+ */
+function xmetadb_cache_fetch($key, &$found)
+{
+    $found = false;
+    if (!xmetadb_cache_enabled())
+    {
+        return null;
+    }
+    $value = apcu_fetch("xmetadb_$key", $found);
+    return $found ? $value : null;
+}
+
+/**
+ * @param string $key
+ * @param mixed $value
+ * @param int $ttl seconds, 0 = until the cache is cleared
+ * @return bool
+ */
+function xmetadb_cache_store($key, $value, $ttl = 0)
+{
+    if (!xmetadb_cache_enabled())
+    {
+        return false;
+    }
+    return apcu_store("xmetadb_$key", $value, $ttl);
+}
+
+/**
+ * @param string $key
+ */
+function xmetadb_cache_delete($key)
+{
+    if (xmetadb_cache_enabled())
+    {
+        apcu_delete("xmetadb_$key");
+    }
+}
+
 function removePhpTags($inputString)
 {
     // Define the termination string
@@ -195,6 +274,40 @@ function removePhpTags($inputString)
 }
 
 function xmetadb_xml2array($data, $elem, $fields = false)
+{
+    // Table descriptors are parsed on every request by every table that is
+    // opened: cache the result, keyed on the descriptor content. Data
+    // records (other $elem values) are not cached.
+    if (($elem === "field" || $elem === "innertable") && is_string($data) && strlen($data) <= 262144)
+    {
+        static $memo = array();
+        $key = "x2a_{$elem}_" . (is_array($fields) ? implode("|", $fields) : (string)$fields) . "_" . xmetadb_cache_hash($data);
+        if (array_key_exists($key, $memo))
+        {
+            return $memo[$key];
+        }
+        $found = false;
+        $ret = xmetadb_cache_fetch($key, $found);
+        if (!$found)
+        {
+            $ret = xmetadb_xml2array_parse($data, $elem, $fields);
+            xmetadb_cache_store($key, $ret, 86400);
+        }
+        if (count($memo) > 500)
+        {
+            $memo = array();
+        }
+        $memo[$key] = $ret;
+        return $ret;
+    }
+    return xmetadb_xml2array_parse($data, $elem, $fields);
+}
+
+/**
+ * Parses $data (XML or JSON) into an array of $elem records. Use
+ * xmetadb_xml2array(), which caches table descriptors.
+ */
+function xmetadb_xml2array_parse($data, $elem, $fields = false)
 {
     // If data is not XML (doesn't start with "<?x"), try JSON decode first.
     // Falls through to XML parsing when json_decode returns null.
@@ -875,6 +988,39 @@ function xmetadb_encode_preg($str)
  * @return string Stringa contenente il valore dell'elemento XML
  */
 function get_xml_single_element($elem, $xml)
+{
+    // The regexes below scan the whole string, and a table reads about ten
+    // elements of its descriptor every time it is opened: cache the large
+    // ones, keyed on the content.
+    if (strlen($xml) < 2048)
+    {
+        return get_xml_single_element_parse($elem, $xml);
+    }
+    static $memo = array();
+    $key = "el_" . xmetadb_cache_hash($xml) . "_$elem";
+    if (isset($memo[$key]))
+    {
+        return $memo[$key];
+    }
+    $found = false;
+    $ret = xmetadb_cache_fetch($key, $found);
+    if (!$found)
+    {
+        $ret = get_xml_single_element_parse($elem, $xml);
+        xmetadb_cache_store($key, $ret, 86400);
+    }
+    if (count($memo) > 1000)
+    {
+        $memo = array();
+    }
+    $memo[$key] = $ret;
+    return $ret;
+}
+
+/**
+ * Uncached get_xml_single_element().
+ */
+function get_xml_single_element_parse($elem, $xml)
 {
     $xml  = xmetadb_removexmlcomments($xml);
     $safe = preg_quote($elem, '/');

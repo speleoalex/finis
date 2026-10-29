@@ -82,6 +82,36 @@ Per configurare il processo di registrazione:
    - Termini e condizioni
 3. Personalizza le email inviate agli utenti in **Impostazioni → Email**
 
+### Sicurezza di Login e Password
+Queste regole valgono per tutti gli utenti, amministratori compresi.
+
+**Password**
+- Le password sono salvate come hash non reversibili (`password_hash`). Gli account importati da versioni precedenti possono avere ancora un hash MD5. Questi utenti accedono con la loro solita password, e a quel login l'hash viene sostituito con uno moderno. Per l'utente non cambia nulla e non serve alcun reset. Un hash MD5 resta nel database finché il suo proprietario non accede di nuovo.
+- L'hash salvato non viene mai accettato come password (il "pass-the-hash" è rifiutato).
+- L'unica regola predefinita è che la password non può contenere spazi. Un sito può aggiungere regole proprie definendo `FN_PasswordVerifyConstraints_overwrite($password)`, che restituisce un messaggio di errore, oppure una stringa vuota se la password è accettata.
+- Salvando il profilo senza scrivere una nuova password, la password attuale resta invariata.
+
+**Tentativi falliti e blocco**
+- Dopo 5 tentativi falliti per lo stesso nome utente dallo stesso indirizzo IP in 15 minuti, i tentativi successivi vengono rifiutati, anche con la password giusta, finché non sono passati i 15 minuti. Un login riuscito azzera il conteggio.
+- Ogni blocco viene scritto una volta nel log di sistema ("User ... locked out for 15 minutes ...").
+- Non c'è nulla da sbloccare a mano: il blocco scade da solo. Per toglierlo subito, cancella i file in `misc/_login_attempts/`. Svuotare la cache non azzera i contatori.
+- Impostazioni (in `config.vars.local.php`): `$_FN['login_max_attempts']` (predefinito 5) e `$_FN['login_lockout_minutes']` (predefinito 15).
+- **Dietro un reverse proxy** (Caddy, nginx, Traefik), imposta `$_FN['trusted_proxies']` con gli indirizzi IP del proxy. Se non è impostato, tutti i visitatori risultano con l'indirizzo del proxy, e un nome utente viene bloccato per tutti dopo 5 tentativi errati da qualsiasi luogo.
+
+**Sessioni e "ricordami"**
+- Il cookie di sessione è firmato con una chiave segreta propria del sito, `misc/secret.key.php`, creata automaticamente. Includi questo file nei backup. Se viene perso o cambia, tutti gli utenti vengono disconnessi una volta e devono accedere di nuovo. Lo stesso succede una volta quando il sito viene aggiornato a questa versione.
+- "Ricordami" mantiene l'accesso per 30 giorni (`$_FN['remember_login_days']`). Con `$_FN['remember_login'] = 0` l'opzione è disattivata.
+- Un utente disattivato viene disconnesso alla sua richiesta successiva.
+
+**Recupero password e registrazione**
+- "Password dimenticata" invia per email un link monouso valido 60 minuti (`$_FN['recovery_link_minutes']`). I link inviati prima dell'aggiornamento a questa versione non funzionano più, quindi l'utente deve richiederne uno nuovo.
+- Le pagine di recupero e di "reinvio codice" danno la stessa risposta sia che il nome utente esista sia che non esista, quindi non si possono usare per scoprire quali account esistono.
+- I codici di conferma della registrazione sono casuali e monouso. Anche i codici captcha sono monouso.
+- I nomi utente vengono salvati in minuscolo, a meno che sia impostato `$_FN['username_case_sensitive']`. I nomi utente fatti solo di punti vengono rifiutati.
+
+**Chiavi API**
+- Se `$_FN['apikey_groups']` è impostato, solo gli amministratori e i membri di quei gruppi possono usare o vedere una chiave API.
+
 ## Gestione dei Contenuti
 
 ### Struttura del Sito
@@ -280,6 +310,18 @@ Per creare moduli di contatto personalizzati:
    - Vai alla tab "Risposte"
    - Esporta dati se necessario
 
+#### Ricerca nel sito
+La sezione **ricerca** cerca le parole in tutte le sezioni che il visitatore può aprire:
+
+- i risultati sono raggruppati per sezione, con al massimo 30 risultati per sezione e 500 in tutto; il template del tema riceve, per ogni sezione, il numero di risultati mostrati (`{count}`), un indicatore quando la sezione ne ha altri (`{more}`), un'ancora (`{anchor}`) e, per le sezioni di database, un link all'elenco della sezione filtrato con lo stesso testo (`{url_list}`). Compaiono solo nei temi il cui `modules/search/searchform.tp.html` li usa;
+- una casella di ricerca senza il campo "metodo" (per esempio quella nel menu) cerca le pagine che contengono tutte le parole;
+- il testo sotto ogni risultato è formato dai primi 160 caratteri della descrizione del record, e resta vuoto quando il record non ha descrizione;
+- i record che il visitatore non può vedere vengono scartati dopo che il database ha restituito le prime 31 corrispondenze di una sezione, quindi una sezione può mostrare meno risultati di quelli che quel visitatore ha davvero. Per trovare gli altri usare parole più precise, oppure la ricerca della sezione stessa.
+
+#### Viste di database (dbview): ordinamento e template degli elenchi
+- Un campo che contiene numeri salvati come testo (sviluppi, dislivelli) viene ordinato per valore quando la definizione della tabella imposta `frm_sort` a `numeric` (o `abs`, sul valore assoluto), oppure quando lo richiede la classe del campo. I valori vuoti vanno in fondo e la virgola è accettata come separatore decimale. Con questo ordinamento i link "precedente/successivo" della scheda usano il percorso generico, più lento.
+- I template degli elenchi possono mostrare qualunque campo del record come `{value_<campo>}`. Il valore è quello grezzo salvato nel database: non è tradotto né sottoposto a escape, e non si applicano le regole di visibilità del campo. Usarlo solo per campi che tutti i visitatori dell'elenco possono vedere e che non contengono HTML scritto dagli utenti.
+
 ## Manutenzione e Backup
 
 ### Backup del Sistema
@@ -390,7 +432,7 @@ Per gestire iscrizioni a newsletter:
 - **Soluzione**: 
   1. Verifica CAPS LOCK
   2. Richiedi una nuova password
-  3. Controlla nelle impostazioni che il tuo account non sia bloccato
+  3. Dopo 5 password errate il login è bloccato per 15 minuti, anche con la password giusta. Attendi, oppure cancella i file in `misc/_login_attempts/` (vedi Sicurezza di Login e Password)
   4. Se niente funziona, accedi al database e resetta la password manualmente
 
 #### Pagina Bianca o Errore 500
@@ -426,7 +468,7 @@ Se non riesci a risolvere un problema:
 - Mantieni FINIS e tutti i moduli aggiornati
 - Usa password complesse e cambiale regolarmente
 - Limita l'accesso amministrativo a IP conosciuti se possibile
-- Effettua backup regolari
+- Effettua backup regolari, compreso `misc/secret.key.php`
 - Controlla regolarmente i log per attività sospette
 
 ### Performance

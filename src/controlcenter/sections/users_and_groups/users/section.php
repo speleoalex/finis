@@ -77,6 +77,8 @@ if (isset($form->formvals['registrationdate']))
     $form->formvals['registrationdate']['frm_show'] = "1";
     $params['fields'] = "username|email|level|group|registrationdate|EnableDisable()";
 }
+//the grid reads only its own fields: also the active flag, for EnableDisable()
+$params['fields_extra'] = $form->fieldname_active;
 //----------------------- fields in grid --------------------------------------<
 //-----------------------------define filters --------------------------------->
 $fv = array();
@@ -195,7 +197,7 @@ function FN_UpdateUserXmldbEditor($newvalues, $pk)
     $form = FN_GetUserForm();
     $username = !empty($form->fieldname_user) ? $form->fieldname_user : "username";
     FN_UpdateUser($pk, $newvalues, $password);
-    return FN_GetUser($newvalues[$username]);
+    return FN_GetUser($newvalues[$username], false);
 }
 
 /**
@@ -220,7 +222,7 @@ function FN_InsertUserXmldbEditor($newvalues)
     }
     $form = FN_GetUserForm();
     $username = !empty($form->fieldname_user) ? $form->fieldname_user : "username";
-    return FN_GetUser($newvalues[$username]);
+    return FN_GetUser($newvalues[$username], false);
 }
 
 /**
@@ -229,7 +231,7 @@ function FN_InsertUserXmldbEditor($newvalues)
  * @param type $Table
  * @return type
  */
-function EnableDisable($primarykey, $TableUsers)
+function EnableDisable($primarykey, $TableUsers, $row = array())
 {
     global $_FN;
     $get_restr = FN_GetParam("userfilter", $_GET);
@@ -238,7 +240,11 @@ function EnableDisable($primarykey, $TableUsers)
     {
         $TableUsers->fieldname_active = "active";
     }
-    $values = $TableUsers->xmltable->GetRecordByPrimaryKey($primarykey);
+    //the grid row already has the active flag (fields_extra): no query per user
+    if (is_array($row) && array_key_exists($TableUsers->fieldname_active, $row))
+        $values = $row;
+    else
+        $values = $TableUsers->xmltable->GetRecordByPrimaryKey($primarykey);
     $opt = FN_GetParam("opt", $_GET);
     $filter = FN_GetParam("filter__xdb_{$TableUsers->tablename}", $_GET);
     if ($filter)

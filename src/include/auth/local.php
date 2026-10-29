@@ -594,14 +594,18 @@ function FN_VerifyUserPassword($fnuser, $fnpwd)
 }
 
 /**
+ * The values of a user. They are read once per request and kept for the rest
+ * of it: the permission checks and the templates ask for the logged-in user
+ * hundreds of times per page. Code that changes a user without FN_UpdateUser()
+ * must read it again with $usecache = false, which also refreshes the copy.
  *
  * @global  $_FN
  * @staticvar array $usercache
  * @param string $user
- * @param bool $usecache
+ * @param bool $usecache false = read the database and refresh the copy
  * @return array
  */
-function FN_GetUser($user, $usecache = array())
+function FN_GetUser($user, $usecache = true)
 {
     if ($user == "")
         return null;
@@ -610,14 +614,22 @@ function FN_GetUser($user, $usecache = array())
     if ($usecache)
     {
         if ($usercache && is_array($usercache) && isset($usercache[$user]))
+        {
+            //as on a database read: $_FN['uservalues'] is the user asked for last
+            $_FN['uservalues'] = $usercache[$user];
             return $usercache[$user];
+        }
     }
     $table = FN_GetUserForm();
     $UserValues = $table->xmltable->GetRecordByPrimaryKey($user);
     if (is_array($UserValues) && $UserValues['level'] === "")
         $UserValues['level'] = "0";
     if (empty($UserValues['username']))
+    {
+        //deleted or never existed: no stale copy for the rest of the request
+        unset($usercache[$user]);
         return null;
+    }
     $_FN['uservalues'] = $usercache[$user] = $UserValues;
     return $usercache[$user];
 }
@@ -764,6 +776,7 @@ function FN_DeleteUser($user)
         $table = FN_GetUserForm();
         $uservalues = FN_GetUser($user, false);
         $table->xmltable->DelRecord($user);
+        FN_GetUser($user, false);
         if (function_exists("FN_OnDeleteUser"))
         {
             FN_OnDeleteUser($uservalues);
