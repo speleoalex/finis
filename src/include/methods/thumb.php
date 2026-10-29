@@ -99,15 +99,13 @@ if (!$width)
     $exists=false;
     list($width,$height,$type,$attr)=getimagesize($filename);
 }
-if (function_exists("exif_read_data"))
+// rotated photos: width and height are swapped
+$orientation=thumb_exif_orientation($filename);
+if ($orientation== 6 || $orientation== 8)
 {
-    $exif=exif_read_data($filename);
-    if (!empty($exif['Orientation']) && $exif['Orientation']== 6 || $exif['Orientation']== 8)
-    {
-        $tmp=$height;
-        $height=$width;
-        $width=$tmp;
-    }
+    $tmp=$height;
+    $height=$width;
+    $width=$tmp;
 }
 //----------------------------read file----------------------------------------<
 //----------------------------new size ---------------------------------------->
@@ -211,6 +209,26 @@ else
     imagedestroy($thumb);
 }
 /**
+ * EXIF orientation of an image, 0 when unknown.
+ * exif_read_data() reads only JPEG and TIFF files and warns on any other
+ * format (PNG, GIF, the default.png placeholder), so other files are skipped.
+ *
+ * @param string $filename
+ * @return int
+ */
+function thumb_exif_orientation($filename)
+{
+    if (!function_exists("exif_read_data"))
+        return 0;
+    $info=@getimagesize($filename);
+    if (empty($info[2]) || !in_array($info[2],array(IMAGETYPE_JPEG,IMAGETYPE_TIFF_II,IMAGETYPE_TIFF_MM)))
+        return 0;
+    $exif=@exif_read_data($filename);
+    if (!is_array($exif) || empty($exif['Orientation']))
+        return 0;
+    return intval($exif['Orientation']);
+}
+/**
  * 
  * @param type $image
  * @param type $filename
@@ -219,10 +237,10 @@ function image_fix_orientation(&$image,$filename)
 {
     if (function_exists("exif_read_data"))
     {
-        $exif=exif_read_data($filename);
-        if (!empty($exif['Orientation']))
+        $orientation=thumb_exif_orientation($filename);
+        if ($orientation)
         {
-            switch($exif['Orientation'])
+            switch($orientation)
             {
                 default:
                     break;
