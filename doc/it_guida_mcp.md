@@ -5,8 +5,8 @@ che permette a un client LLM (Claude Code, Claude Desktop, Cursor, agenti person
 di operare sul CMS e sul pannello di controllo: leggere e scrivere pagine, gestire la
 mappa del sito, i blocchi, le impostazioni e gli utenti.
 
-Ogni chiamata è autenticata con una **chiave API personale** ed è eseguita con
-l'identità del proprietario della chiave: valgono gli stessi permessi del pannello di
+Ogni chiamata è autenticata con una **chiave API personale** o con un **accesso OAuth**
+(utente e password, vedi sotto) ed è eseguita con l'identità dell'utente: valgono gli stessi permessi del pannello di
 controllo e ogni modifica finisce nel log del sito con il nome dell'utente.
 
 ## Chiavi API
@@ -65,8 +65,9 @@ Authorization: Bearer <apikey>
 * Trasporto: MCP *Streamable HTTP*, solo POST. `GET` risponde 405 (nessuno stream SSE),
   `DELETE` risponde 200, `OPTIONS` risponde 204 con gli header CORS.
 * Versioni di protocollo: `2025-06-18`, `2025-03-26`, `2024-11-05`.
-* Senza chiave valida la risposta è `401` con `WWW-Authenticate: Bearer`. I cookie del
-  browser vengono ignorati di proposito: l'endpoint accetta solo client con chiave API.
+* Senza chiave o token validi la risposta è `401` con
+  `WWW-Authenticate: Bearer resource_metadata="..."`. I cookie del browser vengono
+  ignorati di proposito: l'endpoint accetta solo client con chiave API o OAuth.
 * In modalità manutenzione l'endpoint è utilizzabile solo dagli amministratori.
 * Il server è senza stato: nessun id di sessione, ogni richiesta è completa. Sono
   supportati i batch JSON-RPC; le notifiche ricevono `202 Accepted`.
@@ -93,6 +94,70 @@ Configurazione JSON generica (Claude Desktop, Cursor, ...):
   }
 }
 ```
+
+## Accesso con OAuth (Claude Desktop, claude.ai)
+
+Ai client con OAuth 2.1 (connettori personalizzati di Claude Desktop e claude.ai, Claude
+Code, MCP Inspector, ...) basta l'URL dell'endpoint. Alla prima chiamata il client apre il
+browser, l'utente accede con utente e password e autorizza il client: nessuna chiave da
+copiare.
+
+* Possono accedere gli utenti abilitati alla chiave API (`FN_UserCanUseApiKey()`, vedi
+  `$_FN['apikey_groups']`), con gli stessi permessi.
+* L'accesso è quello di FINIS (`FN_ManageLogin()`: captcha, blocco dopo
+  `login_max_attempts` tentativi falliti). Segue una pagina di consenso con il nome del
+  client e l'host a cui torna il browser.
+* Il token di accesso dura un'ora, il refresh token 30 giorni e viene sostituito a ogni
+  rinnovo; il client li rinnova da solo.
+* Generare una nuova chiave API, revocarla o cambiare la password scollega tutti i client
+  OAuth dell'utente. Disattivare l'utente o toglierlo da `apikey_groups` ha effetto dalla
+  richiesta successiva.
+
+Endpoint (`src/include/methods/oauthserver.php`, funzioni in
+`src/include/functions_oauth_server.inc.php`):
+
+| URL | Scopo |
+|---|---|
+| `index.php?fnapp=oauthserver&op=metadata` | metadati dell'authorization server (RFC 8414) |
+| `index.php?fnapp=oauthserver&op=prm&resource=<url>` | metadati della risorsa protetta (RFC 9728) |
+| `index.php?fnapp=oauthserver&op=register` | registrazione dinamica dei client (RFC 7591), solo client pubblici |
+| `index.php?fnapp=oauthserver&op=authorize` | accesso e consenso, PKCE `S256` obbligatorio |
+| `index.php?fnapp=oauthserver&op=token` | grant `authorization_code` e `refresh_token` |
+
+Il 401 dell'endpoint MCP contiene `WWW-Authenticate: Bearer resource_metadata="<url>"` e
+da lì il client trova il resto. Client e token non sono salvati: sono firmati con il
+segreto del sito (`misc/secret.key.php`). Cancellare quel file invalida tutti i token e
+tutti i cookie di accesso.
+
+Un'applicazione protegge un proprio endpoint allo stesso modo: `FN_ManageLogin()` accetta
+già il token (`$_FN['auth_method'] = "oauth"`) e la risposta 401 chiama
+`FN_OAuthServerChallenge(<url dell'endpoint>)`.
+
+### Requisiti
+
+* HTTPS: i client rifiutano indirizzi `http://` fuori da localhost. Dietro un proxy che
+  nasconde l'HTTPS, impostare `siteurl` nelle impostazioni.
+* L'header `Authorization` deve arrivare a PHP. Il `.htaccess` scritto da FINIS con
+  mod_rewrite attivo contiene la regola; altrimenti aggiungerla:
+
+  ```apache
+  RewriteEngine On
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+  ```
+
+* I client cercano i metadati nella radice dell'host
+  (`/.well-known/oauth-authorization-server/<percorso del sito>`). Un sito nella radice del
+  dominio è coperto dal `.htaccess` di FINIS. Un sito in una cartella richiede queste regole
+  nel `.htaccess` della radice del dominio (esempio per un sito in `/catasto/`):
+
+  ```apache
+  RewriteEngine On
+  RewriteRule ^\.well-known/oauth-authorization-server/catasto/?$ /catasto/index.php?fnapp=oauthserver&op=metadata [L]
+  RewriteRule ^\.well-known/oauth-protected-resource/(catasto/.*)$ /catasto/index.php?fnapp=oauthserver&op=prm&path=$1 [L]
+  ```
+
+  Su Plesk/nginx verificare che `/.well-known/` arrivi ad Apache e non sia servito solo
+  dalla location di Let's Encrypt.
 
 ## Tool
 

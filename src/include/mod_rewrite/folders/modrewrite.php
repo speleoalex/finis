@@ -32,6 +32,9 @@ if (!function_exists("FN_BuildHtaccess"))
 <IfModule mod_rewrite.c>
 RewriteEngine On
 RewriteBase $RewriteBase
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteRule ^\\.well-known/oauth-authorization-server index.php?fnapp=oauthserver&op=metadata [L]
+RewriteRule ^\\.well-known/oauth-protected-resource/?(.*)$ index.php?fnapp=oauthserver&op=prm&path=$1 [L]
 RewriteRule (^[0-9a-zA-z_][0-9a-zA-z_])\/([0-9a-zA-z_]+)\/([0-9a-zA-z_]+)\/([0-9a-zA-z_\.]+)\/ index.php?mod=$2&lang=$1&op=$3&id=$4 [L,QSA,NC]
 RewriteRule (^[0-9a-zA-z_][0-9a-zA-z_])\/([0-9a-zA-z_]+)\/([0-9a-zA-z_]+)\/ index.php?mod=$2&lang=$1&op=$3 [L,QSA,NC]
 RewriteRule (^[0-9a-zA-z_][0-9a-zA-z_])\/([0-9a-zA-z_]+)\/ index.php?mod=$2&lang=$1 [L,QSA,NC]

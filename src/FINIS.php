@@ -19,6 +19,11 @@ class FINIS
     public function __call($name, $arguments)
     {
         global $_FN;
+        //$name comes from ?fnapp=: no path outside the application folders
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $name))
+        {
+            throw new Exception("Method does not exist");
+        }
         if (file_exists("{$_FN['src_application']}/include/applications/{$name}.php"))
         {
             include_once "{$_FN['src_application']}/include/applications/{$name}.php";

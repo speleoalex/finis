@@ -5,7 +5,8 @@
  *
  * Endpoint: index.php?fnapp=mcp
  * Authentication: "Authorization: Bearer <apikey>" (or "X-Api-Key: <apikey>")
- * where the key belongs to a FINIS user (profile page -> API key).
+ * where the key belongs to a FINIS user (profile page -> API key), or an
+ * OAuth access token issued by index.php?fnapp=oauthserver.
  * Every tool runs with the identity of the key owner: permission checks use
  * the user's level and groups, and the log carries the username.
  *
@@ -1085,11 +1086,11 @@ header("Access-Control-Expose-Headers: Mcp-Session-Id");
 if ($method == "OPTIONS")
     FN_MCP_Respond(204);
 
-if (empty($_FN['user']) || empty($_FN['auth_method']) || $_FN['auth_method'] != "apikey")
+if (empty($_FN['user']) || empty($_FN['auth_method']) || !in_array($_FN['auth_method'], array("apikey", "oauth")))
 {
-    // only API key clients are accepted: cookies of a browser session are ignored
-    header('WWW-Authenticate: Bearer realm="FINIS MCP"');
-    FN_MCP_Respond(401, FN_MCP_Error(null, -32001, "unauthorized: send a valid API key in the Authorization header (Bearer <key>)"));
+    // only API key and OAuth clients are accepted: cookies of a browser session are ignored
+    FN_OAuthServerChallenge(FN_GetMcpUrl());
+    FN_MCP_Respond(401, FN_MCP_Error(null, -32001, "unauthorized: send a valid API key or OAuth access token in the Authorization header (Bearer <token>)"));
 }
 
 if (!empty($_FN['mcp_site_maintenance']) && !FN_IsAdmin())

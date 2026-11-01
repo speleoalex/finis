@@ -5,8 +5,8 @@ so that an LLM client (Claude Code, Claude Desktop, Cursor, custom agents, ...) 
 operate the CMS and the control center: read and write pages, manage the site map,
 blocks, settings and users.
 
-Every call is authenticated with a **personal API key** and runs with the identity of
-the key owner: the same permissions of the control center apply, and every change is
+Every call is authenticated with a **personal API key** or an **OAuth login** (username
+and password, see below) and runs with the identity of the user: the same permissions of the control center apply, and every change is
 written in the site log with the user name.
 
 ## API keys
@@ -64,8 +64,9 @@ Authorization: Bearer <apikey>
 * Transport: MCP *Streamable HTTP*, POST only. `GET` answers 405 (no SSE stream),
   `DELETE` answers 200, `OPTIONS` answers 204 with CORS headers.
 * Protocol versions: `2025-06-18`, `2025-03-26`, `2024-11-05`.
-* Without a valid key the answer is `401` with `WWW-Authenticate: Bearer`. Browser
-  cookies are ignored on purpose: only API key clients can use the endpoint.
+* Without a valid key or token the answer is `401` with
+  `WWW-Authenticate: Bearer resource_metadata="..."`. Browser cookies are ignored on
+  purpose: only API key and OAuth clients can use the endpoint.
 * When the site is in maintenance mode only administrators can use the endpoint.
 * The server is stateless: no session id, each request is complete by itself.
   JSON-RPC batches are supported; notifications get `202 Accepted`.
@@ -102,6 +103,70 @@ curl -s -X POST "$URL" -H "Authorization: Bearer $KEY" -H "Content-Type: applica
 curl -s -X POST "$URL" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"whoami","arguments":{}}}'
 ```
+
+## OAuth login (Claude Desktop, claude.ai)
+
+Clients with OAuth 2.1 (custom connectors of Claude Desktop and claude.ai, Claude Code,
+MCP Inspector, ...) need only the endpoint URL. On the first call the client opens the
+browser, the user logs in with username and password and authorizes the client: there is
+no key to copy.
+
+* The users allowed are those allowed to use an API key (`FN_UserCanUseApiKey()`, see
+  `$_FN['apikey_groups']`), with the same permissions.
+* The login is the FINIS one (`FN_ManageLogin()`: captcha, lockout after
+  `login_max_attempts` failures). Then a consent page shows the client name and the host
+  the browser goes back to.
+* The access token lasts one hour, the refresh token 30 days and is replaced at every
+  refresh; the client renews them by itself.
+* Generating a new API key, revoking it or changing the password disconnects every OAuth
+  client of the user. Disabling the user or removing them from `apikey_groups` takes
+  effect at the next request.
+
+Endpoints (`src/include/methods/oauthserver.php`, functions in
+`src/include/functions_oauth_server.inc.php`):
+
+| URL | Purpose |
+|---|---|
+| `index.php?fnapp=oauthserver&op=metadata` | authorization server metadata (RFC 8414) |
+| `index.php?fnapp=oauthserver&op=prm&resource=<url>` | protected resource metadata (RFC 9728) |
+| `index.php?fnapp=oauthserver&op=register` | dynamic client registration (RFC 7591), public clients only |
+| `index.php?fnapp=oauthserver&op=authorize` | login and consent, PKCE `S256` required |
+| `index.php?fnapp=oauthserver&op=token` | `authorization_code` and `refresh_token` grants |
+
+The 401 of the MCP endpoint carries `WWW-Authenticate: Bearer resource_metadata="<url>"`,
+and the client finds the rest from there. Clients and tokens are not stored: they are
+signed with the site secret (`misc/secret.key.php`). Deleting that file invalidates every
+token and every login cookie.
+
+An application protects its own endpoint the same way: `FN_ManageLogin()` already accepts
+the access token (`$_FN['auth_method'] = "oauth"`), and the 401 answer calls
+`FN_OAuthServerChallenge(<endpoint url>)`.
+
+### Requirements
+
+* HTTPS: the clients refuse `http://` addresses outside localhost. Behind a proxy that
+  hides HTTPS, set `siteurl` in the settings.
+* The `Authorization` header must reach PHP. The `.htaccess` written by FINIS when
+  mod_rewrite is enabled has the rule; otherwise add it:
+
+  ```apache
+  RewriteEngine On
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+  ```
+
+* The clients look for the metadata at the root of the host
+  (`/.well-known/oauth-authorization-server/<site path>`). A site at the root of the domain
+  is covered by the `.htaccess` of FINIS. A site in a folder needs these rules in the
+  `.htaccess` of the domain root (example for a site in `/catasto/`):
+
+  ```apache
+  RewriteEngine On
+  RewriteRule ^\.well-known/oauth-authorization-server/catasto/?$ /catasto/index.php?fnapp=oauthserver&op=metadata [L]
+  RewriteRule ^\.well-known/oauth-protected-resource/(catasto/.*)$ /catasto/index.php?fnapp=oauthserver&op=prm&path=$1 [L]
+  ```
+
+  On Plesk/nginx check that `/.well-known/` reaches Apache and is not answered only by the
+  Let's Encrypt location.
 
 ## Tools
 

@@ -27,6 +27,9 @@ function FN_BuildHtaccess()
 <IfModule mod_rewrite.c>
 RewriteEngine On
 RewriteBase $RewriteBase
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteRule ^\\.well-known/oauth-authorization-server index.php?fnapp=oauthserver&op=metadata [L]
+RewriteRule ^\\.well-known/oauth-protected-resource/?(.*)$ index.php?fnapp=oauthserver&op=prm&path=$1 [L]
 RewriteRule (^google[0-9a-f]{16})\.html $1.html [L,QSA,NC]
 RewriteRule (^[0-9a-zA-z_]+)\.html index.php?mod=$1&lang={$_FN['lang_default']} [L,QSA,NC]
 RewriteRule (^[0-9a-zA-z_]+)\-([0-9a-zA-z_]+)-([0-9a-zA-z_]+)\.html index.php?mod=$1&op=$2&id=$3 [L,QSA,NC]

@@ -365,16 +365,16 @@ function FN_ManageLogin()
     {
         FN_Logout();
     }
-    //-------------------API key (MCP and API clients)------------------------>
+    //-------------------API key or OAuth token (MCP and API clients)--------->
     if ($_FN['user'] == "")
     {
         $apikey = FN_GetRequestApiKey();
-        if ($apikey != "")
+        if ($apikey != "" && !FN_OAuthServerLoginByToken($apikey))
         {
             FN_LoginByApiKey($apikey);
         }
     }
-    //-------------------API key (MCP and API clients)------------------------<
+    //-------------------API key or OAuth token (MCP and API clients)---------<
 }
 
 /**

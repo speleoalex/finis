@@ -414,7 +414,7 @@ if (isset($_FN_TMP['maintenance']))
 }
 
 $fnapp = FN_GetParam("fnapp", $_GET);
-if (!$_FN['consolemode'] && !empty($_FN['maintenance']) && $fnapp != "controlcenter" && $fnapp != "mcp")
+if (!$_FN['consolemode'] && !empty($_FN['maintenance']) && !in_array($fnapp, array("controlcenter", "mcp", "oauthserver")))
 {
     if (!FN_IsAdmin())
     {

@@ -549,9 +549,21 @@ Every user can have a personal API key (`apikey` field of `fn_users`, 48 hex cha
 `FN_ManageLogin()` tries the API key when no cookie session exists, so any request
 (`fnapp=api`, `fnapp=mcp`, ...) can be authenticated with the header.
 
+`src/include/methods/oauthserver.php` (`index.php?fnapp=oauthserver`) is an OAuth 2.1
+authorization server for the MCP clients (Claude Desktop, claude.ai): dynamic client
+registration, login with the FINIS login form plus a consent page, PKCE S256, access token
+1 h, single use refresh token 30 days. Client ids, codes and tokens are not stored: they
+are signed with `FN_GetSiteSecret()` (`fnoa.<payload>.<hmac>`, helpers in
+`src/include/functions_oauth_server.inc.php`); codes and refresh tokens leave a marker in
+`misc/_oauth/` when used. Tokens carry a fingerprint of the user's API key and password,
+so a new API key or password revokes them; only users allowed by `FN_UserCanUseApiKey()`
+get them. `FN_ManageLogin()` tries `FN_OAuthServerLoginByToken()` before the API key and
+sets `$_FN['auth_method'] = "oauth"`. An MCP endpoint answers 401 with
+`FN_OAuthServerChallenge($endpointUrl)` (`WWW-Authenticate: Bearer resource_metadata=...`).
+
 `src/include/methods/mcp.php` (`index.php?fnapp=mcp`) is an MCP server (JSON-RPC 2.0,
-Streamable HTTP, POST only) that accepts **only** API key authentication and runs every
-tool as the key owner: permission checks use `FN_IsAdmin()`, `FN_UserCanEditSection()`,
+Streamable HTTP, POST only) that accepts **only** API key or OAuth authentication (no
+cookies) and runs every tool as the user: permission checks use `FN_IsAdmin()`, `FN_UserCanEditSection()`,
 `FN_UserCanEditBlock()`, `FN_CanModifyFile()`, and mutations call
 `FN_LogEvent($msg, "mcp")` so `fn_log.user` is the real user. Tools are registered with
 `FN_MCP_AddTool($name, $description, $inputSchema, $callback)`; a tool throws
