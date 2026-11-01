@@ -36,3 +36,7 @@ LOCAL_DEV.md
 /tests/
 /src/test_parser_cron.php
 secret.key.php
+/.playwright-mcp/
+# created by the installer when the example website runs
+/examples/website/sections/
+/examples/website/home/

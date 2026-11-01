@@ -49,7 +49,6 @@ else
     $config['navigate_groups'] = explode(",", $config['navigate_groups']);
     $config['search_fields'] = explode(",", $config['search_fields']);
     $config['search_partfields'] = explode(",", $config['search_partfields']);
-    FN_PathSite(__DIR__ . "/loading.gif");
 //-------------------------------config----------------------------------------<
     if ($id != "" && $op == "")
     {
@@ -403,7 +402,7 @@ else
         } catch (e)
         {
         }
-        div.innerHTML = "<div style=\"color:#ffffff;margin-top:" + getScrollY() + "px\" ><br />loading...<br /><br /><img  src='<?php echo FN_PathSite( __DIR__ . "/loading.gif") ?>' /><br /><br /></div>";
+        div.innerHTML = "<div style=\"color:#ffffff;margin-top:" + getScrollY() + "px\" ><br />loading...<br /><br /><span style=\"font-size:32px;line-height:32px\">&#x23F3;</span><br /><br /></div>";
         document.getElementsByTagName('body')[0].appendChild(div);
     }
 </script>
