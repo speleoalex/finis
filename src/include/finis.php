@@ -353,8 +353,8 @@ if (!$_FN['consolemode'])
     }
     if (!empty($_FN['switchtheme']) || FN_IsAdmin())//preview theme
     {
-        $themepreview = FN_GetParam("themepreview", $_GET);
-        if ($themepreview != "" && (file_exists("{$_FN['src_finis']}/themes/{$_FN['theme']}") || file_exists("{$_FN['src_application']}/themes/{$_FN['theme']}") ))
+        $themepreview = basename(FN_GetParam("themepreview", $_GET));
+        if ($themepreview != "" && (file_exists("{$_FN['src_finis']}/themes/$themepreview") || file_exists("{$_FN['src_application']}/themes/$themepreview")))
             $_FN['theme'] = $themepreview;
     }
 //---------------vars in cookie------------------------------------------------<    
@@ -384,7 +384,8 @@ if (!empty($_FN['sectionvalues']['keywords']))
 
 //-------------------init var sections,blocks,sectiontypes --------------------<
 //----------------------------include theme------------------------------------>
-if (!file_exists("{$_FN['src_finis']}/themes/{$_FN['theme']}"))
+// the theme can be in finis or in the application (themes/ of the site)
+if (!file_exists("{$_FN['src_finis']}/themes/{$_FN['theme']}") && !file_exists("{$_FN['src_application']}/themes/{$_FN['theme']}"))
 {
     $_FN['theme'] = $_FN['theme_default'];
     if (!file_exists("{$_FN['src_finis']}/themes/{$_FN['theme']}") && !file_exists("{$_FN['src_application']}/themes/{$_FN['theme']}"))
