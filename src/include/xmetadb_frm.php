@@ -1348,13 +1348,25 @@ $frm_endgroupfooter
                 $fieldform_values['frm_show'] = $fieldform_values['view_show'];
             if (isset($fieldform_values['frm_show']) && ($fieldform_values['frm_show'] === "0" || $fieldform_values['frm_show'] === 0))
                 $showfield = false;
+            $showhidden = $showfield;
             $html = "";
+            $htmlitem = "";
 
             //if exist custom function ----->
             if (isset($fieldform_values['frm_functionview']) && $fieldform_values['frm_functionview'] != "" && function_exists($fieldform_values['frm_functionview']))
             {
                 eval("\$html = " . $fieldform_values['frm_functionview'] . '($values,$fieldform_valuesk);');
                 $showfield = false;
+                // the function returns the html of the value: shown as any other
+                // field (title and value), left out when empty or hidden
+                $htmlitem = "";
+                if ($showhidden && strval($html) !== "")
+                {
+                    $htmlitem = str_replace("{title}", $fieldform_values['title'], $tpobject->templateviewItem);
+                    $htmlitem = str_replace("{fieldname}", $fieldform_valuesk, $htmlitem);
+                    $htmlitem = str_replace("{fieldtype}", isset($fieldform_values['frm_type']) ? $fieldform_values['frm_type'] : "", $htmlitem);
+                    $htmlitem = str_replace("{input}", $html, $htmlitem);
+                }
             }
             //if exist custom function -----<
             else
