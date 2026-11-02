@@ -848,8 +848,10 @@ var movedown = function (node)
             }
             $v = trim($line[1], "\" ");
 
-            $htmlhidden .= "<input type=\"hidden\" name=\"conf_value_old$i\" value=\"" . $varvalue . "\" /> ";
-            $html .= "<input type=\"hidden\" name=\"conf_value_old$i\" value=\"" . $varvalue . "\" /> 
+            // escaped as the visible inputs: a value with quotes or HTML (a link in a footer
+            // text) closed the attribute and printed the rest of the value in the page
+            $htmlhidden .= "<input type=\"hidden\" name=\"conf_value_old$i\" value=\"" . htmlentities($varvalue) . "\" /> ";
+            $html .= "<input type=\"hidden\" name=\"conf_value_old$i\" value=\"" . htmlentities($varvalue) . "\" />
 </td></tr>";
 
             $tplvars['items'][] = $item_field;
