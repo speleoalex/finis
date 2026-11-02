@@ -620,6 +620,12 @@ class FNDBVIEW
             if ($desc != "")
                 $orderquery .= " DESC";
         }
+        // equal values in primary key order, as the record navigation (Toolbar) walks them;
+        // without it the order of the ties is up to the database and may change between pages
+        $pk = $t->xmltable->primarykey;
+        if ($native && $orderquery != "" && trim($order) != $pk) {
+            $orderquery .= ", " . $this->QuoteField($pk, true) . " ASC";
+        }
 
         return array(
             'fields' => $ftoread,
@@ -1521,18 +1527,32 @@ select_allcke = function(el){
             // Quoted names for the SQL text; $of/$pk stay plain, they are used as array keys
             $qof = $this->QuoteField($of, true);
             $qpk = $this->QuoteField($pk, true);
-            // Total-order predicates (field, pk); "before"/"after" relative to the current record
-            $smaller = "(($qof < '$cv') OR ($qof = '$cv' AND $qpk < '$cpk'))";
-            $greater = "(($qof > '$cv') OR ($qof = '$cv' AND $qpk > '$cpk'))";
+            // The record comes with NULL turned into "": ask the table whether the value is NULL
+            $cvnull = false;
+            if ((string) $row[$of] === "") {
+                $nullres = $xmltable->driverclass->dbQuery("SELECT COUNT(*) AS C FROM $sqltable WHERE $qpk = '$cpk' AND $qof IS NULL");
+                $cvnull = !empty($nullres[0]['C']);
+            }
+            // NULL comes before any value, as in ORDER BY; without this a NULL compares as unknown
+            // and the next record of the last dated one was the record itself
+            if ($cvnull) {
+                $equal = "$qof IS NULL";
+                $smaller = "1 = 0";
+                $greater = "$qof IS NOT NULL";
+            } else {
+                $equal = "$qof = '$cv'";
+                $smaller = "($qof IS NULL OR $qof < '$cv')";
+                $greater = "$qof > '$cv'";
+            }
+            // Total order (field, pk ascending as in the list); "before"/"after" relative to the current record
             if (!empty($qinfo['order_desc'])) {
-                // Descending order: "before" = greater values, "after" = smaller values
-                $before = $greater;
-                $after = $smaller;
+                $before = "($greater OR ($equal AND $qpk < '$cpk'))";
+                $after = "($smaller OR ($equal AND $qpk > '$cpk'))";
                 $dir = "DESC";
                 $revdir = "ASC";
             } else {
-                $before = $smaller;
-                $after = $greater;
+                $before = "($smaller OR ($equal AND $qpk < '$cpk'))";
+                $after = "($greater OR ($equal AND $qpk > '$cpk'))";
                 $dir = "ASC";
                 $revdir = "DESC";
             }
@@ -1541,21 +1561,21 @@ select_allcke = function(el){
             $cres = $xmltable->driverclass->dbQuery($cntq);
             $position = (isset($cres[0]['C']) ? intval($cres[0]['C']) : 0) + 1;
             // next: first record after the current one; if missing, wrap to the first of the list
-            $nq = "SELECT $qpk FROM $sqltable WHERE ($where) AND $after ORDER BY $qof $dir, $qpk $dir LIMIT 0,1";
+            $nq = "SELECT $qpk FROM $sqltable WHERE ($where) AND $after ORDER BY $qof $dir, $qpk ASC LIMIT 0,1";
             $nres = $xmltable->driverclass->dbQuery($nq);
             if (isset($nres[0][$pk])) {
                 $next = $nres[0][$pk];
             } else {
-                $fres = $xmltable->driverclass->dbQuery("SELECT $qpk FROM $sqltable WHERE ($where) ORDER BY $qof $dir, $qpk $dir LIMIT 0,1");
+                $fres = $xmltable->driverclass->dbQuery("SELECT $qpk FROM $sqltable WHERE ($where) ORDER BY $qof $dir, $qpk ASC LIMIT 0,1");
                 $next = isset($fres[0][$pk]) ? $fres[0][$pk] : "";
             }
             // prev: first record before the current one (reverse order); if missing, wrap to the last
-            $pq = "SELECT $qpk FROM $sqltable WHERE ($where) AND $before ORDER BY $qof $revdir, $qpk $revdir LIMIT 0,1";
+            $pq = "SELECT $qpk FROM $sqltable WHERE ($where) AND $before ORDER BY $qof $revdir, $qpk DESC LIMIT 0,1";
             $pres = $xmltable->driverclass->dbQuery($pq);
             if (isset($pres[0][$pk])) {
                 $prev = $pres[0][$pk];
             } else {
-                $lres = $xmltable->driverclass->dbQuery("SELECT $qpk FROM $sqltable WHERE ($where) ORDER BY $qof $revdir, $qpk $revdir LIMIT 0,1");
+                $lres = $xmltable->driverclass->dbQuery("SELECT $qpk FROM $sqltable WHERE ($where) ORDER BY $qof $revdir, $qpk DESC LIMIT 0,1");
                 $prev = isset($lres[0][$pk]) ? $lres[0][$pk] : "";
             }
         } else {
