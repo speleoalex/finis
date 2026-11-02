@@ -946,6 +946,8 @@ function FN_GetMenuTree($parent = "")
     
     foreach ($sections as $section)
     {
+        if (!FN_MenuSectionIsVisible($section))
+            continue;
         $menuitem = $section;
         if (function_exists("FN_GetSectionProprieties"))
         {
@@ -961,8 +963,14 @@ function FN_GetMenuTree($parent = "")
         $menuitem['opened'] = FN_SectionIsInsideThis($section['id']) ? true : "";
         $menuitem['link'] = FN_RewriteLink("index.php?mod={$section['id']}", "&amp;", true);
         $lev++;
-        
+
         $menuitem['childs'] = FN_GetMenuTree($section['id']);
+        // a menu container whose entries are all hidden is hidden too
+        if ($section['type'] == "block_menu" && empty($menuitem['childs']) && count(FN_GetSections($section['id'])) > 0)
+        {
+            $lev--;
+            continue;
+        }
         $menuitem['class'] = "";
         $count = is_array($menuitem['childs']) ? count($menuitem['childs']) : "";
         $menuitem['havechilds'] = "$count";
@@ -970,6 +978,40 @@ function FN_GetMenuTree($parent = "")
         $lev--;
     }
     return $menuarray;
+}
+
+/**
+ * Whether a menu entry leads to content the user may see. FN_GetSections()
+ * checks the permissions of the section; some modules have their own: a
+ * dbview section shows its records only to its groups (groupview,
+ * groupadmin, groupinsert of the module config, as
+ * FNDBVIEW::CanViewRecords()) and the table editor only to the
+ * administrators (XMLDBEDITOR_IsAdmin()). Without this the menu listed
+ * sections that answer "you don't have permission".
+ *
+ * @global array $_FN
+ * @param array $section values of the section (FN_GetSections())
+ * @return bool
+ */
+function FN_MenuSectionIsVisible($section)
+{
+    global $_FN;
+    if (FN_IsAdmin())
+        return true;
+    $type = isset($section['type']) ? $section['type'] : "";
+    if ($type == "dbview")
+    {
+        $config = FN_LoadConfig("modules/dbview/config.php", $section['id']);
+        foreach (array("groupadmin", "groupview", "groupinsert") as $group)
+        {
+            if ($_FN['user'] != "" && !empty($config[$group]) && FN_UserInGroup($_FN['user'], $config[$group]))
+                return true;
+        }
+        return empty($config['groupview']);
+    }
+    if ($type == "table_editor")
+        return false;
+    return true;
 }
 
 /**
