@@ -55,7 +55,9 @@ $__results=array();
 if (count($tosearch_array) > 0)
 {
 
-    $sections=FN_GetSections("",true);
+    // hidden sections too (not in the menu, e.g. a records list reached from a button), but only
+    // through the search function of their module: their title and static text are not searched
+    $sections=FN_GetSections("",true,true,true);
     foreach($sections as $sectionvalues)
     {
         if ($where!= "" && $sectionvalues['id']!= $where)
@@ -66,8 +68,14 @@ if (count($tosearch_array) > 0)
         $search_function_name="FNSEARCH_section_{$sectionvalues['id']}";
         if ($sectionvalues['type']!= "")
         {
-            $search_module_file="{$_FN['src_finis']}/modules/{$sectionvalues['type']}/";
+            // application modules (src_application/modules) first, as for the sections
+            $module_path=FN_GetModulePath($sectionvalues['type']);
+            $search_module_file=($module_path ? $module_path : "{$_FN['src_finis']}/modules/{$sectionvalues['type']}")."/";
             $search_function_name="FNSEARCH_module_{$sectionvalues['type']}";
+        }
+        if (!empty($sectionvalues['hidden']) && ($sectionvalues['type']== "" || !file_exists($search_module_file."/search.php")))
+        {
+            continue;
         }
         //--------------search in section title-------------------------------->
         $found=false;
@@ -148,7 +156,9 @@ if (count($tosearch_array) > 0)
         }
         else
         {
-            foreach($_FN['listlanguages'] as $lang_to_search)
+            // the page in the current language; the other languages only when it is missing
+            $langs_to_search=file_exists("$search_module_file/section.{$_FN['lang']}.html") ? array($_FN['lang']) : $_FN['listlanguages'];
+            foreach($langs_to_search as $lang_to_search)
             {
                 if ($contares > $maxres)
                     break;
@@ -158,6 +168,8 @@ if (count($tosearch_array) > 0)
                     {
                         $text_section=strip_tags(file_get_contents("$search_module_file/section.$lang_to_search.html"));
                         $text_section=str_replace("&nbsp;"," ",$text_section);
+                        // one line: the excerpt shown in the results
+                        $text_section=trim(preg_replace('/\s+/'," ",$text_section));
                         $pos=strpos(strtolower($text_section),strtolower($texttofind));
                         $textres="";
                         if ($pos=== false)
