@@ -14,6 +14,7 @@ require_once __DIR__ . '/traits/FNDBVIEWPermissions.php';
 require_once __DIR__ . '/traits/FNDBVIEWCRUD.php';
 require_once __DIR__ . '/traits/FNDBVIEWExport.php';
 require_once __DIR__ . '/traits/FNDBVIEWUtils.php';
+require_once __DIR__ . '/traits/FNDBVIEWViewCache.php';
 
 /**
  * Classe FNDBVIEW - Gestione visualizzazione database
@@ -30,6 +31,7 @@ class FNDBVIEW
     use FNDBVIEWCRUD;
     use FNDBVIEWExport;
     use FNDBVIEWUtils;
+    use FNDBVIEWViewCache;
 
     var $config;
     var $moddir;
@@ -1175,6 +1177,16 @@ class FNDBVIEW
         $tablename = $Table->tablename;
         $id_record = isset($row[$t->xmltable->primarykey]) ? $row[$t->xmltable->primarykey] : null;
 
+        // cached sheet (traits/FNDBVIEWViewCache.php): the main record, for an
+        // anonymous visitor who may see it (checked above), plain GET of the sheet
+        $viewcache = (!$inner && $shownavigatebar && $tablename == $this->config['tables'] && $this->ViewCacheUsable($_FN['mod']));
+        if ($viewcache)
+        {
+            $cached = $this->ViewCacheGet($_FN['mod'], $id_record);
+            if ($cached !== false)
+                return $cached;
+        }
+
 
         //--- template item ----->
         $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/detail.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/detail.tp.html" : FN_FromTheme("{$this->moddir}/detail.tp.html", false);
@@ -1287,6 +1299,8 @@ class FNDBVIEW
         //        @ob_end_flush();
         $Table->SetlayoutTemplateView($template);
         $htmlView = $Table->HtmlShowView($Table->GetRecordTranslatedByPrimarykey($id_record));
+        if ($viewcache)
+            $this->ViewCacheSet($_FN['mod'], $id_record, $htmlView);
         return $htmlView;
 
         //------------------------------visualizzazione--------------------------------<
@@ -1825,6 +1839,7 @@ select_allcke = function(el){
             $newvalues = array("id" => $id_record, "recorddeleted" => 1);
             $this->InvalidateCache($tablename);
             $Table->UpdateRecord($newvalues);
+            $this->ViewCacheInvalidate($_FN['mod'], $id_record);
         }
         //delete record
         else {
@@ -1842,6 +1857,7 @@ select_allcke = function(el){
                 }
             }
             $Table->DelRecord($id_record);
+            $this->ViewCacheInvalidate($_FN['mod'], $id_record);
             if (isset($_FN['modparams'][$_FN['mod']]['editorparams']['table']['function_on_delete'])) {
                 $function = $_FN['modparams'][$_FN['mod']]['editorparams']['table']['function_on_delete'];
                 if (function_exists($function)) {

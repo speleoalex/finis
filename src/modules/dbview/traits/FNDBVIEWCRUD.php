@@ -78,6 +78,9 @@ trait FNDBVIEWCRUD
 
                 $Table->UpdateRecord($newvalues, $pkold);
                 $this->InvalidateCache($tablename);
+                $this->ViewCacheInvalidate($_FN['mod'], $pkold);
+                if (isset($newvalues[$Table->xmltable->primarykey]) && $newvalues[$Table->xmltable->primarykey] != $pkold)
+                    $this->ViewCacheInvalidate($_FN['mod'], $newvalues[$Table->xmltable->primarykey]);
                 FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename modified.");
                 FN_Alert(FN_Translate("record updated"));
             }

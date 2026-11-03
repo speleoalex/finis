@@ -151,21 +151,31 @@ class XMETATable_mysql extends \stdClass
                 $this->mysqldatabasename = $this->databasename;
             }
 
-            try
+            // charset and time zone are properties of the connection: set once,
+            // not for each of the tens of table objects of a request
+            global $xmetadb_mysqlconnection_setup;
+            if (!is_array($xmetadb_mysqlconnection_setup))
+                $xmetadb_mysqlconnection_setup = array();
+            $setupkey = spl_object_hash($this->conn);
+            if (empty($xmetadb_mysqlconnection_setup[$setupkey]))
             {
-                $this->conn->query("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'");
-            } catch (\Exception $e)
-            {
-                
-            }
-            if (!empty($_FN['xmetadb_timezone']))
-            {
-                try{
-                    $this->conn->query("SET time_zone = '" . $this->conn->real_escape_string($_FN['xmetadb_timezone']) . "'");
-
-                }catch (\Exception $e)
+                $xmetadb_mysqlconnection_setup[$setupkey] = true;
+                try
                 {
-                    trigger_error($e, E_USER_WARNING);
+                    $this->conn->query("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'");
+                } catch (\Exception $e)
+                {
+
+                }
+                if (!empty($_FN['xmetadb_timezone']))
+                {
+                    try{
+                        $this->conn->query("SET time_zone = '" . $this->conn->real_escape_string($_FN['xmetadb_timezone']) . "'");
+
+                    }catch (\Exception $e)
+                    {
+                        trigger_error($e, E_USER_WARNING);
+                    }
                 }
             }
             try
