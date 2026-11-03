@@ -82,9 +82,11 @@ if ($maxw== "" && $maxh!= "")
 }
 //---------------fix max and min-----------------------------------------------<
 //---------------fix filename   ----------------------------------------------->
+// missing file: the generic image icon (the copy in the site, or the one of finis)
+$fallback = file_exists("images/mime/image.png") ? "images/mime/image.png" : "{$_FN['src_finis']}/images/mime/image.png";
 if ($filename== "" || !file_exists($filename))
 {
-    $filename="images/mime/image.png";
+    $filename=$fallback;
     $exists=false;
 }
 //---------------fix filename   -----------------------------------------------<
@@ -103,7 +105,7 @@ if ($usecache && $exists && file_exists("$thumbcachefile"))
 list($width,$height,$type,$attr)=getimagesize($filename);
 if (!$width)
 {
-    $filename="images/mime/image.png";
+    $filename=$fallback;
     $exists=false;
     list($width,$height,$type,$attr)=getimagesize($filename);
 }
@@ -152,10 +154,10 @@ switch($type)
         $tmb=null;
         $size[0]=$size[1]=150;
         $source=ImageCreateTrueColor(150,150);
-        $rosso=ImageColorAllocate($tmb,255,0,0);
-        ImageString($tmb,5,10,10,"Not a valid",$rosso);
-        ImageString($tmb,5,10,30,"GIF, JPEG or PNG",$rosso);
-        ImageString($tmb,5,10,50,"image.",$rosso);
+        $rosso=ImageColorAllocate($source,255,0,0);
+        ImageString($source,5,10,10,"Not a valid",$rosso);
+        ImageString($source,5,10,30,"GIF, JPEG or PNG",$rosso);
+        ImageString($source,5,10,50,"image.",$rosso);
 }
 image_fix_orientation($source,$filename);
 //----------------------------load image resource------------------------------<
