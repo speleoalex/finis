@@ -246,6 +246,11 @@ function FN_TPL_tp_create_section()
     global $_FN;
     $config = FN_LoadConfig("themes/{$_FN['theme']}/config.php");
     $page_title = isset($_FN['sectionvalues']['title']) ? $_FN['sectionvalues']['title'] : "";
+    if (!empty($_FN['fnshell']))
+    {
+        // theme shell for the offline copies (methods/website.php, fnshell=1)
+        return FN_TPL_encode("<!--fnsection-->");
+    }
     $htmlsection = FN_TPL_encode(FN_HtmlSection());
     return $htmlsection;
 }

@@ -14,13 +14,30 @@ FN_GetSections("", true);
 //--------------------------  auto scripts  ----------------------------------->
 include ("{$_FN['src_finis']}/include/autoexec.php");
 //--------------------------  auto scripts  -----------------------------------<
+// Offline copies (service worker of an application installed from the site): a page is
+// "public" when it is the same for every anonymous visitor, so a browser may keep it and
+// show it again without network; a page seen by a logged user or answering a POST is
+// "private" and must not be kept. Section and language tell the worker which theme shell
+// (fnshell=1) goes around a fragment (fnajax=1) of the page.
+$fn_publicpage = ($_FN['user'] == "" && ($_SERVER['REQUEST_METHOD'] ?? "GET") === "GET");
+header("X-Finis-Visitor: " . ($fn_publicpage ? "public" : "private"));
+header("X-Finis-Section: " . $_FN['mod']);
+header("X-Finis-Lang: " . $_FN['lang']);
+// fnshell=1: the page of the section with the theme, the marker <!--fnsection--> in place of
+// the content of the section (FN_TPL_tp_create_section), which is not generated
+$_FN['fnshell'] = empty($_GET['fnajax']) && !empty($_GET['fnshell']);
 if (!empty($_GET['fnajax']))
 {
     // Fragment for the ajax navigation (dbview call_ajax adds fnajax=1 to the url it loads):
     // only the output of the section, without the theme. The client replaces its containers
     // with the ones of the same id found here, so the page is much smaller than the full one.
-    $str = "<!DOCTYPE html>\n<html><head><meta charset=\"" . ($_FN['charset_page'] ?? 'UTF-8') . "\"><title>fnajax</title></head><body>"
-        . FN_HtmlSection()
+    // The head of the page is built first, as for the full page: its hooks run before the
+    // section (dbview header.php adds the record to the title of a sheet), and the title is
+    // the one of the full page, for a worker that puts the fragment back in its theme.
+    FN_HtmlHeader();
+    $fn_htmlsection = FN_HtmlSection();
+    $str = "<!DOCTYPE html>\n<html><head><meta charset=\"" . ($_FN['charset_page'] ?? 'UTF-8') . "\"><title>" . htmlspecialchars($_FN['site_title'], ENT_QUOTES, $_FN['charset_page'] ?? 'UTF-8', false) . "</title></head><body>"
+        . $fn_htmlsection
         . "</body></html>";
 }
 elseif (file_exists("{$_FN['src_application']}/themes/{$_FN['theme']}/structure.php"))

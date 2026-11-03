@@ -443,6 +443,9 @@ function FN_HtmlLoginForm($templateForm = false, $url = "")
         $tplbasepath = dirname(FN_FromTheme("{$_FN['src_finis']}/modules/login/login.tp.html", false));
     }
     $querystring = FN_GetParam("QUERY_STRING", $_SERVER);
+    //a theme shell (fnshell=1) or a fragment (fnajax=1) is shown again under the url of
+    //another page (offline copies, ajax navigation): the form must not post back to it
+    $querystring = ltrim(preg_replace('/(^|&)fn(shell|ajax)=[^&]*/', '', $querystring), "&");
     //the query string ends in the action attribute of the form
     $querystring = htmlspecialchars($querystring, ENT_QUOTES);
     $querystring = str_replace("fnlogin=login&amp;", "", $querystring);
@@ -530,6 +533,9 @@ function FN_HtmlLogoutForm($templateForm = false)
     }
     $tplvars = array();
     $querystring = FN_GetParam("QUERY_STRING", $_SERVER);
+    //a theme shell (fnshell=1) or a fragment (fnajax=1) is shown again under the url of
+    //another page (offline copies, ajax navigation): the form must not post back to it
+    $querystring = ltrim(preg_replace('/(^|&)fn(shell|ajax)=[^&]*/', '', $querystring), "&");
     //the query string ends in the action attribute of the form
     $querystring = htmlspecialchars($querystring, ENT_QUOTES);
     $tplvars['formaction'] = "?$querystring&amp;fnlogin=logout";
