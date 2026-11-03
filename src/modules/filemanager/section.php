@@ -203,7 +203,12 @@ if (FN_IsAdmin() || $_FN['user'] != "")
                 $d = "fndatabase";
             if ($table != "" && $id != "" && $field != "")
             {
-                $tb = new XMETATable("$d", $table, $_FN['datadir']);
+                // the site database with its own driver (see methods/thumb.php)
+                $database = empty($_FN['database']) ? "fndatabase" : $_FN['database'];
+                if ($d == $database && preg_match('/^[A-Za-z0-9_]+$/', $table) && file_exists("{$_FN['datadir']}/$database/$table.php"))
+                    $tb = FN_XMDBTable($table);
+                else
+                    $tb = new XMETATable("$d", $table, $_FN['datadir']);
                 // the file on disk, not its web address (see XMETATable::getFileUrl())
                 $filename = $tb->getFilePath(array($tb->primarykey => $id), "$field");
             }

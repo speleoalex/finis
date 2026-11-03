@@ -60,7 +60,14 @@ if ($d== "")
     $d="fndatabase";
 if ($table!= "" && $id!= "" && $field!= "")
 {
-    $tb=new XMETATable("$d",$table,$_FN['datadir']);
+    // a table of the site database through FN_XMDBTable(), with its driver and
+    // connection (a bare XMETATable reads it with the default driver and does
+    // not find the records of a MySQL site); another database folder as before
+    $database=empty($_FN['database']) ? "fndatabase" : $_FN['database'];
+    if ($d== $database && preg_match('/^[A-Za-z0-9_]+$/',$table) && file_exists("{$_FN['datadir']}/$database/$table.php"))
+        $tb=FN_XMDBTable($table);
+    else
+        $tb=new XMETATable("$d",$table,$_FN['datadir']);
     // the file on disk: get_file() is its web address, which an application
     // may point to its own endpoint ($_FN['xmetadb_file_url'])
     $filename=$tb->getFilePath(array("{$tb->primarykey}"=>$id),"$field");
