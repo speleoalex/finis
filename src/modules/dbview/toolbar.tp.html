@@ -1,0 +1,12 @@
+<ul class="nav nav-tabs dbview-toolbar">
+    <!-- foreach {items} -->
+    <li class="nav-item dbview-toolbar-{key}">
+        <!-- if {active} -->
+        <a class="nav-link active" aria-current="page" href="{link}" title="{title}"><span class="dbview-toolbar-icon" aria-hidden="true">{icon}</span><span class="dbview-toolbar-text">{label}</span></a>
+        <!-- end if {active} -->
+        <!-- if not {active} -->
+        <a class="nav-link" href="{link}" title="{title}"><span class="dbview-toolbar-icon" aria-hidden="true">{icon}</span><span class="dbview-toolbar-text">{label}</span></a>
+        <!-- end if not {active} -->
+    </li>
+    <!-- end foreach {items} -->
+</ul>

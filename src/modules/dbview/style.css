@@ -1,0 +1,71 @@
+/* record toolbar (toolbar.tp.html): list, previous, next, view, history, edit, users */
+.dbview-toolbar {
+    margin-bottom: 1rem;
+}
+.dbview-toolbar .nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4em;
+    white-space: nowrap;
+}
+/* the icons are UTF characters: emoji are drawn in the colour of the text */
+.dbview-toolbar .dbview-toolbar-icon {
+    display: inline-block;
+    min-width: 1.2em;
+    text-align: center;
+    line-height: 1;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 0 currentColor;
+    font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "Noto Sans Symbols", "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+.dbview-toolbar .dbview-toolbar-icon:empty {
+    display: none;
+}
+/* tablets: one row that scrolls sideways if needed, text only on the active tab */
+@media (max-width: 767.98px) {
+    .dbview-toolbar {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .dbview-toolbar::-webkit-scrollbar {
+        display: none;
+    }
+    .dbview-toolbar .nav-item {
+        flex: 1 0 auto;
+    }
+    .dbview-toolbar .nav-link {
+        padding: .5rem .7rem;
+    }
+    .dbview-toolbar .dbview-toolbar-icon {
+        font-size: 1.25em;
+    }
+    .dbview-toolbar .nav-link:not(.active) .dbview-toolbar-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+}
+/* phones: icons only, the page title already says where you are */
+@media (max-width: 575.98px) {
+    .dbview-toolbar .nav-link.active .dbview-toolbar-text {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+    }
+}

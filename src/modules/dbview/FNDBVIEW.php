@@ -1654,8 +1654,8 @@ select_allcke = function(el){
         $vars['link'] = $linkview;
         $vars['active'] = ($op == "view");
         $user_options['view'] = $vars;
-        //history button
-        if ($config['enable_history']) {
+        //history button (admins only: the link is empty for the others)
+        if ($config['enable_history'] && $linkhistory) {
             $vars['title'] = FN_Translate("version history");
             $vars['image'] = FN_FromTheme("images/read.png");
             $vars['link'] = $linkhistory;
@@ -1689,7 +1689,79 @@ select_allcke = function(el){
           } */
         //-----view/modify/history/users buttons ----------------------------------<
         $ret['user_options'] = $user_options;
+        $ret['items'] = $this->ToolbarItems($ret);
+        $ret['toolbar_html'] = $this->ToolbarHtml($ret['items']);
         return $ret;
+    }
+
+    /**
+     * Ordered list of the toolbar entries (list, previous, next, then the user options),
+     * each one with key, link, title (full text), label (visible text), icon (a UTF
+     * character) and active. A theme can change the icons with $_FN['dbview_toolbar_icons']
+     * (key => character) or by overriding toolbar.tp.html.
+     *
+     * @param array $toolbar the array built by Toolbar()
+     * @return array
+     */
+    function ToolbarItems($toolbar)
+    {
+        global $_FN;
+        $icons = array(
+            "list" => "☰",
+            "prev" => "←",
+            "next" => "→",
+            "view" => "ⓘ",
+            "history" => "↺",
+            "edit" => "✎",
+            "users" => "👥",
+        );
+        if (!empty($_FN['dbview_toolbar_icons']) && is_array($_FN['dbview_toolbar_icons'])) {
+            $icons = array_merge($icons, $_FN['dbview_toolbar_icons']);
+        }
+        // shorter visible text, the full one stays in the tooltip
+        $labels = array(
+            "users" => FN_Translate("qualified users"),
+        );
+        $entries = array();
+        foreach (array("viewlist" => "list", "viewprev" => "prev", "viewnext" => "next") as $k => $key) {
+            if (!empty($toolbar[$k])) {
+                $entries[$key] = $toolbar[$k];
+            }
+        }
+        if (!empty($toolbar['user_options']) && is_array($toolbar['user_options'])) {
+            foreach ($toolbar['user_options'] as $key => $entry) {
+                $entries[$key] = $entry;
+            }
+        }
+        $items = array();
+        foreach ($entries as $key => $entry) {
+            $title = isset($entry['title']) ? $entry['title'] : $key;
+            $items[] = array(
+                "key" => $key,
+                "link" => isset($entry['link']) ? $entry['link'] : "",
+                "title" => $title,
+                "label" => isset($labels[$key]) ? $labels[$key] : $title,
+                "icon" => isset($icons[$key]) ? $icons[$key] : "",
+                "active" => !empty($entry['active']),
+            );
+        }
+        return $items;
+    }
+
+    /**
+     * Toolbar html from toolbar.tp.html (sections/<mod>/, then the theme, then the module)
+     *
+     * @param array $items from ToolbarItems()
+     * @return string
+     */
+    function ToolbarHtml($items)
+    {
+        global $_FN;
+        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/toolbar.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/toolbar.tp.html" : FN_FromTheme("{$this->moddir}/toolbar.tp.html", false);
+        if (!file_exists($tplfile)) {
+            return "";
+        }
+        return FN_TPL_ApplyTplFile($tplfile, array("items" => $items));
     }
 
     /**
