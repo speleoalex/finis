@@ -268,66 +268,134 @@ else
 ?>
 
 <script type="text/javascript">
-    function call_ajax(url, div)
+    /**
+     * Ajax navigation of the dbview lists (pages, category filters, search form).
+     * The url is a normal page: the containers named in div (comma separated ids)
+     * are replaced with the same containers of the loaded page, so the links keep
+     * working without javascript. The browser url is kept in sync with the
+     * history API: the address bar always shows a link to the current page and
+     * filters, and back/forward reload the containers of the entry.
+     * @param {string} url page to load
+     * @param {string} div ids of the containers to replace, comma separated
+     * @param {boolean} fromhistory true when called by popstate (no new entry)
+     */
+    function call_ajax(url, div, fromhistory)
     {
-        var xsreq;
+        var xsreq = new XMLHttpRequest();
         loading(div);
-        if (window.XMLHttpRequest) {
-            xsreq = new XMLHttpRequest();
-        } else if (window.ActiveXObject) {
-            xsreq = new ActiveXObject("Microsoft.XMLHTTP");
-        }
-        if (xsreq) {
-            xsreq.onreadystatechange = function () {
-                try {
-                    ajDone(url, div, xsreq);
-                } catch (e) {
-                    alert(e)
+        xsreq.onreadystatechange = function () {
+            if (xsreq.readyState != 4) {
+                return;
+            }
+            if (xsreq.status >= 400) {
+                window.location = url;
+                return;
+            }
+            try {
+                ajDone(url, div, xsreq);
+                dbview_history(url, div, fromhistory);
+            } catch (e) {
+                window.location = url;
+            }
+        };
+        xsreq.open("GET", url, true);
+        xsreq.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+        xsreq.send(null);
+    }
+    /**
+     * Submits a search form of the list with call_ajax: the fields are added to
+     * the query string of the action (GET), so the search is in the url. The
+     * page number is removed, a new search starts from the first page.
+     * @param {HTMLFormElement} form
+     * @param {string} div ids of the containers to replace, comma separated
+     * @returns {boolean} false, to cancel the normal submit
+     */
+    function call_ajax_form(form, div)
+    {
+        try {
+            var url = new URL(form.getAttribute("action") || window.location.href, window.location.href);
+            url.searchParams.delete("page");
+            var data = new FormData(form);
+            data.forEach(function (value, name) {
+                url.searchParams.delete(name);
+            });
+            data.forEach(function (value, name) {
+                if (value !== "") {
+                    url.searchParams.append(name, value);
                 }
-            };
-            xsreq.open("GET", url, true);
-            xsreq.send("");
+            });
+            call_ajax(url.href, div);
+            return false;
+        } catch (e) {
+            return true;
         }
     }
     function ajDone(url, div, xsreq)
     {
-
-        if (xsreq.readyState == 4)
-        {
-            var divs = div.split(",");
-            var output = xsreq.responseText;
-            for (var i in divs)
-            {
-                div = divs[i];
-                console.log(div);
-                //alert (div);
-                try {
-                    var d = document.getElementsByTagName('body')[0];
-                    var olddiv = document.getElementById("__fnloading");
-                    d.removeChild(olddiv);
-                } catch (e) {
-                    //alert(e);
+        var divs = div.split(",");
+        var el = document.createElement("div");
+        el.innerHTML = xsreq.responseText;
+        try {
+            var olddiv = document.getElementById("__fnloading");
+            olddiv.parentNode.removeChild(olddiv);
+        } catch (e) {
+        }
+        for (var i = 0; i < divs.length; i++) {
+            var id = divs[i].trim();
+            var target = document.getElementById(id);
+            var source = null;
+            var nodes = el.querySelectorAll("div, span, td, tr");
+            for (var j = 0; j < nodes.length; j++) {
+                if (nodes[j].id == id) {
+                    source = nodes[j];
+                    break;
                 }
-
-                var el = document.createElement("div");
-                el.innerHTML = output;
-                var nodes = el.getElementsByTagName('div');
-                for (var i = 0; i < nodes.length; i++) {
-                    if (nodes[i].id == div)
-                    {
-                        document.getElementById(div).innerHTML = nodes[i].innerHTML;
-                    }
-                }
-                nodes = el.getElementsByTagName('span');
-                for (var i = 0; i < nodes.length; i++) {
-                    if (nodes[i].id == div)
-                    {
-                        document.getElementById(div).innerHTML = nodes[i].innerHTML;
-                    }
-                }
+            }
+            if (target && source) {
+                target.innerHTML = source.innerHTML;
+                dbview_execJS(target);
             }
         }
     }
+    /**
+     * Runs the scripts of content inserted with innerHTML (the browser ignores them)
+     */
+    function dbview_execJS(el)
+    {
+        var scripts = el.getElementsByTagName("script");
+        for (var i = 0; i < scripts.length; i++) {
+            var old = scripts[i];
+            var s = document.createElement("script");
+            for (var j = 0; j < old.attributes.length; j++) {
+                s.setAttribute(old.attributes[j].name, old.attributes[j].value);
+            }
+            s.text = old.text;
+            old.parentNode.replaceChild(s, old);
+        }
+    }
+    /**
+     * Records an ajax navigation in the browser history. The first entry of the
+     * page gets the same state, so going back to it reloads its containers too.
+     */
+    function dbview_history(url, div, fromhistory)
+    {
+        if (!window.history || !history.pushState || fromhistory) {
+            return;
+        }
+        try {
+            var state = {dbview: 1, divs: div};
+            if (!history.state || !history.state.dbview) {
+                history.replaceState(state, "", window.location.href);
+            }
+            history.pushState(state, "", url);
+        } catch (e) {
+        }
+    }
+    window.addEventListener("popstate", function (e) {
+        if (e.state && e.state.dbview) {
+            call_ajax(window.location.href, e.state.divs, true);
+        }
+    });
     function getScrollY() {
         var scrOfX = 0, scrOfY = 0;
         if (typeof (window.pageYOffset) == 'number') {
