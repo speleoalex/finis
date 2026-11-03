@@ -876,6 +876,11 @@ class FNDBVIEW
 
         //---template------>
         $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/list.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/list.tp.html" : FN_FromTheme("{$this->moddir}/list.tp.html", false);
+        // the list template of the application ($_FN['dbview_list_template']) for the
+        // sections without their own, unless the theme has a list template of its own
+        if (!file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/list.tp.html") && !empty($_FN['dbview_list_template'])
+            && file_exists($_FN['dbview_list_template']) && strpos($tplfile, "/themes/{$_FN['theme']}/") === false)
+            $tplfile = $_FN['dbview_list_template'];
         if (file_exists("themes/{$_FN['theme']}/sections/{$_FN['mod']}/list.tp.html"))
             $tplfile = "themes/{$_FN['theme']}/sections/{$_FN['mod']}/list.tp.html";
         $templateString = file_get_contents($tplfile);
