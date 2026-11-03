@@ -14,7 +14,16 @@ FN_GetSections("", true);
 //--------------------------  auto scripts  ----------------------------------->
 include ("{$_FN['src_finis']}/include/autoexec.php");
 //--------------------------  auto scripts  -----------------------------------<
-if (file_exists("{$_FN['src_application']}/themes/{$_FN['theme']}/structure.php"))
+if (!empty($_GET['fnajax']))
+{
+    // Fragment for the ajax navigation (dbview call_ajax adds fnajax=1 to the url it loads):
+    // only the output of the section, without the theme. The client replaces its containers
+    // with the ones of the same id found here, so the page is much smaller than the full one.
+    $str = "<!DOCTYPE html>\n<html><head><meta charset=\"" . ($_FN['charset_page'] ?? 'UTF-8') . "\"><title>fnajax</title></head><body>"
+        . FN_HtmlSection()
+        . "</body></html>";
+}
+elseif (file_exists("{$_FN['src_application']}/themes/{$_FN['theme']}/structure.php"))
 {
     
     include "{$_FN['src_application']}/themes/{$_FN['theme']}/structure.php";

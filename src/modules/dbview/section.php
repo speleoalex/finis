@@ -298,7 +298,10 @@ else
                 window.location = url;
             }
         };
-        xsreq.open("GET", url, true);
+        // fnajax=1 asks finis for the section only, without the theme (an old finis
+        // ignores it and sends the full page, which works too); the history gets the clean url
+        var fetchurl = url + (url.indexOf("?") >= 0 ? "&" : "?") + "fnajax=1";
+        xsreq.open("GET", fetchurl, true);
         xsreq.setRequestHeader("X-Requested-With", "XMLHttpRequest");
         xsreq.send(null);
     }
