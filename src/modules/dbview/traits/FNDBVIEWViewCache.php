@@ -7,7 +7,9 @@
  * of validity) or an int for every section (0 = off). The sheet is cached only
  * for a GET with no parameter besides mod, op=view, id and lang, when nobody is
  * logged in and the record is visible to the anonymous visitors (checked by
- * the caller): the html is the same for all of them.
+ * the caller): the html is the same for all of them. The fragment of the sheet
+ * asked by an ajax navigation or by the offline downloads (fnajax=1) holds the
+ * same html and shares the file.
  *
  * Files: {datadir}/_cache/pages/<section>/<theme>/<lang>/<id div 1000>/<id>.html,
  * one per record and language with a deterministic name, always overwritten:
@@ -46,7 +48,8 @@ trait FNDBVIEWViewCache
     /**
      * True when the current request may be served from the cache or stored
      * into it: cache on for the section, anonymous visitor, plain GET of the
-     * sheet (mod, op=view, id, lang and nothing else).
+     * sheet (mod, op=view, id, lang, fnajax and nothing else: fnajax=1 only
+     * leaves the theme out, the html of the record is the same).
      *
      * @param string $mod section
      * @return bool
@@ -64,7 +67,7 @@ trait FNDBVIEWViewCache
             return false;
         foreach ($_GET as $k => $v)
         {
-            if (!in_array($k, array("mod", "op", "id", "lang")))
+            if (!in_array($k, array("mod", "op", "id", "lang", "fnajax")))
                 return false;
         }
         return true;
