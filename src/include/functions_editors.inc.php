@@ -94,6 +94,20 @@ function FN_HtmlEditConfFile($file, $formaction = "", $exit = "", $allow = false
     if ($htmltemplate == "")
         $htmltemplate = "border=\"0\" cellpadding=\"1\" cellspacing=\"0\"";
 
+    // attributes of the inputs declared by the template of the theme, as html comments:
+    // <!-- inputattributes:class="form-control" --> text, password and color inputs
+    // <!-- inputattributes select:class="form-select" -->
+    // <!-- inputattributes checkbox:class="form-check-input" -->
+    // <!-- inputattributes button:class="btn btn-light btn-sm" --> the move up/down links
+    $inputattributes = array("text" => "", "select" => "", "checkbox" => "", "button" => "");
+    if (preg_match('/<!-- inputattributes:([^>]*)-->/is', $htmltemplate, $matches))
+        $inputattributes['text'] = trim($matches[1]);
+    foreach ($inputattributes as $k => $v)
+    {
+        if (preg_match('/<!-- inputattributes ' . $k . ':([^>]*)-->/is', $htmltemplate, $matches))
+            $inputattributes[$k] = trim($matches[1]);
+    }
+
     if (!strpos($filecontents, '$_FN') && !strpos($filecontents, '$config'))
     {
         $write_to_file = true;
@@ -516,15 +530,15 @@ var movedown = function (node)
                 $item_field['is_color'] = true;
                 $item_field['onchange'] = "try{document.getElementById(\"cc_conf_$i\").style.backgroundColor=\"#\"+this.value}catch(e){}' class=\"color {hash:true,caps:false,adjust:false,styleElement:'cc_conf_$i'}";
                 $item_field['id'] = "cc_conf_$i";
-                $htmlitem .= "<input onchange='try{document.getElementById(\"cc_conf_$i\").style.backgroundColor=\"#\"+this.value}catch(e){}' class=\"color {hash:true,caps:false,adjust:false,styleElement:'cc_conf_$i'}\" title=\"$varname (" . FN_i18n("default value") . ": $defaultvalue)\" type=\"text\" name=\"conf_$varkey\" size=\"15\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" />";
-                $htmlitem .= "<span id=\"cc_conf_$i\" style=\"border:#000000 1px solid;background-color:#$varvalue\">&nbsp;&nbsp;&nbsp;&nbsp;</span>";
+                $htmlitem .= "<input {$inputattributes['text']} onchange='try{document.getElementById(\"cc_conf_$i\").style.backgroundColor=\"#\"+this.value}catch(e){}' title=\"$varname (" . FN_i18n("default value") . ": $defaultvalue)\" type=\"text\" name=\"conf_$varkey\" size=\"15\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" style=\"display:inline-block;width:auto;vertical-align:middle\" />";
+                $htmlitem .= " <span id=\"cc_conf_$i\" style=\"display:inline-block;vertical-align:middle;width:2em;height:2em;border:#000000 1px solid;background-color:#$varvalue\"></span>";
                 $html .= $htmlitem;
                 $item_field['htmlinput'] = $htmlitem;
             }
             elseif ($type == "{password}")
             {
                 $item_field['is_password'] = true;
-                $htmlitem .= "<input title=\"$varname (" . FN_Translate("default value") . ": $defaultvalue)\" $onchange type=\"password\" name=\"conf_$varkey\" size=\"30\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" />";
+                $htmlitem .= "<input id=\"{$item_field['id']}\" {$inputattributes['text']} title=\"$varname (" . FN_Translate("default value") . ": $defaultvalue)\" $onchange type=\"password\" name=\"conf_$varkey\" size=\"30\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" />";
                 $html .= $htmlitem;
                 $item_field['htmlinput'] = $htmlitem;
             }
@@ -535,14 +549,14 @@ var movedown = function (node)
                 $st = "";
                 if (count($_POST) && $varvalue == "")
                     $st = "style=\"border:1px solid red\"";
-                $htmlitem .= "<input $st title=\"$varname (" . FN_Translate("default value") . ": $defaultvalue)\" $onchange type=\"text\" name=\"conf_$varkey\" size=\"40\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" />";
+                $htmlitem .= "<input id=\"{$item_field['id']}\" {$inputattributes['text']} $st title=\"$varname (" . FN_Translate("default value") . ": $defaultvalue)\" $onchange type=\"text\" name=\"conf_$varkey\" size=\"40\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" placeholder=\"" . htmlentities($defaultvalue) . "\" />";
                 $html .= $htmlitem;
                 $item_field['htmlinput'] = $htmlitem;
             }
             elseif (!$options)
             {
                 $item_field['is_text'] = true;
-                $htmlitem .= "<input id=\"{$item_field['id']}\" title=\"$varname (" . FN_Translate("default value") . ": $defaultvalue)\" $onchange type=\"text\" name=\"conf_$varkey\" size=\"40\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" />";
+                $htmlitem .= "<input id=\"{$item_field['id']}\" {$inputattributes['text']} title=\"$varname (" . FN_Translate("default value") . ": $defaultvalue)\" $onchange type=\"text\" name=\"conf_$varkey\" size=\"40\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" placeholder=\"" . htmlentities($defaultvalue) . "\" />";
                 $html .= $htmlitem;
                 $item_field['htmlinput'] = $htmlitem;
             }
@@ -598,11 +612,9 @@ var movedown = function (node)
                         //dprint_r($dirtoopenpath . "/$opt");
                         $title = FN_GetFolderTitle($dirtoopenpath . "/" . $opt);
                         $htmlcheckbox .= "<div>";
-                        $htmlcheckbox .= "<a href=\"javascript:;\" onclick=\"moveup(this.parentNode);synccheck('$j');\">";
-                        $htmlcheckbox .= "<img style=\"vertical-align:middle;border:0px;\" src=\"" . FN_FromTheme("images/up.png") . "\" title=\"" . FN_Translate("move up") . "\" /></a>";
-                        $htmlcheckbox .= "<a href=\"javascript:;\" onclick=\"movedown(this.parentNode);synccheck('$j');\">";
-                        $htmlcheckbox .= "<img style=\"vertical-align:middle;border:0px;\" src=\"" . FN_FromTheme("images/down.png") . "\" title=\"" . FN_Translate("move down") . "\" /></a>";
-                        $htmlcheckbox .= "&nbsp;$imgopt&nbsp;$title<input name=\"$opt\" onclick=\"synccheck('$j');\" checked=\"checked\" type=\"checkbox\" />";
+                        $htmlcheckbox .= "<a {$inputattributes['button']} href=\"javascript:;\" onclick=\"moveup(this.parentNode);synccheck('$j');\" title=\"" . FN_Translate("move up") . "\">&#x25B2;</a>";
+                        $htmlcheckbox .= "<a {$inputattributes['button']} href=\"javascript:;\" onclick=\"movedown(this.parentNode);synccheck('$j');\" title=\"" . FN_Translate("move down") . "\">&#x25BC;</a>";
+                        $htmlcheckbox .= "&nbsp;$imgopt&nbsp;$title&nbsp;<input {$inputattributes['checkbox']} name=\"$opt\" onclick=\"synccheck('$j');\" checked=\"checked\" type=\"checkbox\" />";
                         $htmlcheckbox .= "</div>";
                     }
                     foreach ($disabledopt as $opt)
@@ -611,11 +623,9 @@ var movedown = function (node)
                         $imgopt = ( file_exists("$imgfolder") ) ? "<img style=\"vertical-align:middle;border:0px;\" src=\"$imgfolder\" alt=\"\" />" : "";
                         $title = FN_GetFolderTitle($dirtoopenpath . "/$opt");
                         $htmlcheckbox .= "<div>";
-                        $htmlcheckbox .= "<a href=\"javascript:;\" onclick=\"moveup(this.parentNode);synccheck('$j');\">";
-                        $htmlcheckbox .= "<img style=\"vertical-align:middle;border:0px;\" src=\"" . FN_FromTheme("images/up.png") . "\" title=\"" . FN_Translate("move up") . "\" /></a>";
-                        $htmlcheckbox .= "<a href=\"javascript:;\" onclick=\"movedown(this.parentNode);synccheck('$j');\">";
-                        $htmlcheckbox .= "<img style=\"vertical-align:middle;border:0px;\" src=\"" . FN_FromTheme("images/down.png") . "\" title=\"" . FN_Translate("move down") . "\" /></a>";
-                        $htmlcheckbox .= "&nbsp;$imgopt&nbsp;$title<input name=\"$opt\" onclick=\"synccheck('$j');\"  type=\"checkbox\" />";
+                        $htmlcheckbox .= "<a {$inputattributes['button']} href=\"javascript:;\" onclick=\"moveup(this.parentNode);synccheck('$j');\" title=\"" . FN_Translate("move up") . "\">&#x25B2;</a>";
+                        $htmlcheckbox .= "<a {$inputattributes['button']} href=\"javascript:;\" onclick=\"movedown(this.parentNode);synccheck('$j');\" title=\"" . FN_Translate("move down") . "\">&#x25BC;</a>";
+                        $htmlcheckbox .= "&nbsp;$imgopt&nbsp;$title&nbsp;<input {$inputattributes['checkbox']} name=\"$opt\" onclick=\"synccheck('$j');\"  type=\"checkbox\" />";
                         $htmlcheckbox .= "</div>";
                     }
                     $htmlcheckbox .= "</div>";
@@ -634,7 +644,7 @@ var movedown = function (node)
                     $script = "onchange=\"this.options[this.selectedIndex].onkeyup()\"";
                     $script .= " onkeyup=\"this.options[this.selectedIndex].onkeyup()\"";
                     $divid = "conf_$i";
-                    $htmlitem .= "<select $script $onchange name=\"conf_$varkey\"  >\n";
+                    $htmlitem .= "<select id=\"{$item_field['id']}\" {$inputattributes['select']} $script $onchange name=\"conf_$varkey\"  >\n";
                     $script = "document.getElementById('$divid').innerHTML = ''";
                     foreach ($options as $val)
                     {
@@ -830,7 +840,7 @@ var movedown = function (node)
                                             }
                                         }
                                         $scopt = " onkeyup = \"$script\" ";
-                                        $htmlitem .= "\n\t<option $scopt $s value=\"$val\">$valdesc</option>x";
+                                        $htmlitem .= "\n\t<option $scopt $s value=\"$val\">$valdesc</option>";
                                         //$html .= "\n\t<option $scopt $s value=\"$val\">$valdesc</option>";
                                     }
                                 }
@@ -862,7 +872,8 @@ var movedown = function (node)
         }
     }
     $tplvars['html_scripts'] .= "$htmlhidden";
-    $tplvars['linkcancel'] = "";
+    $tplvars['linkcancel'] = $exitflat;
+    $tplvars['message_saved'] = $htmlsaved != "" ? FN_i18n("the data were successfully updated") : "";
     $html .= "<tr><td colspan=\"2\">";
     if (!empty($linkcancel))
     {

@@ -629,6 +629,27 @@ footer .container {
 }
 ```
 
+### Temi del Pannello di Controllo
+
+I temi del pannello di controllo stanno in `controlcenter/themes/<nome>/` (`classic`, `sidebar`,
+`adminkit`) e si scelgono con l'impostazione `controlcenter_theme`. Oltre a `controlcenter.tp.html`,
+`form.tp.html`, `grid.tp.html` e `view.tp.html`, un tema può fornire:
+
+- `editconf.tp.html`: l'editor dei file `config.php` (impostazioni del sito, opzioni dei moduli e
+  dei temi). Il template cicla su `{items}` (`{id}`, `{title}`, `{htmlinput}`, `{value}`,
+  `{defaultvalue}`) e può mostrare `{message_saved}` dopo un salvataggio. Gli input li genera
+  FINIS; gli attributi che ricevono si dichiarano nel template come commenti HTML:
+
+```html
+<!-- inputattributes:class="form-control" -->              input di testo, password e colore
+<!-- inputattributes select:class="form-select" -->
+<!-- inputattributes checkbox:class="form-check-input" -->
+<!-- inputattributes button:class="btn btn-light btn-sm" --> i link sposta su/giù degli elenchi
+```
+
+- `controlcenter/sections/<gruppo>/<sezione>/*.tp.html`: i template di una singola sezione
+  (per esempio `users_and_groups/profile/form.tp.html`), trovati con `FNCC_FromTheme()`.
+
 ## Variabili di Template
 FINIS utilizza un sistema di template che permette di inserire variabili e logica condizionale nei template HTML.
 

@@ -46,6 +46,42 @@ function FNCC_GetSectionPath($section_path)
     return false;
 }
 
+/**
+ * Title of a controlcenter section (or section group): the first title file found in the
+ * application, in FINIS and in the extensions. The application folder of a section often
+ * holds only the icon, so the folder found by FNCC_GetSectionPath has no title.
+ *
+ * @global array $_FN
+ * @param string $section_path "users_and_groups/users" or "users_and_groups"
+ * @return string
+ */
+function FNCC_GetSectionTitle($section_path)
+{
+    global $_FN;
+    $section_path = trim($section_path, "/");
+    if ($section_path == "" || $section_path == ".")
+        return "";
+    $dirs = array(
+        "{$_FN['src_application']}/controlcenter/sections/{$section_path}",
+        "{$_FN['src_finis']}/controlcenter/sections/{$section_path}",
+    );
+    if (!empty($_FN['path_extensions']) && is_array($_FN['path_extensions']))
+    {
+        foreach ($_FN['path_extensions'] as $extension_path)
+        {
+            $dirs[] = rtrim($extension_path, '/') . "/controlcenter/sections/{$section_path}";
+        }
+    }
+    foreach ($dirs as $dir)
+    {
+        if (is_dir($dir) && glob("$dir/title.*.fn"))
+        {
+            return FN_GetFolderTitle($dir);
+        }
+    }
+    return basename($section_path);
+}
+
 ini_set("display_errors", "on");
 error_reporting(E_ALL);
 ob_start();
@@ -119,8 +155,10 @@ $vars['is_multilanguage'] = count($vars['sitelanguages']) > 1 ? true : "";
 
 $vars['urlcontrolcenter'] = $_FN['siteurl'] . "/" . $_FN['controlcenter'] . "?fnapp=controlcenter";
 $vars['version'] = htmlspecialchars(file_get_contents("{$_FN['src_finis']}/VERSION"));
-$vars['cc_sectiongroup_title'] = FN_GetFolderTitle("{$_FN['src_finis']}/controlcenter/sections/" . dirname($opt) . "/"); //todo
-$vars['cc_section_title'] = FN_GetFolderTitle("{$_FN['src_finis']}/controlcenter/sections/$opt/"); //todo
+// breadcrumb: replaced below by the titles of the menu when the section is in the menu
+// (the settings of a section, rnt_ccnf_*, have no folder)
+$vars['cc_sectiongroup_title'] = FNCC_GetSectionTitle(dirname($opt));
+$vars['cc_section_title'] = FNCC_GetSectionTitle($opt);
 $vars['url_logo'] = "";
 if (file_exists("{$_FN['src_application']}/themes/{$_FN['theme_default']}/images/logo.png"))
     $vars['url_logo'] = $_FN['siteurl'] . "{$_FN['src_application']}/themes/{$_FN['theme_default']}/images/logo.png";
@@ -157,6 +195,8 @@ foreach ($items as $sections)
         if ($section['opt'] == $opt)
         {
             $vars['section_title'] = $section['title'];
+            $vars['cc_section_title'] = $section['title'];
+            $vars['cc_sectiongroup_title'] = $sections['title'];
             $can_view = true;
         }
     }
@@ -359,7 +399,7 @@ function FN_TPL_tp_create_ccsection()
         return ob_get_clean();
     }
 
-    $title = FN_GetFolderTitle("{$_FN['src_finis']}/controlcenter/sections/$opt/");
+    $title = FNCC_GetSectionTitle($opt);
     ob_start();
     if (!empty($opt) && file_exists("{$_FN['src_application']}/controlcenter/sections/$opt/section.php"))
     {
@@ -763,7 +803,7 @@ function FNCC_GetMenuItems()
             {
                 $item['link'] = "?fnapp=controlcenter&opt={$item['opt']}";
                 $section_path = FNCC_GetSectionPath("$sectiongroup/$section");
-                $item['title'] = $section_path ? FN_GetFolderTitle($section_path) : $section;
+                $item['title'] = FNCC_GetSectionTitle("$sectiongroup/$section");
                 $item['description'] = $item['title'];
                 $icon = FN_FromTheme("{$_FN['src_application']}/controlcenter/images/configure.png");
                 if ($section_path && file_exists("$section_path/icon.png"))
@@ -876,7 +916,7 @@ function FNCC_GetMenuItems()
             $menu[$sectiongroup]['opt'] = $sectiongroup;
             $menu[$sectiongroup]['id'] = $sectiongroup;
             $menu[$sectiongroup]['link'] = "{$_FN['controlcenter']}?fnapp=controlcenter&opt=$sectiongroup";
-            $menu[$sectiongroup]['title'] = FN_GetFolderTitle($_FN['src_finis'] . "/controlcenter/sections/$sectiongroup");
+            $menu[$sectiongroup]['title'] = FNCC_GetSectionTitle($sectiongroup);
             $menu[$sectiongroup]['sections'] = $sectionsIngroup;
         }
     }
@@ -1405,15 +1445,18 @@ function FNCC_FromTheme($file, $absolute = true)
     // Check if the file path is already absolute
     $isAbsolute = $file[0] === $_FN['slash'] || $file[0] === '/';
     $applicationPath = $isAbsolute ? $file : "{$_FN['src_finis']}/$file";
+    $relativePath = ltrim(str_replace("{$_FN['src_finis']}/", "", $applicationPath), '/');
 
-    // Construct theme path
-    $themePath = "{$_FN['src_application']}/controlcenter/themes/{$_FN['theme']}/" .
-            ltrim(str_replace("{$_FN['src_finis']}/", "", $applicationPath), '/');
-
-    // Check if the file exists in the theme directory
+    // the theme of the control center: a customized copy in the application wins over FINIS
+    $themePath = "{$_FN['src_application']}/controlcenter/themes/{$_FN['controlcenter_theme']}/$relativePath";
     if (file_exists($themePath))
     {
         return $absolute ? $_FN['siteurl'] . $themePath : $themePath;
+    }
+    $themePath = "{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/$relativePath";
+    if (file_exists($themePath))
+    {
+        return FN_PathSite($themePath, $absolute);
     }
 
     // If not found in theme, use FN_PathSite

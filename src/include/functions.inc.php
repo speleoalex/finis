@@ -986,6 +986,76 @@ function FN_GetIconByFilename($filename)
 }
 
 /**
+ * Icon of a file as a unicode character, by its extension (no image to load)
+ *
+ * @param string $filename
+ * @return string
+ */
+function FN_GetIconCharByFilename($filename)
+{
+    $ext = strtolower(FN_GetFileExtension($filename));
+    switch ($ext) {
+        case "xhtml":
+        case "html":
+        case "htm":
+            return "&#x1F310;"; // globe
+        case "php":
+        case "js":
+        case "css":
+        case "sh":
+        case "json":
+        case "xml":
+            return "&#x1F4DC;"; // scroll
+        case "inc":
+        case "txt":
+        case "md":
+        case "csv":
+        case "":
+            return "&#x1F4C4;"; // page
+        case "png":
+        case "bmp":
+        case "jpg":
+        case "jpeg":
+        case "ico":
+        case "gif":
+        case "svg":
+        case "webp":
+            return "&#x1F5BC;"; // picture
+        case "zip":
+        case "gz":
+        case "tgz":
+        case "rar":
+        case "7z":
+            return "&#x1F4E6;"; // package
+        case "mp3":
+        case "wav":
+        case "ogg":
+            return "&#x1F3B5;"; // note
+        case "wma":
+        case "mpeg":
+        case "mpg":
+        case "mp4":
+        case "avi":
+        case "mov":
+        case "rm":
+            return "&#x1F3AC;"; // clapper
+        case "pdf":
+            return "&#x1F4D5;"; // book
+        case "doc":
+        case "docx":
+        case "odt":
+        case "xls":
+        case "xlsx":
+        case "ods":
+        case "ppt":
+        case "pptx":
+            return "&#x1F4D1;"; // bookmark tabs
+        default:
+            return "&#x1F4CE;"; // paperclip
+    }
+}
+
+/**
  *
  * @param string $tablename
  */

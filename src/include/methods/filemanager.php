@@ -57,9 +57,6 @@ header("Content-Type: text/html; charset={$_FN['charset_page']}");
 $sess_filemanager_editor=FN_GetParam("filemanager_editor",$_GET,"html");
 $sess_filemanager_editor=basename($sess_filemanager_editor);
 FN_PathSite("{$_FN['src_finis']}/modules/filemanager/style.css");
-FN_PathSite("{$_FN['src_finis']}/modules/filemanager/view-list-details.png");
-FN_PathSite("{$_FN['src_finis']}/modules/filemanager/view-list-icons.png");
-FN_PathSite("{$_FN['src_finis']}/modules/filemanager/folder-new.png");
 
 if (strstr($sess_filemanager_editor,"..") || strstr($sess_filemanager_editor,'/') || strstr($sess_filemanager_editor,'\\'))
 {

@@ -598,7 +598,7 @@ function fm_OpenFile($dir, $file)
     {
         //---------------------------------preview----------------------------->
         echo "<div style=\"background-color:#ffffff;position:relative;display:block;text-align:center;margin-top:auto;padding:10px;\">";
-        echo "<img style=\"vertical-align:middle;position:absolute;left:10px\"src=\"" . FN_GetIconByFilename($file) . "\" alt=\"\" />";
+        echo "<span style=\"vertical-align:middle;position:absolute;left:10px;font-size:32px;line-height:32px;\">" . FN_GetIconCharByFilename($file) . "</span>";
         echo ("\n<div style=\"font-size:18px;\">$file</div>");
         echo "<table style=\"width:100%;margin:auto;\">";
         echo ("\n<tr><td style=\"width:30%;text-align:right;padding-right:10px;\">" . "Path" . ": </td><td style=\"text-align:left;\">$image_fullpath</td></tr>");
@@ -648,7 +648,7 @@ function fm_OpenFile($dir, $file)
             {
                 $icon = "{$_FN['siteurl']}{$_FN['selfscript']}?fnapp=filemanager&opmod=thumb&f=$dir{$_FN['slash']}$file&amp;h=185&amp;w=480";
             }
-            echo "<div style=\"background-color:transparent;background-image:url('images/transparent.png');height:200px;overflow:auto;border:1px inset #000000;padding:5px\"><img style=\"background-color:transparent;\" src=\"$icon\" border=\"0\"  alt=\"\" /></div>";
+            echo "<div style=\"background-color:transparent;height:200px;overflow:auto;border:1px inset #000000;padding:5px\"><img style=\"background-color:transparent;\" src=\"$icon\" border=\"0\"  alt=\"\" /></div>";
         }
         else //others
         {
@@ -838,33 +838,33 @@ function fm_Browse($dir)
     $l = fm_Link(array("dir" => ".", "opmod" => ""));
     echo "<div class=\"fnfilemanager_navbar\" style=\"\">"; //1
     //------------------view mode---------------------------------------------->
-    echo "<div style=\"position:absolute;right:0px;top:0px;border:1px solid #dddddd\">"; //2
+    echo "<div style=\"position:absolute;right:4px;top:0px;\">"; //2
     if ($viewmode == "")
     {
         $l = fm_Link(array("mode" => "t", "opmod" => ""));
-        echo "<a title=\"" . FN_Translate("preview") . "\" href=\"$l\"><img src=\"" . FN_PathSite("{$_FN['src_finis']}/modules/filemanager/view-list-icons.png") . "\" style=\"vertical-align:middle;height:32px;width:32px;\" alt=\"home\"></a>";
+        echo "<a $style_btn title=\"" . FN_Translate("icons") . "\" href=\"$l\">&#x25A6;</a>";
     }
     else
     {
         $l = fm_Link(array("mode" => "", "opmod" => ""));
-        echo "<a title=\"" . FN_Translate("preview") . "\" href=\"$l\"><img src=\"{$_FN['src_application']}/modules/filemanager/view-list-details.png\" style=\"vertical-align:middle;height:32px;width:32px;\" alt=\"home\"></a>";
+        echo "<a $style_btn title=\"" . FN_Translate("list") . "\" href=\"$l\">&#x2630;</a>";
     }
     echo "</div>"; //2
     //------------------view mode----------------------------------------------<
     if (FN_CanView($_FN['user'], "."))
     {
-        echo "<a href=\"$l\"><img src=\"images/home.png\"$style_btn alt=\"home\"></a>";
+        echo "<a $style_btn title=\"" . FN_Translate("home") . "\" href=\"$l\">&#x1F3E0;</a>";
     }
     if (FN_CanView($_FN['user'], dirname($dir)))
     {
         $l = fm_Link(array("dir" => dirname("$dir"), "opmod" => ""));
-        echo "<a href=\"$l\"><img src=\"".FN_PathSite("images/folder-up.png")."\" $style_btn alt=\"up\" /></a>";
+        echo "<a $style_btn title=\"" . FN_Translate("up") . "\" href=\"$l\">&#x2B06;</a>";
     }
     //echo "<a href=\"javascript:history.back()\"><img src=\"images/left.png\" $style_btn alt=\"".FN_Translate("back")."\" title=\"".FN_Translate("back")."\"></a>";
     // echo "<a href=\"javascript:history.forward()\"><img src=\"images/right.png\" $style_btn alt=\"".FN_Translate("next")."\" title=\"".FN_Translate("next")."\"></a>";
     if (is_writable($dir) && FN_UserCanEditFolder($dir))
     {
-        echo "<a href=\"#\" onclick=\"toggle_form_new()\"><img src=\"images/add.png\" $style_btn alt=\"" . FN_Translate("add") . "\" title=\"" . FN_Translate("add") . "\"></a>";
+        echo "<a $style_btn href=\"#\" onclick=\"toggle_form_new();return false;\" title=\"" . FN_Translate("add") . "\">&#x2795;</a>";
     }
     echo "&nbsp;&nbsp;&nbsp;$strdir";
     echo "</div>"; //1
@@ -975,7 +975,7 @@ fmtrh = function (over,elem){
         if (is_writable($dir) && FN_UserCanEditFolder($dir))
         {
             echo "<tr >";
-            echo "<td colspan=\"5\" ><div " . fm_StyleDiv(_SIZE1) . " ><a style=\"font-weight:bold\"  href=\"#\" onclick=\"toggle_form_new();return false;\"><img style=\"vertical-align:middle;width:22px;height:22px;\" src=\"{$_FN['siteurl']}modules/filemanager/folder-new.png\"  alt=\"" . FN_Translate("add") . "\" title=\"" . FN_Translate("add") . "\">&nbsp;" . FN_Translate("add", "Aa") . "</a></div>";
+            echo "<td colspan=\"5\" ><div " . fm_StyleDiv(_SIZE1) . " ><a style=\"font-weight:bold\"  href=\"#\" onclick=\"toggle_form_new();return false;\"><span style=\"vertical-align:middle;font-size:18px;\">&#x2795;</span>&nbsp;" . FN_Translate("add", "Aa") . "</a></div>";
             echo "</td>";
             echo "</tr>";
             echo "";
@@ -996,13 +996,13 @@ fmtrh = function (over,elem){
         }
         if (is_writable($dir) && FN_UserCanEditFolder($dir))
         {
-            $icon = "{$_FN['siteurl']}modules/filemanager/folder-new.png";
+            $icon = "&#x2795;";
             echo "<div onmouseout=\"this.style.borderColor='#dadada'\" onmouseover=\"this.style.borderColor='#aaaaff'\" onclick=\"toggle_form_new();return false;\"
             style=\"clear:both;float:left;background-color:#ffffff;margin:4px;border:1px solid #dadada;padding:0px;height:133px;width:112px;text-align:center;overflow:hidden\">"; //a
             echo "<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" title=\"" . FN_Translate("new") . "\" 
                 onclick=\"toggle_form_new();return false;\" 
                 style=\"cursor:pointer;background-color:#ffffff;margin:0px;line-height:80px;height:80px;width:100%;text-align:center;overflow:hidden\"><tr><td valign=\"center\">";
-            echo "<img onclick=\"toggle_form_new();return false;\" style=\"line-height:80px;margin:0px;border:0px;vertical-align:middle;\" src='$icon' alt=\"\" />";
+            echo "<span onclick=\"toggle_form_new();return false;\" style=\"font-size:48px;line-height:80px;vertical-align:middle;\">$icon</span>";
             echo "</td></tr></table>";
             echo "<div onclick=\"toggle_form_new();return false;\" style=\"font-weight:bold;font-size:18px;height:42px;overflow:hidden\">" . FN_Translate("add", "Aa") . "</div>";
             echo "</div>"; //a
@@ -1122,10 +1122,7 @@ function fm_DrawFolder($dir, $mode)
     $l = fm_Link(array("edit" => "", "dir" => $pdir, "opmod" => ""));
     $l2 = fm_Link(array("edit" => "", "dir" => $pdir, "opmod" => ""), "&");
     $tit = basename($dir);
-    if ($mode == "")
-        $icon = FN_FromTheme("images/mime/dir.png");
-    else
-        $icon = FN_FromTheme("images/mime/dir.png");
+    $icon = "&#x1F4C1;";
     $size = $ncontents;
     $perm = fm_GetPerms($dir);
     $date = date("Y-m-d h:i:s", filemtime($dir));
@@ -1133,7 +1130,7 @@ function fm_DrawFolder($dir, $mode)
     {
         echo "<td style=\"background-color:transparent;width:" . _SIZE1 . "px\"><div " . fm_StyleDiv(_SIZE1) . " >";
         echo "<a  title=\"" . FN_Translate("open") . " " . htmlentities(basename($dir), ENT_QUOTES) . "\"  " . fm_StyleA() . "href=\"$l\"" . "style=\"text-decoration: none;font-family: sans-serif,helvetica, arial;\" >";
-        echo "<img style=\"vertical-align:middle;height:22px;width:22px\" src=\"$icon\" border='0' />&nbsp;";
+        echo "<span style=\"vertical-align:middle;font-size:18px;\">$icon</span>&nbsp;";
         echo basename($dir) . "</a>";
         echo "</div>\n\t\t</td>";
         echo "\n\t\t<td style=\"background-color:transparent;width:" . _SIZE2 . "px\"><div " . fm_StyleDiv(_SIZE2, "text-align:right") . " >";
@@ -1150,8 +1147,8 @@ function fm_DrawFolder($dir, $mode)
             $ldel = fm_Link(array("opmod" => "delfile", "dir" => dirname($dir), "ffile" => basename($dir)), "&");
             $lmod = fm_Link(array("opmod" => "rename", "dir" => dirname($dir), "ffile" => basename($dir)));
             echo "\n\t\t<td style=\"background-color:$bgcolor2;width:" . _SIZE5 . "px\"><div " . fm_StyleDiv(_SIZE5) . " >&nbsp;";
-            echo "<a title=\"" . FN_Translate("delete") . "\" " . fm_StyleA() . " href=\"javascript:check('?mod={$_FN['mod']}&opt=$op&opmod=delfile&dir=" . dirname($dir) . "&ffile=" . basename($dir) . "&filemanager_editor=$sess_filemanager_editor&mime=$mime');\"><img style=\"border:0px\" src=\"" . FN_FromTheme("images/delete.png") . "\" alt=\"" . FN_Translate("delete") . "\"  /></a>";
-            echo "&nbsp;<a title=\"" . FN_Translate("rename") . "\" " . fm_StyleA() . " href=\"$lmod\" ><img style=\"border:0px;\" src=\"" . FN_FromTheme("images/rename.png") . "\" alt=\"" . FN_Translate("rename") . "\" /></a>";
+            echo "<a title=\"" . FN_Translate("delete") . "\" " . fm_StyleA() . " href=\"javascript:check('?mod={$_FN['mod']}&opt=$op&opmod=delfile&dir=" . dirname($dir) . "&ffile=" . basename($dir) . "&filemanager_editor=$sess_filemanager_editor&mime=$mime');\"><span style=\"font-size:16px;\">&#x274C;</span></a>";
+            echo "&nbsp;<a title=\"" . FN_Translate("rename") . "\" " . fm_StyleA() . " href=\"$lmod\" ><span style=\"font-size:16px;\">&#x270F;&#xFE0F;</span></a>";
             echo "</div></td>";
         }
         else
@@ -1163,12 +1160,15 @@ function fm_DrawFolder($dir, $mode)
     {
         echo "<div onmouseout=\"this.style.borderColor='#dadada'\" onmouseover=\"this.style.borderColor='#aaaaff'\" onclick=\"window.location='$l2'\" style=\"float:left;background-color:#f0f0f0;margin:4px;border:1px solid #dadada;padding:0px;height:133px;width:112px;text-align:center;overflow:hidden\">";
         echo "<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" title=\"" . FN_Translate("open") . " $tit\" onclick=\"window.location='$l2'\" style=\"cursor:pointer;background-color:#ffffff;margin:0px;line-height:80px;height:80px;width:100%;text-align:center;overflow:hidden\"><tr><td valign=\"center\">";
-        echo "<img style=\"line-height:80px;margin:0px;border:0px;vertical-align:middle;\" src='$icon' alt=\"\" />";
+        if (strpos($icon, "&#") === 0)
+            echo "<span style=\"font-size:48px;line-height:80px;vertical-align:middle;\">$icon</span>";
+        else
+            echo "<img style=\"line-height:80px;margin:0px;border:0px;vertical-align:middle;\" src='$icon' alt=\"\" />";
         echo "</td></tr></table>";
-        echo "<div style=\"font-weight:bold;font-size:12px;height:16px;overflow:hidden\">$tit</div>";
-        echo "<div style=\"font-size:10px;height:15px;overflow:hidden\">($size)</div>";
-        echo "<div style=\"font-size:10px;height:15px;overflow:hidden\">$perm</div>";
-        echo "<div style=\"font-size:10px;height:15px;overflow:hidden\">$date</div>";
+        echo "<div style=\"font-weight:bold;font-size:12px;height:16px;line-height:16px;overflow:hidden\">$tit</div>";
+        echo "<div style=\"font-size:10px;height:15px;line-height:15px;overflow:hidden\">($size)</div>";
+        echo "<div style=\"font-size:10px;height:15px;line-height:15px;overflow:hidden\">$perm</div>";
+        echo "<div style=\"font-size:10px;height:15px;line-height:15px;overflow:hidden\">$date</div>";
         echo "</div>";
     }
 }
@@ -1196,7 +1196,7 @@ function fm_DrawFile($file, $mode)
     $op = FN_GetParam("opt", $_GET);
     $pdir = dirname($file);
     $pfile = basename($file);
-    $icon = FN_GetIconByFilename($file);
+    $icon = FN_GetIconCharByFilename($file);
 
     $ldel = fm_Link(array("opmod" => "delfile", "dir" => dirname($file), "ffile" => basename($file)), "&");
     $lmod = fm_Link(array("opmod" => "rename", "dir" => dirname($file), "ffile" => basename($file)));
@@ -1210,7 +1210,7 @@ function fm_DrawFile($file, $mode)
     {
         echo "<td style=\"background-color:$bgcolor;width:" . _SIZE1 . "px\"><div " . fm_StyleDiv(_SIZE1) . " >";
         echo "<a title=\"" . FN_Translate("open") . " " . htmlentities(basename($file), ENT_QUOTES) . "\" " . fm_StyleA() . " href=\"$l" . "\" >";
-        echo "<img style=\"vertical-align:middle;width:22px;height:22px;\" src='$icon' border='0' />&nbsp;";
+        echo "<span style=\"vertical-align:middle;font-size:18px;\">$icon</span>&nbsp;";
         echo basename($file) . "</a>";
         echo "</div></td>";
         echo "<td style=\"background-color:$bgcolor;width:" . _SIZE2 . "px\"><div " . fm_StyleDiv(_SIZE2, "text-align:right") . " >";
@@ -1226,10 +1226,10 @@ function fm_DrawFile($file, $mode)
         if (is_writable($file))
         {
 
-            echo "<a title=\"" . FN_Translate("delete") . "\" " . fm_StyleA() . "href='#' onclick=\"check('$ldel');\"><img style=\"border:0px\" src=\"" . FN_FromTheme("images/delete.png") . "\" alt=\"" . FN_Translate("delete") . "\" /></a>";
-            echo "&nbsp;<a title=\"" . FN_Translate("rename") . "\" " . fm_StyleA() . " href=\"$lmod\" ><img style=\"border:0px\" src=\"" . FN_FromTheme("images/rename.png") . "\" alt=\"" . FN_Translate('rename') . "\" /></a>&nbsp;";
+            echo "<a title=\"" . FN_Translate("delete") . "\" " . fm_StyleA() . "href='#' onclick=\"check('$ldel');\"><span style=\"font-size:16px;\">&#x274C;</span></a>";
+            echo "&nbsp;<a title=\"" . FN_Translate("rename") . "\" " . fm_StyleA() . " href=\"$lmod\" ><span style=\"font-size:16px;\">&#x270F;&#xFE0F;</span></a>&nbsp;";
         }
-        echo "<a title=\"" . FN_Translate("download") . "\" " . fm_StyleA() . " href=\"" . fm_Link(array("opmod" => "downloadfile", "file" => "$pdir/" . basename($file)), "&amp;") . "\" >&dArr;</a>";
+        echo "<a title=\"" . FN_Translate("download") . "\" " . fm_StyleA() . " href=\"" . fm_Link(array("opmod" => "downloadfile", "file" => "$pdir/" . basename($file)), "&amp;") . "\" ><span style=\"font-size:16px;\">&#x2B07;</span></a>";
         echo "</div></td>";
     }
     else
@@ -1242,11 +1242,14 @@ function fm_DrawFile($file, $mode)
         echo "<div onmouseout=\"this.style.borderColor='#dadada'\" onmouseover=\"this.style.borderColor='#aaaaff'\" onclick=\"window.location='$l2'\" 
             style=\"float:left;background-color:#f0f0f0;margin:4px;border:1px solid #dadada;padding:0px;height:133px;width:112px;text-align:center;overflow:hidden\">";
         echo "<table border=\"0\" cellpadding=\"0\" cellspacing=\"0\" title=\"" . FN_Translate("open") . " $tit\" onclick=\"window.location='$l2'\" style=\"cursor:pointer;background-color:#ffffff;margin:0px;line-height:80px;height:80px;width:100%;text-align:center;overflow:hidden\"><tr><td valign=\"center\">";
-        echo "<img style=\"line-height:80px;margin:0px;border:0px;vertical-align:middle;\" src='$icon' alt=\"\" />";
+        if (strpos($icon, "&#") === 0)
+            echo "<span style=\"font-size:48px;line-height:80px;vertical-align:middle;\">$icon</span>";
+        else
+            echo "<img style=\"line-height:80px;margin:0px;border:0px;vertical-align:middle;\" src='$icon' alt=\"\" />";
         echo "</td></tr></table>";
-        echo "<div style=\"font-weight:bold;font-size:12px;height:16px;overflow:hidden\">$tit</div>";
-        echo "<div style=\"font-size:10px;height:15px;overflow:hidden\">$size</div>";
-        echo "<div style=\"font-size:10px;height:15px;overflow:hidden\">$date</div>";
+        echo "<div style=\"font-weight:bold;font-size:12px;height:16px;line-height:16px;overflow:hidden\">$tit</div>";
+        echo "<div style=\"font-size:10px;height:15px;line-height:15px;overflow:hidden\">$size</div>";
+        echo "<div style=\"font-size:10px;height:15px;line-height:15px;overflow:hidden\">$date</div>";
         echo "</div>";
     }
 }
