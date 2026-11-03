@@ -648,6 +648,38 @@ $frm_endgroupfooter
      * @param array $restr_values
      * @return array
      */
+    /**
+     * Columns of the linked table needed to build the options of a foreign
+     * key field: primary key, link field, show fields (with their language
+     * variants) and the image field. Missing columns are skipped.
+     *
+     * @param array $record field definition (foreignkey, fk_link_field, fk_show_field, frm_show_image)
+     * @param XMETATable $table linked table
+     * @return array|false column names, false (every column) when the table has no field list
+     */
+    function OptionsFields($record, $table)
+    {
+        if (empty($table->fields) || !is_array($table->fields))
+            return false;
+        $wanted = is_array($table->primarykey) ? $table->primarykey : array($table->primarykey);
+        $wanted[] = $record['fk_link_field'];
+        foreach (explode(",", $record['fk_show_field']) as $showfield)
+        {
+            $showfield = trim($showfield);
+            $wanted[] = $showfield;
+            $wanted[] = $showfield . "_" . $this->lang;
+        }
+        if (!empty($record['frm_show_image']))
+            $wanted[] = $record['frm_show_image'];
+        $fields = array();
+        foreach ($wanted as $name)
+        {
+            if ($name !== "" && $name !== null && isset($table->fields[$name]) && !in_array($name, $fields))
+                $fields[] = $name;
+        }
+        return count($fields) ? $fields : false;
+    }
+
     function LoadOptions($record, $restr_values = "")
     {
 
@@ -676,6 +708,10 @@ $frm_endgroupfooter
             }
             else
             {
+                // Only the columns the options are built from: the linked table
+                // may be large (e.g. the caves with their texts) and every form
+                // with a foreign key to it used to load it whole.
+                $fields_fk = $this->OptionsFields($record, $listoptionstabella);
                 $restr = false;
                 //esempio clausula su foreignkey
                 // $Table->formvals['periodo']['fk_filter_field']="id_procurement='1',Abilitato='True'";
@@ -708,7 +744,7 @@ $frm_endgroupfooter
                                 }
                             }
                         }
-                        $listoptions = $listoptionstabella->GetRecords($restr);
+                        $listoptions = $listoptionstabella->GetRecords($restr, false, false, false, false, $fields_fk);
                     }
                     else
                     {
@@ -717,7 +753,7 @@ $frm_endgroupfooter
                 }
                 else
                 {
-                    $listoptions = $listoptionstabella->GetRecords();
+                    $listoptions = $listoptionstabella->GetRecords(false, false, false, false, false, $fields_fk);
                 }
             }
             $retopzioni = array();
