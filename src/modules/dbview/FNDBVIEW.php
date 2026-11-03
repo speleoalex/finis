@@ -2860,6 +2860,9 @@ set_changed();
         $tplvars['item_urldelete'] = $this->MakeLink(array("op" => "del", "id" => $pk), "&amp;");
         $tplvars['item_urlimage'] = $img;
         $tplvars['item_urlimage_fullsize'] = $photo_fullsize;
+        // true when the record has a photo file (getFileUrl() is false for a missing one, also
+        // when the files are served by the application): the list cards show a placeholder otherwise
+        $tplvars['item_hasimage'] = ($photo_fullsize != "");
 
         $tplvars['url_offlineform'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=offlineform&id=$pk");
         $tplvars['url_offlineforminsert'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=offlineform");

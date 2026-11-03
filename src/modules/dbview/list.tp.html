@@ -21,7 +21,7 @@
 
         <div id="collapseOne" class="collapse" aria-labelledby="headingOne">
             <div class="card-body">
-                <form id="formfilters" name="filter" method="get" action="{formaction}">
+                <form onsubmit="return call_ajax_form(this, 'pageresults,collapseFilters');" id="formfilters" name="filter" method="get" action="{formaction}">
                     <input name="mod" type="hidden" value="{mod}">
                     <!-- if {table_rules} -->
                     <div class="form-group row">
@@ -239,14 +239,14 @@
                 <nav aria-label="">
                     <ul class="pagination" style="margin-bottom: 0;">
                         <!-- if {nav_page_first} -->
-                        <li class="page-item"><a class="page-link" href="{link}" title="Prima pagina">&laquo;</a></li>
+                        <li class="page-item"><a onclick="call_ajax(this.href, 'pageresults,collapseFilters');return false" class="page-link" href="{link}" title="Prima pagina">&laquo;</a></li>
                         <!-- end if {nav_page_first} -->
                         <!-- if not {nav_page_first} -->
                         <li class="page-item disabled"><a class="page-link" href="#" title="Prima pagina">&laquo;</a>
                         </li>
                         <!-- end if not {nav_page_first} -->
                         <!-- if {nav_page_prev} -->
-                        <li class="page-item"><a class="page-link" href="{link}" title="Pagina precedente">&lsaquo;</a>
+                        <li class="page-item"><a onclick="call_ajax(this.href, 'pageresults,collapseFilters');return false" class="page-link" href="{link}" title="Pagina precedente">&lsaquo;</a>
                         </li>
                         <!-- end if {nav_page_prev} -->
                         <!-- if not {nav_page_prev} -->
@@ -259,11 +259,11 @@
                         </li>
                         <!-- end if {current} -->
                         <!-- if not {current} -->
-                        <li style="display:none" class="page-item"><a class="page-link" href="{link}">{title}</a></li>
+                        <li style="display:none" class="page-item"><a onclick="call_ajax(this.href, 'pageresults,collapseFilters');return false" class="page-link" href="{link}">{title}</a></li>
                         <!-- end if not {current} -->
                         <!-- end foreach {nav_pages} -->
                         <!-- if {nav_page_next} -->
-                        <li class="page-item"><a class="page-link" href="{link}" title="Pagina successiva">&rsaquo;</a>
+                        <li class="page-item"><a onclick="call_ajax(this.href, 'pageresults,collapseFilters');return false" class="page-link" href="{link}" title="Pagina successiva">&rsaquo;</a>
                         </li>
                         <!-- end if {nav_page_next} -->
                         <!-- if not {nav_page_next} -->
@@ -271,7 +271,7 @@
                                 title="Pagina successiva">&rsaquo;</a></li>
                         <!-- end if not {nav_page_next} -->
                         <!-- if {nav_page_last} -->
-                        <li class="page-item"><a class="page-link" href="{link}" title="Ultima pagina">&raquo;</a></li>
+                        <li class="page-item"><a onclick="call_ajax(this.href, 'pageresults,collapseFilters');return false" class="page-link" href="{link}" title="Ultima pagina">&raquo;</a></li>
                         <!-- end if {nav_page_last} -->
                         <!-- if not {nav_page_last} -->
                         <li class="page-item disabled"><a class="page-link" href="#" title="Ultima pagina">&raquo;</a>
@@ -281,35 +281,34 @@
                 </nav>
             </div>
 
-            <div class="card-group">
+            <div class="dbview-cards">
                 <!-- foreach {items} -->
-                <div class=" col-xs-12 col-sm-6 col-md-6 col-lg-4 col-xl-3">
-                    <div class="card mb-4 box-shadow" style="height: 95%"><img src="{item_urlimage}"
-                            class="card-img-top" alt="">
+                <div>
+                    <div class="card dbview-card">
+                        <!-- if {item_hasimage} -->
+                        <!-- if {item_urlview} --><a class="dbview-card-media" href="{item_urlview}"><!-- end if {item_urlview} --><!-- if not {item_urlview} --><div class="dbview-card-media"><!-- end if not {item_urlview} -->
+                            <img src="{item_urlimage}" class="card-img-top" alt="" loading="lazy">
+                        <!-- if {item_urlview} --></a><!-- end if {item_urlview} --><!-- if not {item_urlview} --></div><!-- end if not {item_urlview} -->
+                        <!-- end if {item_hasimage} -->
                         <div class="card-body">
-                            <div class="card-title">{item_title}</div>
-                            <!-- foreach {itemvalues} -->
-                            <b>{title}:</b> {value}<br />
-                            <!-- end foreach {itemvalues} -->
+                            <div class="card-title"><!-- if {item_urlview} --><a href="{item_urlview}">{item_title}</a><!-- end if {item_urlview} --><!-- if not {item_urlview} -->{item_title}<!-- end if not {item_urlview} --></div>
+                            <dl class="dbview-card-values">
+                                <!-- foreach {itemvalues} -->
+                                <div><dt>{title}</dt><dd>{value}</dd></div>
+                                <!-- end foreach {itemvalues} -->
+                            </dl>
                         </div>
                         <div class="card-footer">
-                            <div class="btn-group">
-                                <!-- if {item_urlview} --><a class="btn btn-primary"
-                                    href="{item_urlview}">{i18n:View}</a><!-- end if {item_urlview} -->
-                                <!-- if {item_urledit} --><a class="btn btn-secondary"
-                                    href="{item_urledit}">{i18n:Modify}</a><!-- end if {item_urledit} -->
-                                <!-- if {item_urldelete} --><a class="btn btn-light"
-                                    href="javascript:if(confirm('{i18n:are you sure you want to delete this content?}')){window.location='{item_urldelete}'}">
-                                    <img title="{i18n:Delete}" style="vertical-align:middle"
-                                        src="../../images/delete.png" alt="{i18n:Delete}" border="0" />
-                                </a><!-- end if {item_urldelete} -->
-                            </div>
+                            <!-- if {item_urlview} --><a class="btn btn-sm btn-outline-primary dbview-card-view" href="{item_urlview}">{i18n:View}</a><!-- end if {item_urlview} -->
+                            <!-- if {item_urledit} --><a class="btn btn-sm btn-outline-secondary" href="{item_urledit}" title="{i18n:Modify}">&#9998; {i18n:Modify}</a><!-- end if {item_urledit} -->
+                            <!-- if {item_urldelete} --><a class="btn btn-sm btn-outline-danger" title="{i18n:Delete}"
+                                href="javascript:if(confirm('{i18n:are you sure you want to delete this content?}')){window.location='{item_urldelete}'}">&#10005;</a><!-- end if {item_urldelete} -->
                         </div>
                     </div>
                 </div>
                 <!-- end foreach {items} -->
                 <!-- if not {items} -->
-                {i18n:no result}
+                <div class="dbview-noresult">{i18n:no result}</div>
                 <!-- end if not {items} -->
             </div>
             <!-- if {url_addnew} -->
