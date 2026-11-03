@@ -204,8 +204,8 @@ if (FN_IsAdmin() || $_FN['user'] != "")
             if ($table != "" && $id != "" && $field != "")
             {
                 $tb = new XMETATable("$d", $table, $_FN['datadir']);
-                $filename = $tb->get_file(array("id" => $id), "$field");
-                $filename = str_replace($_FN['siteurl'], "", $filename);
+                // the file on disk, not its web address (see XMETATable::getFileUrl())
+                $filename = $tb->getFilePath(array($tb->primarykey => $id), "$field");
             }
             if ($maxh == "" && $maxw == "")
             {

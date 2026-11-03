@@ -2828,9 +2828,12 @@ set_changed();
 
         if (empty($config['image_size']))
             $config['image_size'] = 200;
-        if ($photo != "" && !empty($_FN['xmetadb_file_url'])) {
-            // protected files: the record's own thumbnail, through the checked link
-            $img = $Table->xmltable->getFileUrl($data, $config['image_titlefield'], true);
+        if ($photo != "" && !empty($_FN['xmetadb_file_access'])) {
+            // protected files: the thumbnail is asked by record, so the
+            // endpoint checks who may read it before reading the file
+            $img = "{$_FN['siteurl']}index.php?fnapp=thumb&format=png&h={$config['image_size']}&w={$config['image_size_h']}"
+                . "&d=" . rawurlencode($Table->xmltable->databasename) . "&t=" . rawurlencode($Table->xmltable->tablename)
+                . "&i=" . rawurlencode($pk) . "&c=" . rawurlencode($config['image_titlefield']);
         } else {
             if ($photo != "") {
                 //        $photo="{$_FN['datadir']}/fndatabase/{$tablename}/{$data[$Table->xmltable->primarykey]}/{$config['image_titlefield']}/{$data[$config['image_titlefield']]}";

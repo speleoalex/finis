@@ -28,9 +28,16 @@ if ($format!= "jpg")
 //    documents) keep working as before.
 if (!empty($_FN['xmetadb_file_access']) && is_callable($_FN['xmetadb_file_access']))
 {
-    if ($table!= "" || $id!= "" || $field!= "")
+    if ($table!= "" || $id!= "" || $field!= "" || $d!= "")
     {
-        if ($table== "" || $id== "" || $field== "" || !call_user_func($_FN['xmetadb_file_access'],$table,$id,$field))
+        // the record is looked up in the site's own database only
+        $database=empty($_FN['database']) ? "fndatabase" : $_FN['database'];
+        if ($d!= "" && $d!= $database)
+        {
+            http_response_code(403);
+            die();
+        }
+        if ($table== "" || $id== "" || $field== "" || preg_match('/[^A-Za-z0-9_]/',$table.$field) || !call_user_func($_FN['xmetadb_file_access'],$table,$id,$field))
         {
             http_response_code(403);
             die();
@@ -54,8 +61,9 @@ if ($d== "")
 if ($table!= "" && $id!= "" && $field!= "")
 {
     $tb=new XMETATable("$d",$table,$_FN['datadir']);
-    $filename=$tb->get_file(array("{$tb->primarykey}"=>$id),"$field");
-    $filename=str_replace($_FN['siteurl'],"",$filename);
+    // the file on disk: get_file() is its web address, which an application
+    // may point to its own endpoint ($_FN['xmetadb_file_url'])
+    $filename=$tb->getFilePath(array("{$tb->primarykey}"=>$id),"$field");
 }
 //-----------------------------files in xmetadb----------------------------------<
 //---------------fix max and min----------------------------------------------->
