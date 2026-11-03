@@ -405,6 +405,15 @@ class FNDBVIEW
             $wherequery .= ") ";
             $and = " AND ";
         }
+        // records the application hides from this user ($_FN['dbview_excluded_values'])
+        foreach ($this->ExcludedValues($tablename) as $field => $values) {
+            if (!isset($t->formvals[$field]))
+                continue;
+            foreach ($values as $value) {
+                $wherequery .= "$and " . $this->QuoteField($field, $native) . " <> '" . addslashes($value) . "' ";
+                $and = " AND ";
+            }
+        }
 
         if ($order == "") {
             $order = $t->xmltable->primarykey;

@@ -276,6 +276,46 @@ trait FNDBVIEWPermissions
      * @param array $config
      * @return bool
      */
+    /**
+     * Values that hide the records of a table from the current user, decided
+     * by the application: $_FN['dbview_excluded_values'] is a function
+     * ($tablename) returning array(field => array(values)), for example the
+     * codes of the restricted caves the user may not view, whose surveys are
+     * then hidden as well. Lists and searches leave out the records with one
+     * of these values, the record page refuses them. Not applied to the
+     * administrators of the site.
+     *
+     * @param string $tablename
+     * @return array field => values, once per table per request
+     */
+    function ExcludedValues($tablename)
+    {
+        global $_FN;
+        static $cache = array();
+        if (empty($_FN['dbview_excluded_values']) || !is_callable($_FN['dbview_excluded_values']) || FN_IsAdmin())
+            return array();
+        $key = $_FN['user'] . "|" . $tablename;
+        if (!isset($cache[$key])) {
+            $ret = call_user_func($_FN['dbview_excluded_values'], $tablename);
+            $cache[$key] = is_array($ret) ? $ret : array();
+        }
+        return $cache[$key];
+    }
+
+    /**
+     * @param string $tablename
+     * @param array $record
+     * @return bool false when a value of the record is one of ExcludedValues()
+     */
+    function RecordAllowedByApplication($tablename, $record)
+    {
+        foreach ($this->ExcludedValues($tablename) as $field => $values) {
+            if (isset($record[$field]) && $record[$field] !== "" && in_array(strval($record[$field]), array_map('strval', $values), true))
+                return false;
+        }
+        return true;
+    }
+
     function CanViewRecord($id, $tablename = "", $config = "")
     {
         global $_FN;
@@ -307,6 +347,9 @@ trait FNDBVIEWPermissions
 
         $table = FN_XMDBTable($tablename);
         $record = $table->GetRecordByPrimaryKey($id);
+        if (is_array($record) && !$this->RecordAllowedByApplication($tablename, $record)) {
+            return false;
+        }
 
         // View only for creator
         if (!empty($config['viewonlycreator'])) {
