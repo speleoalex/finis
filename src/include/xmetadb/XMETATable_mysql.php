@@ -140,7 +140,7 @@ class XMETATable_mysql extends \stdClass
         global $xmetadb_mysqlconnection;
         if (!$xmetadb_mysqlconnection)
         {
-            $xmetadb_mysqlconnection = new \mysqli($mysql['host'], $mysql['user'], $mysql['password'], "", (int)$mysql['port']);
+            $xmetadb_mysqlconnection = xmetadb_mysql_connect($mysql['host'], $mysql['user'], $mysql['password'], (int)$mysql['port']);
         }
         
         if ($xmetadb_mysqlconnection)
@@ -575,6 +575,11 @@ class XMETATable_mysql extends \stdClass
             #$this->conn->select_db ($this->mysqldatabasename);
             $query = "SELECT * FROM {$this->sqltable} WHERE $pkey LIKE '" . $this->conn->real_escape_string(xmetadb_escape_like($pvalue)) . "' ESCAPE '!'";
             $result = $this->dbQuery($query);
+            // false: the query failed, null: no record with this key
+            if ($result === false)
+            {
+                return false;
+            }
             if (!isset($result[0]))
             {
                 return null;
@@ -1038,6 +1043,98 @@ class XMETATable_mysql extends \stdClass
         $max = $record[0][$field];
         return intval($max) + 1;
     }
+}
+
+/**
+ * Opens the MySQL connection shared by the tables.
+ * A server that refuses it because it is busy (too many connections, e.g. the
+ * max_user_connections of a shared hosting) is asked again for about 5
+ * seconds: the other requests usually release their connections sooner.
+ * When the server is busy or not reachable a web request ends with a
+ * "503 Service Unavailable" page: going on without the database would show
+ * the site to an anonymous user with no permissions and log the user out.
+ * Other errors (wrong password, missing database) are left to the caller.
+ *
+ * @param string $host
+ * @param string $user
+ * @param string $password
+ * @param int $port
+ * @return \mysqli|false
+ */
+function xmetadb_mysql_connect($host, $user, $password, $port)
+{
+    global $xmetadb_mysqlconnection_error;
+    if ($xmetadb_mysqlconnection_error)
+    {
+        return false;
+    }
+    // 1040 too many connections, 1203 max_user_connections of the server
+    $busy = array(1040, 1203);
+    // 1226 user resource limit (connections per hour...), server not reachable or gone away
+    $unavailable = array(1040, 1203, 1226, 2002, 2003, 2006, 2013);
+    $waited = 0;
+    $delay = 100000;
+    while (true)
+    {
+        try
+        {
+            $conn = @new \mysqli($host, $user, $password, "", $port);
+            $errno = $conn->connect_errno;
+            $error = $conn->connect_error;
+        } catch (\mysqli_sql_exception $e)
+        {
+            $errno = $e->getCode();
+            $error = $e->getMessage();
+        }
+        if (!$errno)
+        {
+            return $conn;
+        }
+        // the max_user_connections of the account (not of the server) is 1226
+        $isbusy = in_array($errno, $busy) || ($errno == 1226 && strpos($error, "max_user_connections") !== false);
+        if (!$isbusy || $waited >= 5000000)
+        {
+            break;
+        }
+        usleep($delay);
+        $waited += $delay;
+        $delay = min($delay * 2, 1000000);
+    }
+    $xmetadb_mysqlconnection_error = "$errno $error";
+    error_log("xmetadb: MySQL connection failed (waited " . round($waited / 1000000, 1) . " s): $errno $error");
+    if (in_array($errno, $unavailable) && PHP_SAPI !== "cli")
+    {
+        xmetadb_mysql_unavailable();
+    }
+    return false;
+}
+
+/**
+ * Ends the request with a "503 Service Unavailable" page that reloads itself
+ * (GET requests) after a few seconds. No cookie is sent.
+ */
+function xmetadb_mysql_unavailable()
+{
+    if (!headers_sent())
+    {
+        while (ob_get_level() > 0)
+        {
+            ob_end_clean();
+        }
+        http_response_code(503);
+        header("Retry-After: 10");
+        header("Cache-Control: no-store");
+        header("Content-Type: text/html; charset=utf-8");
+    }
+    $reload = (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === "GET") ? "<meta http-equiv=\"refresh\" content=\"10\">" : "";
+    echo "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><meta name=\"robots\" content=\"noindex\">"
+    . "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">$reload<title>503</title></head>"
+    . "<body style=\"font-family:sans-serif;margin:2em;line-height:1.5\">"
+    . "<h1 style=\"font-size:1.4em\">Servizio momentaneamente non disponibile</h1>"
+    . "<p>Il database &egrave; occupato: riprova tra qualche secondo" . ($reload ? ", la pagina si ricarica da sola" : "") . ".</p>"
+    . "<p lang=\"en\">Service temporarily unavailable: the database is busy, please try again in a few seconds.</p>"
+    . "</body></html>";
+    exit;
 }
 
 /**

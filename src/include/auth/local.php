@@ -358,12 +358,22 @@ function FN_ManageLogin()
         }
     }
     $_FN['user'] = FN_GetParam("fnuser", $_COOKIE);
+    $_FN['user_read_error'] = false;
     // Skip the session check on the very request that performed login:
     // FN_Login() already set the cookies; re-checking immediately would race
     // against the browser not yet having sent back the new cookie.
     if (!$justLoggedIn && (!FN_CheckUser() || $fnlogin == "logout"))
     {
-        FN_Logout();
+        if ($fnlogin != "logout" && !empty($_FN['user_read_error']))
+        {
+            // the user could not be read (database error): anonymous for this
+            // request only, the login cookies are kept for the next ones
+            $_FN['user'] = "";
+        }
+        else
+        {
+            FN_Logout();
+        }
     }
     //-------------------API key or OAuth token (MCP and API clients)--------->
     if ($_FN['user'] == "")
@@ -614,6 +624,8 @@ function FN_GetUser($user, $usecache = array())
     }
     $table = FN_GetUserForm();
     $UserValues = $table->xmltable->GetRecordByPrimaryKey($user);
+    // false: the users table could not be read (database error), see FN_ManageLogin()
+    $_FN['user_read_error'] = ($UserValues === false);
     if (is_array($UserValues) && $UserValues['level'] === "")
         $UserValues['level'] = "0";
     if (empty($UserValues['username']))
