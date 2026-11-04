@@ -4,7 +4,8 @@
  * FINIS MCP server (Model Context Protocol, JSON-RPC 2.0 over HTTP).
  *
  * Endpoint: index.php?fnapp=mcp
- * Authentication: "Authorization: Bearer <apikey>" (or "X-Api-Key: <apikey>")
+ * Authentication: "Authorization: Bearer <apikey>" (or "X-Api-Key: <apikey>",
+ * or index.php?fnapp=mcp&apikey=<apikey> for clients configured with a URL only)
  * where the key belongs to a FINIS user (profile page -> API key), or an
  * OAuth access token issued by index.php?fnapp=oauthserver.
  * Every tool runs with the identity of the key owner: permission checks use

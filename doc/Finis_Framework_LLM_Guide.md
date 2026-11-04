@@ -539,7 +539,8 @@ Every user can have a personal API key (`apikey` field of `fn_users`, 48 hex cha
 
 *   `FN_GetUserApiKey($user, $generate = true)`, `FN_GenerateApiKey($user)` (`random_bytes(24)`;
     without a random source it logs the error and returns "": no fallback key, the old key stays)
-*   `FN_GetRequestApiKey()`: reads `Authorization: Bearer <key>` or `X-Api-Key`
+*   `FN_GetRequestApiKey()`: reads `Authorization: Bearer <key>` or `X-Api-Key`; on the MCP
+    endpoint only (`fnapp=mcp`) also `&apikey=<key>` in the URL (headers win)
 *   `FN_GetUserByApiKey($apikey)`, `FN_LoginByApiKey($apikey)` (sets `$_FN['user']`,
     `$_FN['uservalues']` and `$_FN['auth_method'] = "apikey"`)
 *   `FN_ProfileApiKey($user, &$tplvars)`: fills `{apikey}`, `{apikey_message}`, `{mcp_url}`

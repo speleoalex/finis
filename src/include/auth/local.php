@@ -1239,6 +1239,10 @@ function FN_EnsureUserApiKeyField()
 /**
  * Read the API key sent by the client in the HTTP headers.
  * Accepted headers: "Authorization: Bearer <key>" and "X-Api-Key: <key>".
+ * The MCP endpoint (index.php?fnapp=mcp) also accepts the key in the URL
+ * (&apikey=<key>) for the clients that can be configured only with a URL;
+ * the headers win when both are sent. The rest of the site ignores the
+ * parameter, so a key in a link does not log anyone in on normal pages.
  *
  * @return string the API key or an empty string
  */
@@ -1272,6 +1276,10 @@ function FN_GetRequestApiKey()
     if (!empty($_SERVER['HTTP_X_API_KEY']))
     {
         return trim($_SERVER['HTTP_X_API_KEY']);
+    }
+    if (isset($_GET['fnapp']) && $_GET['fnapp'] === "mcp" && !empty($_GET['apikey']) && is_string($_GET['apikey']))
+    {
+        return trim($_GET['apikey']);
     }
     return "";
 }

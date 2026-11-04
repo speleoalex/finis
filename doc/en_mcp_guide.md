@@ -32,6 +32,17 @@ or, when the `Authorization` header is stripped by the web server:
 X-Api-Key: <apikey>
 ```
 
+For clients that can be configured only with a URL (no custom headers), the MCP endpoint
+also accepts the key as a query parameter:
+
+```
+https://example.org/index.php?fnapp=mcp&apikey=<apikey>
+```
+
+The headers win when both are sent. The parameter works only with `fnapp=mcp`: other pages
+ignore it. A key in a URL ends up in the web server logs and in the client history, so prefer
+the header when the client supports it, and regenerate the key if the URL is leaked.
+
 The header is accepted by the whole site, not only by the MCP endpoint: the function
 `FN_ManageLogin()` logs the user in from the API key whenever there is no cookie session.
 

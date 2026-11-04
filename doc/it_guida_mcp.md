@@ -32,6 +32,18 @@ oppure, se il web server rimuove l'header `Authorization`:
 X-Api-Key: <apikey>
 ```
 
+Per i client che si configurano solo con un URL (senza header personalizzati), l'endpoint MCP
+accetta la chiave anche come parametro:
+
+```
+https://example.org/index.php?fnapp=mcp&apikey=<apikey>
+```
+
+Se ci sono sia l'header sia il parametro vale l'header. Il parametro funziona solo con
+`fnapp=mcp`: le altre pagine lo ignorano. Una chiave nell'URL finisce nei log del web server e
+nella cronologia del client: meglio l'header quando il client lo permette, e se l'URL circola va
+rigenerata la chiave.
+
 L'header è accettato da tutto il sito, non solo dall'endpoint MCP: `FN_ManageLogin()`
 autentica l'utente dalla chiave quando non esiste una sessione con cookie.
 
