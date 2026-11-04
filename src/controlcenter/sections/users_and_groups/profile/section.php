@@ -107,7 +107,8 @@ function FNCC_ManageEditRegister($user = "", $formaction = "", $urlcancel = "", 
     //---------------API key (MCP and API clients)----------------------------<
     $newvalues = $oldvalues;
     $_FN['return']['fields'] = $form->formvals;
-    $_FN['return']['uservalues'] = $newvalues;
+    //the password hash, the API key and the tokens are never returned
+    $_FN['return']['uservalues'] = FN_UserValuesForOutput($newvalues, empty($form->fieldname_password) ? "" : $form->fieldname_password);
     $reg_ok = false;
     $postvar = $_POST;
 

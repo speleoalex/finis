@@ -907,6 +907,25 @@ function FN_FixNewline($text)
 }
 
 /**
+ * The values of a user without the fields that never leave the server: the password hash, the
+ * hash of the API key and its encrypted copy, the registration or recovery token. Use it for a
+ * user record put in $_FN['return'] (printed as JSON by fnapp=api) or sent to a client.
+ *
+ * @param array $values record of fn_users (FN_GetUser())
+ * @param string $passwordfield name of the password field, when the form uses another name
+ * @return array
+ */
+function FN_UserValuesForOutput($values, $passwordfield = "")
+{
+    if (!is_array($values))
+        return $values;
+    unset($values['passwd'], $values['password'], $values['apikey'], $values['apikey_enc'], $values['rnd']);
+    if ($passwordfield != "")
+        unset($values[$passwordfield]);
+    return $values;
+}
+
+/**
  *
  * @param string $param
  */

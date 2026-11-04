@@ -280,14 +280,6 @@ function FNREG_ManageEditRegister($user = "")
     $form = FN_GetUserForm();
     $username_field = empty($form->fieldname_user) ? "username" : $form->fieldname_user;
     $active_field = empty($form->fieldname_active) ? "username" : $form->fieldname_active;
-    if (isset($_FN['return']['uservalues']['password']))
-    {
-        unset($_FN['return']['uservalues']['password']);
-    }
-    if (isset($_FN['return']['uservalues']['apikey']))
-    {
-        unset($_FN['return']['uservalues']['apikey']);
-    }
     $form->SetLayout("table");
     if ($user == "")
         $user = $_FN['user'];
@@ -302,7 +294,8 @@ function FNREG_ManageEditRegister($user = "")
     FN_ProfileApiKey($user, $apikeyvars);
     //---------------API key (MCP and API clients)----------------------------<
     $_FN['return']['fields'] = $form->formvals;
-    $_FN['return']['uservalues'] = $newvalues;
+    //the password hash, the API key and the tokens are never returned (fnapp=api)
+    $_FN['return']['uservalues'] = FN_UserValuesForOutput($newvalues, empty($form->fieldname_password) ? "" : $form->fieldname_password);
     $reg_ok = false;
     $postvar = $_POST;
     if ($oldvalues)

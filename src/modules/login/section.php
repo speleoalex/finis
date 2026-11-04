@@ -36,9 +36,8 @@ switch ($op) {
         break;
     case "profile":
         PrintUserProfile();
-        $_FN['return'] = FN_GetUser($_FN['user']);
-        //the password hash and the API key are never returned (fnapp=api)
-        unset($_FN['return']['passwd'], $_FN['return']['apikey'], $_FN['return']['rnd']);
+        //the password hash, the API key and the tokens are never returned (fnapp=api)
+        $_FN['return'] = FN_UserValuesForOutput(FN_GetUser($_FN['user']));
         break;
     default:
         if ($_FN['user'] == "") {
