@@ -333,28 +333,32 @@ if (!$_FN['consolemode'])
     if (!in_array($_FN['lang'], $_FN['listlanguages']))
         $_FN['lang'] = $_FN['lang_default'];
     $_FN['showaccesskey'] = FN_SaveGetPostParam("showaccesskey");
-    $change_theme = isset($_REQUEST['change_theme']);
-    if ($change_theme)
+    // theme chosen by the visitor, only when the switch is enabled: change_theme takes it from the
+    // post or the url (and keeps it in the cookie), otherwise from the cookie
+    $usertheme = "";
+    if (!empty($_FN['switchtheme']))
     {
-        $usertheme = FN_SaveGetPostParam("theme", false, false, false);
+        if (isset($_REQUEST['change_theme']))
+            $usertheme = FN_SaveGetPostParam("theme", false, false, false);
+        else
+            $usertheme = FN_SaveGetPostParam("theme", true, true, false);
     }
-    else
-    {
-        $usertheme = FN_SaveGetPostParam("theme", true, true, !$_FN['switchtheme']);
-    }
+    // a theme is a folder of themes/ named by the request or a cookie: only a plain folder name
+    // is accepted, never a path ("../sections/home", "..")
+    $fn_themename = '/^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/';
 
     $_FN['section_header_footer'] = isset($_FN['section_header_footer']) ? $_FN['section_header_footer'] : "";
     if ($usertheme != "")
     {
-        if (file_exists("{$_FN['src_finis']}/themes/$usertheme") || file_exists("{$_FN['src_application']}/themes/$usertheme"))
+        if (preg_match($fn_themename, "$usertheme") && (is_dir("{$_FN['src_finis']}/themes/$usertheme") || is_dir("{$_FN['src_application']}/themes/$usertheme")))
             $_FN['theme'] = $usertheme;
         else
             $_FN['theme'] = $_FN['theme_default'];
     }
     if (!empty($_FN['switchtheme']) || FN_IsAdmin())//preview theme
     {
-        $themepreview = basename(FN_GetParam("themepreview", $_GET));
-        if ($themepreview != "" && (file_exists("{$_FN['src_finis']}/themes/$themepreview") || file_exists("{$_FN['src_application']}/themes/$themepreview")))
+        $themepreview = FN_GetParam("themepreview", $_GET);
+        if ($themepreview != "" && preg_match($fn_themename, "$themepreview") && (is_dir("{$_FN['src_finis']}/themes/$themepreview") || is_dir("{$_FN['src_application']}/themes/$themepreview")))
             $_FN['theme'] = $themepreview;
     }
 //---------------vars in cookie------------------------------------------------<    
