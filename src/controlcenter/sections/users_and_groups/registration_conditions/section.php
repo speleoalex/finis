@@ -8,8 +8,10 @@
  */
 defined('_FNEXEC') or die('Restricted access');
 
-$params = false;
-FNCC_XMETATableEditor("fn_conditions");
+$params = array();
+//the list shows only the essential fields, the others are in the form
+$params['fields'] = "title|text|enabled|optional";
+FNCC_XMETATableEditor("fn_conditions", $params);
 
 
 ?>
