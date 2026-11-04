@@ -16,6 +16,8 @@ $_FN['datadir'] = "misc";
 $_FN['default_auth_method'] = "local";
 //groups allowed to use an API key (MCP, API clients), comma separated; empty = every user, administrators always
 $_FN['apikey_groups'] = "";
+//group of the users allowed to use the write tools of the MCP servers (administrators always can); empty = every user
+$_FN['mcp_write_group'] = "mcp_write";
 //reverse proxies trusted for the client address in X-Forwarded-For, comma separated IP addresses; empty = the client is REMOTE_ADDR
 $_FN['trusted_proxies'] = "";
 //default driver: xmlphp,sqlite3,sqlite,csv,serialize,mysql,mssql

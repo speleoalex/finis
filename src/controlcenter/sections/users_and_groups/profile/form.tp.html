@@ -18,17 +18,22 @@
         <!-- endgroup -->
         <!-- end_endgroup -->
         <!-- end_contents -->
-        <!-- if {apikey} -->
+        <!-- if {apikey_allowed} -->
         <tr>
             <td valign="top">{i18n:API key}</td>
             <td valign="top">
-                <input type="text" readonly="readonly" value="{apikey}" onclick="this.select()" style="width:100%;max-width:30em" />
-                <br /><small>{i18n:MCP endpoint}: <code>{mcp_url}</code></small>
-                <br /><button type="submit" name="regenerate_apikey" value="1" onclick="return confirm('{i18n:regenerate the API key? The clients that use the current key will stop working}')">{i18n:Regenerate API key}</button>
-                <!-- if {apikey_message} --><span style="color:green">{apikey_message}</span><!-- end if {apikey_message} -->
+                <input type="hidden" name="apikey_token" value="{apikey_token}" />
+                <!-- if {apikey_new} -->
+                <input type="text" readonly="readonly" value="{apikey_new}" onclick="this.select()" style="width:100%;max-width:30em" />
+                <!-- end if {apikey_new} -->
+                <!-- if {apikey_message} --><b style="color:green">{apikey_message}</b><br /><!-- end if {apikey_message} -->
+                <div>{apikey_status}<!-- if {apikey_exists} --> &middot; {i18n:the key is used with the permissions of your account}<!-- if {apikey_write} --> ({i18n:write tools allowed})<!-- end if {apikey_write} --><!-- end if {apikey_exists} --></div>
+                <small>{i18n:MCP servers}: <!-- foreach {mcp_endpoints} --><code>{url}</code> <!-- end foreach {mcp_endpoints} --></small>
+                <br /><button type="submit" name="generate_apikey" value="1"<!-- if {apikey_exists} --> onclick="return confirm('{i18n:generate a new key? The clients that use the current key will stop working}')"<!-- end if {apikey_exists} -->>{i18n:Generate API key}</button>
+                <!-- if {apikey_exists} --><button type="submit" name="revoke_apikey" value="1" onclick="return confirm('{i18n:revoke the key? The clients that use it will stop working}')">{i18n:Revoke API key}</button><!-- end if {apikey_exists} -->
             </td>
         </tr>
-        <!-- end if {apikey} -->
+        <!-- end if {apikey_allowed} -->
         <tr>
             <td colspan="2" style="text-align: center">
                 <input name="updateuser" value="1" type="hidden" />

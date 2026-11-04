@@ -11,14 +11,24 @@ controllo e ogni modifica finisce nel log del sito con il nome dell'utente.
 
 ## Chiavi API
 
-* Ogni utente ha una chiave API, salvata nel campo `apikey` di `fn_users`. Non compare
-  mai negli elenchi utenti e non è esportata dalle API.
-* La chiave viene generata automaticamente la prima volta che l'utente apre la pagina
-  del profilo ed è visibile solo al proprietario:
+* Ogni utente ha una chiave API. Viene salvato solo il suo hash (campo `apikey` di
+  `fn_users`, `v1$<sha256>`, data di creazione in `apikey_date`): nessuno può leggere una
+  chiave, nemmeno un amministratore. Chi copia la tabella degli utenti non ottiene chiavi
+  utilizzabili.
+* L'utente genera la chiave con il pulsante **Genera chiave API** della pagina del profilo
+  e la copia subito: viene mostrata solo quella volta. Una nuova chiave sostituisce la
+  precedente; il pulsante **Revoca chiave API** la elimina. Le pagine del profilo:
   * pannello di controllo: **Utenti e gruppi > Profilo** (`index.php?fnapp=controlcenter&opt=users_and_groups/profile`)
   * front end: **Modifica profilo** del modulo login (`index.php?mod=login&op=editreg`)
-* Il pulsante **Rigenera chiave API** crea una nuova chiave; la vecchia smette subito di funzionare.
-* Gli amministratori non vedono le chiavi degli altri utenti.
+* Una nuova password revoca la chiave (la stessa password salvata di nuovo, come nel
+  rehash al login, no). Le chiavi degli utenti non attivi sono rifiutate.
+* Gli amministratori gestiscono le chiavi di tutti gli utenti in **Utenti e gruppi >
+  Server MCP** (`opt=users_and_groups/mcp`): la pagina elenca gli endpoint MCP del sito,
+  gli utenti con una chiave (data di creazione) e permette di generare una chiave per un
+  utente (mostrata una volta, da consegnargli), revocarla, consentire o negare gli
+  strumenti di scrittura.
+* Le chiavi salvate in chiaro dalle versioni precedenti agli hash continuano a funzionare:
+  l'hash sostituisce la chiave al primo uso.
 
 La chiave si invia nell'header HTTP di ogni richiesta:
 
@@ -47,9 +57,24 @@ rigenerata la chiave.
 L'header è accettato da tutto il sito, non solo dall'endpoint MCP: `FN_ManageLogin()`
 autentica l'utente dalla chiave quando non esiste una sessione con cookie.
 
-Nelle installazioni esistenti il campo `apikey` viene aggiunto automaticamente alla
-definizione della tabella `fn_users` (`FN_EnsureUserApiKeyField()`); con il driver MySQL
-la colonna viene creata alla prima scrittura.
+Nelle installazioni esistenti i campi `apikey` e `apikey_date` vengono aggiunti
+automaticamente alla definizione della tabella `fn_users` (`FN_EnsureUserApiKeyField()`);
+con il driver MySQL le colonne vengono create alla prima scrittura.
+
+### Strumenti di scrittura
+
+La lettura è aperta a ogni utente con una chiave. Gli strumenti che modificano qualcosa
+(`create_section`, `update_section`, `delete_section`, `edit_section_content`,
+`set_section_content`, `write_section_file`, `set_block_content`, `update_setting`,
+`create_user`, `update_user` e gli strumenti di scrittura delle applicazioni) sono elencati
+e consentiti solo agli amministratori e ai membri del gruppo `$_FN['mcp_write_group']`
+(default `mcp_write`, creato quando serve; "" = tutti gli utenti). Gli altri utenti hanno un
+server in sola lettura: lo dicono le istruzioni di `initialize` e `site_guide`. Un
+amministratore abilita un utente in **Utenti e gruppi > Server MCP**. Il motivo: un client
+che scrive agisce sui testi che legge, e un testo scritto da altri può provare a guidarlo
+(prompt injection); scrivere è una scelta fatta utente per utente. Il controllo è
+`FN_UserCanWriteByApiKey($user)` (`FN_MCP_CanWrite()` nei tool); un tool registrato con
+`FN_MCP_AddTool(..., $write = true)` è uno strumento di scrittura.
 
 ### Limitare le chiavi API ad alcuni utenti
 

@@ -11,14 +11,22 @@ written in the site log with the user name.
 
 ## API keys
 
-* Each user has one API key, stored in the `apikey` field of `fn_users`. It is never
-  shown in user lists or exported by the API.
-* The key is generated automatically the first time the user opens the profile page.
-  It is shown only to its owner:
+* Each user has one API key. Only its hash is stored (`apikey` field of `fn_users`,
+  `v1$<sha256>`, creation date in `apikey_date`): nobody can read a key, not even an
+  administrator. Whoever copies the users table gets no usable key.
+* The user generates the key with the **Generate API key** button of the profile page and
+  copies it at once: it is shown only that time. A new key replaces the previous one; the
+  **Revoke API key** button removes it. The profile pages:
   * control center: **Users and groups > Profile** (`index.php?fnapp=controlcenter&opt=users_and_groups/profile`)
   * front end: **Edit profile** of the login module (`index.php?mod=login&op=editreg`)
-* The **Regenerate API key** button creates a new key; the old one stops working at once.
-* Administrators cannot read other users' keys; each user manages their own.
+* A new password revokes the key (a password stored again unchanged, as in the rehash at
+  the login, does not). Keys of inactive users are refused.
+* Administrators manage the keys of every user in **Users and groups > MCP server**
+  (`opt=users_and_groups/mcp`): the page lists the MCP endpoints of the site, the users
+  with a key (creation date) and lets the administrator generate a key for a user (shown
+  once, to hand over), revoke it, and allow or deny the write tools.
+* Keys stored in clear by the versions before the hashes keep working: the hash replaces
+  the key at its first use.
 
 The key is sent in the HTTP header of every request:
 
@@ -46,9 +54,23 @@ the header when the client supports it, and regenerate the key if the URL is lea
 The header is accepted by the whole site, not only by the MCP endpoint: the function
 `FN_ManageLogin()` logs the user in from the API key whenever there is no cookie session.
 
-If the installation predates the feature, the `apikey` field is added to the
-`fn_users` table definition automatically (`FN_EnsureUserApiKeyField()`); with the
-MySQL driver the column is created on the first write.
+If the installation predates the feature, the `apikey` and `apikey_date` fields are added
+to the `fn_users` table definition automatically (`FN_EnsureUserApiKeyField()`); with the
+MySQL driver the columns are created on the first write.
+
+### Write tools
+
+Reading is open to every user with a key. Tools that change something (`create_section`,
+`update_section`, `delete_section`, `edit_section_content`, `set_section_content`,
+`write_section_file`, `set_block_content`, `update_setting`, `create_user`, `update_user`,
+and the write tools of the applications) are listed and allowed only for the administrators
+and for the members of the group `$_FN['mcp_write_group']` (default `mcp_write`, created
+when needed; "" = every user). The other users get a read only server: the `initialize`
+instructions and `site_guide` say so. An administrator allows a user in **Users and groups
+> MCP server**. The reason: a client that writes acts on texts it reads, and a text written
+by someone else can try to drive it (prompt injection); writing is a choice made user by
+user. The check is `FN_UserCanWriteByApiKey($user)` (`FN_MCP_CanWrite()` in the tools);
+a tool registered with `FN_MCP_AddTool(..., $write = true)` is a write tool.
 
 ### Restricting the API keys to some users
 

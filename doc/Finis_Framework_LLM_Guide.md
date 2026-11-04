@@ -532,20 +532,34 @@ Configuration keys (in `config.vars.local.php`, defaults in the code):
 
 ## API keys and MCP server
 
-Every user can have a personal API key (`apikey` field of `fn_users`, 48 hex chars,
-`frm_show=0`). It is created on demand and shown only to its owner in the profile pages
-(control center `users_and_groups/profile` and the login module `op=editreg`), with a
-"Regenerate API key" button. Helpers in `src/include/auth/local.php`:
+Every user can have a personal API key (48 hex chars); only its hash is stored (`apikey`
+field of `fn_users`, `v1$<sha256>`, `frm_show=0`; creation date in `apikey_date`). The key
+is generated on request (never automatically) and shown once to its owner in the profile
+pages (control center `users_and_groups/profile` and the login module `op=editreg`:
+"Generate API key" / "Revoke API key" buttons, anti CSRF `apikey_token`); administrators
+manage every key in the control center section `users_and_groups/mcp` (generate for a
+user, shown once; revoke; allow the write tools). A new password revokes the key
+(`FN_UpdateUser()`, unless the password is the same: `FN_SamePassword()`). Helpers in
+`src/include/auth/local.php`:
 
-*   `FN_GetUserApiKey($user, $generate = true)`, `FN_GenerateApiKey($user)` (`random_bytes(24)`;
-    without a random source it logs the error and returns "": no fallback key, the old key stays)
+*   `FN_GenerateApiKey($user)` (`random_bytes(24)`, stores `FN_ApiKeyRecord()`, returns the
+    key once; without a random source it logs the error and returns ""), `FN_RevokeApiKey($user)`,
+    `FN_ApiKeyInfo($user)` (`exists`, `created`, `legacy` = key stored in clear by an old version,
+    migrated at its first use), `FN_ApiKeyHash($key)`
 *   `FN_GetRequestApiKey()`: reads `Authorization: Bearer <key>` or `X-Api-Key`; on the MCP
     endpoint only (`fnapp=mcp`) also `&apikey=<key>` in the URL (headers win)
 *   `FN_GetUserByApiKey($apikey)`, `FN_LoginByApiKey($apikey)` (sets `$_FN['user']`,
     `$_FN['uservalues']` and `$_FN['auth_method'] = "apikey"`)
-*   `FN_ProfileApiKey($user, &$tplvars)`: fills `{apikey}`, `{apikey_message}`, `{mcp_url}`
-    for the profile templates and handles the `regenerate_apikey` POST
-*   `FN_EnsureUserApiKeyField()`: adds the field to an old `fn_users.php` definition
+*   `FN_UserCanUseApiKey($user)` (`$_FN['apikey_groups']`, "" = everybody),
+    `FN_UserCanWriteByApiKey($user)` (administrators and the group `$_FN['mcp_write_group']`,
+    default `mcp_write`; `FN_McpWriteGroup()`, `FN_SetUserGroup()`)
+*   `FN_ProfileApiKey($user, &$tplvars)`: fills `{apikey_allowed}`, `{apikey_exists}`,
+    `{apikey_status}`, `{apikey_new}`, `{apikey_message}`, `{apikey_token}`, `{apikey_write}`,
+    `{mcp_url}`, `{mcp_endpoints}` for the profile templates and handles the
+    `generate_apikey` / `revoke_apikey` POST
+*   `FN_GetMcpEndpoints()`: the CMS endpoint plus `$_FN['mcp_endpoints']` (name => url) of
+    the application; `FN_ApiKeyFormToken()`
+*   `FN_EnsureUserApiKeyField()`: adds the fields to an old `fn_users.php` definition
 
 `FN_ManageLogin()` tries the API key when no cookie session exists, so any request
 (`fnapp=api`, `fnapp=mcp`, ...) can be authenticated with the header.
@@ -567,8 +581,9 @@ Streamable HTTP, POST only) that accepts **only** API key or OAuth authenticatio
 cookies) and runs every tool as the user: permission checks use `FN_IsAdmin()`, `FN_UserCanEditSection()`,
 `FN_UserCanEditBlock()`, `FN_CanModifyFile()`, and mutations call
 `FN_LogEvent($msg, "mcp")` so `fn_log.user` is the real user. Tools are registered with
-`FN_MCP_AddTool($name, $description, $inputSchema, $callback)`; a tool throws
-`FN_MCP_Fail($message)` to return an error. Applications add their own tools in
+`FN_MCP_AddTool($name, $description, $inputSchema, $callback, $write = false)`; a tool throws
+`FN_MCP_Fail($message)` to return an error. Write tools (`$write = true`) are listed and
+allowed only when `FN_MCP_CanWrite()` (administrators and the group `$_FN['mcp_write_group']`). Applications add their own tools in
 `{src_application}/include/mcp_tools.php`. Content written by `set_section_content`,
 `set_block_content` and `create_section` goes through `FN_MCP_LocalizeLinks()`
 (= `FN_RewriteLinksAbsoluteToLocal($content, "sections/$id")`), the same conversion the

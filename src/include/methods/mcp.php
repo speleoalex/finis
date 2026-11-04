@@ -12,7 +12,9 @@
  * the user's level and groups, and the log carries the username.
  *
  * Applications can add tools in {src_application}/include/mcp_tools.php
- * with FN_MCP_AddTool($name, $description, $inputSchema, $callback).
+ * with FN_MCP_AddTool($name, $description, $inputSchema, $callback, $write).
+ * The write tools are listed and allowed only for the administrators and the
+ * users of the group $_FN['mcp_write_group'] (FN_MCP_CanWrite).
  *
  * @package Finis
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -38,9 +40,11 @@ $_FN['mcp_tools'] = array();
  * @param array $inputSchema JSON schema of the arguments
  * @param callable $callback function($arguments) returning an array (result)
  *        or throwing an Exception on error
+ * @param bool $write the tool changes something: listed and allowed only for
+ *        the users that may write (FN_MCP_CanWrite)
  * @return void
  */
-function FN_MCP_AddTool($name, $description, $inputSchema, $callback)
+function FN_MCP_AddTool($name, $description, $inputSchema, $callback, $write = false)
 {
     global $_FN;
     if (!isset($inputSchema['type']))
@@ -52,7 +56,25 @@ function FN_MCP_AddTool($name, $description, $inputSchema, $callback)
         "description" => $description,
         "inputSchema" => $inputSchema,
         "callback" => $callback,
+        "write" => (bool) $write,
     );
+}
+
+/**
+ * Tell whether the current user may use the write tools: administrators
+ * always, the other users when an administrator put them in the group
+ * $_FN['mcp_write_group'] (FN_UserCanWriteByApiKey).
+ *
+ * @global array $_FN
+ * @return bool
+ */
+function FN_MCP_CanWrite()
+{
+    global $_FN;
+    static $canwrite = null;
+    if ($canwrite === null)
+        $canwrite = FN_UserCanWriteByApiKey($_FN['user']);
+    return $canwrite;
 }
 
 /**
@@ -552,7 +574,7 @@ function FN_MCP_SiteGuide()
     foreach ($_FN['listlanguages'] as $l)
         $langs[] = $l == $_FN['lang_default'] ? "$l (default)" : $l;
     $g = array();
-    $g[] = "SITE {$_FN['site_title']} " . FN_GetMcpSiteUrl() . " | user {$_FN['user']}" . (FN_IsAdmin() ? " (admin, can edit everything)" : " (can edit only the sections flagged edit)") . " | languages " . implode(", ", $langs);
+    $g[] = "SITE {$_FN['site_title']} " . FN_GetMcpSiteUrl() . " | user {$_FN['user']}" . (FN_IsAdmin() ? " (admin, can edit everything)" : (FN_MCP_CanWrite() ? " (can edit only the sections flagged edit)" : " (READ ONLY: no write tools, an administrator can allow them)")) . " | languages " . implode(", ", $langs);
     $g[] = "PAGES";
     $g[] = "- Every page is a section <id>, address index.php?mod=<id>. The home page is section '$home', also shown at the site root.";
     $g[] = "- Page text (sections without [type] below): sections/<id>/section.<lang>.html, one file per language: change every language. A language without its file shows section.html or nothing.";
@@ -827,7 +849,7 @@ FN_MCP_AddTool("create_section", "Admin. New section (page), added after its las
     FN_ClearCache();
     FN_MCP_ReloadSections();
     return FN_MCP_SectionInfo(FN_GetSectionValues($id, false));
-});
+}, true);
 
 FN_MCP_AddTool("update_section", "Change section properties (page text: edit_section_content).", array(
     "properties" => array(
@@ -899,7 +921,7 @@ FN_MCP_AddTool("update_section", "Change section properties (page text: edit_sec
     FN_ClearCache();
     FN_MCP_ReloadSections();
     return FN_MCP_SectionInfo(FN_GetSectionValues($id, false));
-});
+}, true);
 
 FN_MCP_AddTool("delete_section", "Admin. Delete a section and its folder; children only with force=true. Not the home.", array(
     "properties" => array(
@@ -946,7 +968,7 @@ FN_MCP_AddTool("delete_section", "Admin. Delete a section and its folder; childr
     FN_ClearCache();
     FN_MCP_ReloadSections();
     return array("deleted" => $todelete);
-});
+}, true);
 
 FN_MCP_AddTool("get_section_content", "Html of a page in one language (falls back to the default language).", array(
     "properties" => array(
@@ -1010,7 +1032,7 @@ FN_MCP_AddTool("edit_section_content", "Replace text in the html of a page (sect
     FN_MCP_WriteContent($file, $content);
     FN_LogEvent("section content edited:$id ($lang)", "mcp");
     return array("replaced" => $count, "bytes" => strlen($content));
-});
+}, true);
 
 FN_MCP_AddTool("set_section_content", "Write the whole html of a page (section.<lang>.html): body fragment, no <html>/<body>.", array(
     "properties" => array(
@@ -1033,7 +1055,7 @@ FN_MCP_AddTool("set_section_content", "Write the whole html of a page (section.<
     FN_MCP_WriteContent("$folder/section.$lang.html", $content);
     FN_LogEvent("section content updated:$id ($lang)", "mcp");
     return array("file" => "sections/$id/section.$lang.html", "bytes" => strlen($content));
-});
+}, true);
 
 FN_MCP_AddTool("list_section_files", "Files in sections/<id>/: name size date.", array(
     "properties" => array(
@@ -1112,7 +1134,7 @@ FN_MCP_AddTool("write_section_file", "Write a text file in sections/<id>/ (creat
     FN_MCP_WriteContent($file, $args['content']);
     FN_LogEvent("file written:sections/$id/$relative", "mcp");
     return array("file" => "sections/$id/$relative", "bytes" => strlen($args['content']));
-});
+}, true);
 
 FN_MCP_AddTool("list_blocks", "Blocks (side boxes): id [type] position \"title\", and whether the theme shows them.", array(), function ($args)
 {
@@ -1192,7 +1214,7 @@ FN_MCP_AddTool("set_block_content", "Write the html of a block (blocks/<id>/sect
     FN_MCP_WriteContent("$folder/section.$lang.html", $content);
     FN_LogEvent("block content updated:$id ($lang)", "mcp");
     return array("file" => "blocks/$id/section.$lang.html", "bytes" => strlen($content));
-});
+}, true);
 
 FN_MCP_AddTool("list_settings", "Admin. Site settings {name: value} (secrets hidden).", array(), function ($args)
 {
@@ -1238,7 +1260,7 @@ FN_MCP_AddTool("update_setting", "Admin. Change a site setting (site_title, home
     FN_ClearCache();
     FN_LogEvent("setting updated:$name", "mcp");
     return array("name" => $name, "value" => $value, "old_value" => $old['varvalue']);
-});
+}, true);
 
 FN_MCP_AddTool("list_users", "Admin. Users: username, email, level, group, active, name (full=true: every field).", array(
     "properties" => array(
@@ -1317,7 +1339,7 @@ FN_MCP_AddTool("create_user", "Admin. New user.", array(
         FN_MCP_Fail("user creation failed" . (!empty($GLOBALS['_FN']['return']['errors']) ? ": " . json_encode($GLOBALS['_FN']['return']['errors']) : ""));
     FN_LogEvent("user created:$username", "mcp");
     return FN_MCP_NoEmpty(FN_MCP_PublicUser(FN_GetUser($username, false)));
-});
+}, true);
 
 FN_MCP_AddTool("update_user", "Admin. Change user fields or password (not the API key).", array(
     "properties" => array(
@@ -1348,7 +1370,7 @@ FN_MCP_AddTool("update_user", "Admin. Change user fields or password (not the AP
         FN_MCP_Fail("user update failed");
     FN_LogEvent("user updated:$username (" . implode(",", array_keys($fields)) . ($password != "" ? ",password" : "") . ")", "mcp");
     return FN_MCP_NoEmpty(FN_MCP_PublicUser(FN_GetUser($username, false)));
-});
+}, true);
 
 FN_MCP_AddTool("list_groups", "User groups.", array(), function ($args)
 {
@@ -1509,14 +1531,17 @@ function FN_MCP_HandleMessage($msg)
                     "title" => "FINIS CMS: " . $_FN['site_title'],
                     "version" => trim(@file_get_contents("{$_FN['src_finis']}/VERSION")),
                 ),
-                "instructions" => "FINIS CMS of the site '" . $_FN['site_title'] . "' (" . FN_GetMcpSiteUrl() . "), user '" . $_FN['user'] . "'" . (FN_IsAdmin() ? " (admin)" : "") . ". Call site_guide first: it explains how the pages (sections) of this site are stored and edited and lists them. Changes are logged with your name.",
+                "instructions" => "FINIS CMS of the site '" . $_FN['site_title'] . "' (" . FN_GetMcpSiteUrl() . "), user '" . $_FN['user'] . "'" . (FN_IsAdmin() ? " (admin)" : (FN_MCP_CanWrite() ? "" : " (read only)")) . ". Call site_guide first: it explains how the pages (sections) of this site are stored and edited and lists them. Changes are logged with your name.",
             ));
         case "ping":
             return FN_MCP_Result($id, new stdClass());
         case "tools/list":
             $tools = array();
+            $canwrite = FN_MCP_CanWrite();
             foreach ($_FN['mcp_tools'] as $t)
             {
+                if (!empty($t['write']) && !$canwrite)
+                    continue;
                 $tools[] = array("name" => $t['name'], "description" => $t['description'], "inputSchema" => $t['inputSchema']);
             }
             return FN_MCP_Result($id, array("tools" => $tools));
@@ -1524,6 +1549,8 @@ function FN_MCP_HandleMessage($msg)
             $name = isset($params['name']) ? "{$params['name']}" : "";
             if (!isset($_FN['mcp_tools'][$name]))
                 return FN_MCP_Error($id, -32602, "unknown tool: $name");
+            if (!empty($_FN['mcp_tools'][$name]['write']) && !FN_MCP_CanWrite())
+                return FN_MCP_Result($id, array("content" => array(array("type" => "text", "text" => '{"error":"permission denied: the write tools are not enabled for this user, ask an administrator"}')), "isError" => true));
             $arguments = isset($params['arguments']) && is_array($params['arguments']) ? $params['arguments'] : array();
             $output = array();
             $isError = false;

@@ -82,6 +82,13 @@
         <size>128</size>
     </field>
     <field>
+        <name>apikey_date</name>
+        <frm_i18n>API key date</frm_i18n>
+        <frm_show>0</frm_show>
+        <frm_allowupdate>0</frm_allowupdate>
+        <size>32</size>
+    </field>
+    <field>
         <name>active</name>
         <frm_i18n>user enabled</frm_i18n>
         <type>check</type>

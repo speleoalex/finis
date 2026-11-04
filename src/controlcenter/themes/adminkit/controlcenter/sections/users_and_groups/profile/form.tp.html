@@ -44,19 +44,24 @@
             <!-- end_endgroup -->
 
             <!-- end_contents -->
-            <!-- if {apikey} -->
+            <!-- if {apikey_allowed} -->
             <div class="form-group row">
                 <label class="col-sm-2 col-form-label">{i18n:API key}:</label>
                 <div class="col-sm-10">
-                    <input type="text" class="form-control" readonly="readonly" value="{apikey}" onclick="this.select()" />
-                    <div class="form-text text-muted">{i18n:MCP endpoint}: <code>{mcp_url}</code></div>
+                    <input type="hidden" name="apikey_token" value="{apikey_token}" />
+                    <!-- if {apikey_new} -->
+                    <input type="text" class="form-control" readonly="readonly" value="{apikey_new}" onclick="this.select()" />
+                    <!-- end if {apikey_new} -->
+                    <!-- if {apikey_message} --><div class="text-success fw-bold">{apikey_message}</div><!-- end if {apikey_message} -->
+                    <div>{apikey_status}<!-- if {apikey_exists} --> &middot; {i18n:the key is used with the permissions of your account}<!-- if {apikey_write} --> ({i18n:write tools allowed})<!-- end if {apikey_write} --><!-- end if {apikey_exists} --></div>
+                    <div class="form-text text-muted">{i18n:MCP servers}: <!-- foreach {mcp_endpoints} --><code>{url}</code> <!-- end foreach {mcp_endpoints} --></div>
                     <div class="mt-2">
-                        <button class="btn btn-secondary btn-sm" type="submit" name="regenerate_apikey" value="1" onclick="return confirm('{i18n:regenerate the API key? The clients that use the current key will stop working}')">{i18n:Regenerate API key}</button>
-                        <!-- if {apikey_message} --><span class="text-success ms-2">{apikey_message}</span><!-- end if {apikey_message} -->
+                        <button class="btn btn-secondary btn-sm" type="submit" name="generate_apikey" value="1"<!-- if {apikey_exists} --> onclick="return confirm('{i18n:generate a new key? The clients that use the current key will stop working}')"<!-- end if {apikey_exists} -->>{i18n:Generate API key}</button>
+                        <!-- if {apikey_exists} --><button class="btn btn-outline-danger btn-sm" type="submit" name="revoke_apikey" value="1" onclick="return confirm('{i18n:revoke the key? The clients that use it will stop working}')">{i18n:Revoke API key}</button><!-- end if {apikey_exists} -->
                     </div>
                 </div>
             </div>
-            <!-- end if {apikey} -->
+            <!-- end if {apikey_allowed} -->
             <div class="form-group row">
                 <div class="col-sm-12">
                     <input name="updateuser" value="1" type="hidden" />
