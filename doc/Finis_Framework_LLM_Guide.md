@@ -532,20 +532,24 @@ Configuration keys (in `config.vars.local.php`, defaults in the code):
 
 ## API keys and MCP server
 
-Every user can have a personal API key (48 hex chars); only its hash is stored (`apikey`
-field of `fn_users`, `v1$<sha256>`, `frm_show=0`; creation date in `apikey_date`). The key
+Every user can have a personal API key (48 hex chars); the key is found by its hash (`apikey`
+field of `fn_users`, `v1$<sha256>`, `frm_show=0`; creation date in `apikey_date`) and a copy
+encrypted with the site secret is kept in `apikey_enc` (`e1$`, AES-256-GCM, key derived from
+`FN_GetSiteSecret()`) so that the administrators can show it. The key
 is generated on request (never automatically) and shown once to its owner in the profile
 pages (control center `users_and_groups/profile` and the login module `op=editreg`:
 "Generate API key" / "Revoke API key" buttons, anti CSRF `apikey_token`); administrators
-manage every key in the control center section `users_and_groups/mcp` (generate for a
-user, shown once; revoke; allow the write tools). A new password revokes the key
+manage every key in the control center section `users_and_groups/mcp` (show the key of a
+user, logged; generate for a user; revoke; allow the write tools). A new password revokes the key
 (`FN_UpdateUser()`, unless the password is the same: `FN_SamePassword()`). Helpers in
 `src/include/auth/local.php`:
 
 *   `FN_GenerateApiKey($user)` (`random_bytes(24)`, stores `FN_ApiKeyRecord()`, returns the
     key once; without a random source it logs the error and returns ""), `FN_RevokeApiKey($user)`,
     `FN_ApiKeyInfo($user)` (`exists`, `created`, `legacy` = key stored in clear by an old version,
-    migrated at its first use), `FN_ApiKeyHash($key)`
+    migrated at its first use, `viewable`), `FN_ApiKeyHash($key)`, `FN_ApiKeyReveal($user)` (the
+    key decrypted from `apikey_enc` and checked against the hash, "" for a key stored only
+    hashed), `FN_ApiKeyEncrypt()` / `FN_ApiKeyDecrypt()`
 *   `FN_GetRequestApiKey()`: reads `Authorization: Bearer <key>` or `X-Api-Key`; on the MCP
     endpoint only (`fnapp=mcp`) also `&apikey=<key>` in the URL (headers win)
 *   `FN_GetUserByApiKey($apikey)`, `FN_LoginByApiKey($apikey)` (sets `$_FN['user']`,

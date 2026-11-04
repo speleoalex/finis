@@ -11,12 +11,13 @@ controllo e ogni modifica finisce nel log del sito con il nome dell'utente.
 
 ## Chiavi API
 
-* Ogni utente ha una chiave API. Viene salvato solo il suo hash (campo `apikey` di
-  `fn_users`, `v1$<sha256>`, data di creazione in `apikey_date`): nessuno può leggere una
-  chiave, nemmeno un amministratore. Chi copia la tabella degli utenti non ottiene chiavi
-  utilizzabili.
+* Ogni utente ha una chiave API. Vengono salvati il suo hash (campo `apikey` di
+  `fn_users`, `v1$<sha256>`, usato per riconoscere la chiave), la data di creazione
+  (`apikey_date`) e una copia cifrata con il segreto del sito (`apikey_enc`, AES-256-GCM
+  con una chiave ricavata da `misc/secret.key.php`). Chi copia la tabella degli utenti
+  senza `misc/secret.key.php` non ottiene chiavi utilizzabili.
 * L'utente genera la chiave con il pulsante **Genera chiave API** della pagina del profilo
-  e la copia subito: viene mostrata solo quella volta. Una nuova chiave sostituisce la
+  e la copia subito: all'utente viene mostrata solo quella volta. Una nuova chiave sostituisce la
   precedente; il pulsante **Revoca chiave API** la elimina. Le pagine del profilo:
   * pannello di controllo: **Utenti e gruppi > Profilo** (`index.php?fnapp=controlcenter&opt=users_and_groups/profile`)
   * front end: **Modifica profilo** del modulo login (`index.php?mod=login&op=editreg`)
@@ -24,9 +25,11 @@ controllo e ogni modifica finisce nel log del sito con il nome dell'utente.
   rehash al login, no). Le chiavi degli utenti non attivi sono rifiutate.
 * Gli amministratori gestiscono le chiavi di tutti gli utenti in **Utenti e gruppi >
   Server MCP** (`opt=users_and_groups/mcp`): la pagina elenca gli endpoint MCP del sito,
-  gli utenti con una chiave (data di creazione) e permette di generare una chiave per un
-  utente (mostrata una volta, da consegnargli), revocarla, consentire o negare gli
-  strumenti di scrittura.
+  gli utenti con una chiave (data di creazione) e permette di **mostrare la chiave** di un
+  utente (pulsante **Mostra chiave**, ogni visualizzazione finisce nel log), generarne una
+  nuova da consegnargli, revocarla, consentire o negare gli strumenti di scrittura. Le
+  chiavi create quando si salvava solo l'hash (finis b7534f1, senza `apikey_enc`) non si
+  possono mostrare: va generata una chiave nuova.
 * Le chiavi salvate in chiaro dalle versioni precedenti agli hash continuano a funzionare:
   l'hash sostituisce la chiave al primo uso.
 

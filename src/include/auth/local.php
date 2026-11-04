@@ -841,6 +841,8 @@ function FN_UpdateUser($user, $newvalues, $password = "")
             if (!empty($oldvalues['apikey']) && !FN_SamePassword($password, $oldvalues['passwd']))
             {
                 $newvalues['apikey'] = "";
+                if (isset($table->xmltable->fields['apikey_enc']))
+                    $newvalues['apikey_enc'] = "";
                 FN_LogEvent("API key revoked for user $user: password changed", "apikey");
             }
         }
@@ -1222,8 +1224,9 @@ function generateSecurePassword($length = 12)
 //------------------------------- API key ------------------------------------->
 
 /**
- * Make sure the installed fn_users table definition contains the apikey and apikey_date fields.
- * Installations created before the field existed copied an older definition:
+ * Make sure the installed fn_users table definition contains the apikey, apikey_date
+ * and apikey_enc fields.
+ * Installations created before the fields existed copied an older definition:
  * once the field is appended, the SQL drivers add the column automatically.
  *
  * @global array $_FN
@@ -1238,7 +1241,7 @@ function FN_EnsureUserApiKeyField()
     $checked = false;
     $form = FN_GetUserForm();
     $missing = array();
-    foreach (array("apikey", "apikey_date") as $name)
+    foreach (array("apikey", "apikey_date", "apikey_enc") as $name)
     {
         if (!isset($form->xmltable->fields[$name]))
             $missing[] = $name;
@@ -1252,8 +1255,8 @@ function FN_EnsureUserApiKeyField()
     if (!file_exists($definition) || !is_writable($definition))
         return isset($form->xmltable->fields['apikey']);
     $xml = file_get_contents($definition);
-    $labels = array("apikey" => "API key", "apikey_date" => "API key date");
-    $sizes = array("apikey" => 128, "apikey_date" => 32);
+    $labels = array("apikey" => "API key", "apikey_date" => "API key date", "apikey_enc" => "API key (encrypted)");
+    $sizes = array("apikey" => 128, "apikey_date" => 32, "apikey_enc" => 255);
     $added = false;
     foreach ($missing as $name)
     {
@@ -1328,10 +1331,10 @@ function FN_GetRequestApiKey()
 }
 
 /**
- * Value stored in fn_users.apikey for a key: "v1$<sha256 of the key>". The key
- * itself is never stored: whoever reads the users table cannot use the keys.
- * The keys are random (48 hex digits), so a plain sha256 is enough. The
- * creation date goes in fn_users.apikey_date.
+ * Value stored in fn_users.apikey for a key: "v1$<sha256 of the key>", used to
+ * find the owner of a key. The keys are random (48 hex digits), so a plain
+ * sha256 is enough. The creation date goes in fn_users.apikey_date, a copy
+ * encrypted with the site secret in fn_users.apikey_enc (FN_ApiKeyEncrypt).
  *
  * @param string $apikey
  * @return string
@@ -1339,6 +1342,62 @@ function FN_GetRequestApiKey()
 function FN_ApiKeyHash($apikey)
 {
     return "v1$" . hash("sha256", trim("$apikey"));
+}
+
+/**
+ * Encryption key of the stored copies of the API keys, derived from the site
+ * secret (misc/secret.key.php): a copy of the users table without that file
+ * gives no usable key.
+ *
+ * @return string 32 raw bytes
+ */
+function FN_ApiKeyCipherKey()
+{
+    return hash_hmac("sha256", "finis apikey encryption", FN_GetSiteSecret(), true);
+}
+
+/**
+ * Encrypt an API key for fn_users.apikey_enc: "e1$" + base64(iv, tag, data),
+ * AES-256-GCM. Without openssl the key is not stored at all ("" returned): it
+ * still works, but it cannot be shown again.
+ *
+ * @param string $apikey
+ * @return string
+ */
+function FN_ApiKeyEncrypt($apikey)
+{
+    if (!function_exists("openssl_encrypt") || !in_array("aes-256-gcm", array_map("strtolower", openssl_get_cipher_methods())))
+        return "";
+    try
+    {
+        $iv = random_bytes(12);
+    }
+    catch (Exception $e)
+    {
+        return "";
+    }
+    $tag = "";
+    $data = openssl_encrypt(trim("$apikey"), "aes-256-gcm", FN_ApiKeyCipherKey(), OPENSSL_RAW_DATA, $iv, $tag);
+    if ($data === false || strlen($tag) != 16)
+        return "";
+    return "e1$" . base64_encode($iv . $tag . $data);
+}
+
+/**
+ * Decrypt a value written by FN_ApiKeyEncrypt().
+ *
+ * @param string $stored
+ * @return string the key, "" when the value is empty or cannot be decrypted
+ */
+function FN_ApiKeyDecrypt($stored)
+{
+    if (!preg_match('#^e1\$([A-Za-z0-9+/=]+)$#', trim("$stored"), $m) || !function_exists("openssl_decrypt"))
+        return "";
+    $raw = base64_decode($m[1], true);
+    if ($raw === false || strlen($raw) <= 28)
+        return "";
+    $apikey = openssl_decrypt(substr($raw, 28), "aes-256-gcm", FN_ApiKeyCipherKey(), OPENSSL_RAW_DATA, substr($raw, 0, 12), substr($raw, 12, 16));
+    return $apikey === false ? "" : $apikey;
 }
 
 /**
@@ -1353,6 +1412,8 @@ function FN_ApiKeyRecord($apikey)
     $values = array("apikey" => FN_ApiKeyHash($apikey));
     if (isset($form->xmltable->fields['apikey_date']))
         $values['apikey_date'] = FN_Now();
+    if (isset($form->xmltable->fields['apikey_enc']))
+        $values['apikey_enc'] = FN_ApiKeyEncrypt($apikey);
     return $values;
 }
 
@@ -1361,20 +1422,51 @@ function FN_ApiKeyRecord($apikey)
  *
  * @param string|array $user username or user values
  * @return array exists (bool), created ("Y-m-d H:i:s" or ""), legacy (bool: key
- *         stored in clear by a version before the hashes)
+ *         stored in clear by a version before the hashes), viewable (bool: an
+ *         administrator can show it, FN_ApiKeyReveal)
  */
 function FN_ApiKeyInfo($user)
 {
     $uservalues = is_array($user) ? $user : FN_GetUser($user, false);
     $stored = isset($uservalues['apikey']) ? "{$uservalues['apikey']}" : "";
-    $info = array("exists" => $stored != "", "created" => "", "legacy" => false);
+    $info = array("exists" => $stored != "", "created" => "", "legacy" => false, "viewable" => false);
     if ($stored == "")
         return $info;
     if (preg_match('/^v1\$[a-f0-9]{64}$/', $stored))
+    {
         $info['created'] = !empty($uservalues['apikey_date']) ? substr("{$uservalues['apikey_date']}", 0, 16) : "";
+        $info['viewable'] = !empty($uservalues['apikey_enc']);
+    }
     else
+    {
         $info['legacy'] = true;
+        $info['viewable'] = true;
+    }
     return $info;
+}
+
+/**
+ * The API key of a user in clear, for the page of the administrators
+ * (control center, users_and_groups/mcp): decrypted from fn_users.apikey_enc
+ * and checked against the stored hash. A key created when only its hash was
+ * stored cannot be read: "" (a new key has to be generated).
+ *
+ * @param string|array $user username or user values
+ * @return string the key or ""
+ */
+function FN_ApiKeyReveal($user)
+{
+    $uservalues = is_array($user) ? $user : FN_GetUser($user, false);
+    $stored = isset($uservalues['apikey']) ? "{$uservalues['apikey']}" : "";
+    if ($stored == "")
+        return "";
+    $info = FN_ApiKeyInfo($uservalues);
+    if ($info['legacy'])
+        return $stored;
+    $apikey = FN_ApiKeyDecrypt(isset($uservalues['apikey_enc']) ? $uservalues['apikey_enc'] : "");
+    if ($apikey == "" || !hash_equals($stored, FN_ApiKeyHash($apikey)))
+        return "";
+    return $apikey;
 }
 
 /**
@@ -1551,9 +1643,10 @@ function FN_LoginByApiKey($apikey)
 }
 
 /**
- * Generate a new random API key for a user and store its hash in fn_users.
- * The key replaces the previous one, so old clients stop working. The key is
- * returned once: it cannot be read again.
+ * Generate a new random API key for a user and store its hash and its
+ * encrypted copy in fn_users. The key replaces the previous one, so old
+ * clients stop working. Afterwards only the administrators can show it again
+ * (FN_ApiKeyReveal).
  *
  * @global array $_FN
  * @param string $user username
@@ -1601,8 +1694,11 @@ function FN_RevokeApiKey($user)
     FN_EnsureUserApiKeyField();
     $table = FN_GetUserForm();
     $values = array("apikey" => "");
-    if (isset($table->xmltable->fields['apikey_date']))
-        $values['apikey_date'] = "";
+    foreach (array("apikey_date", "apikey_enc") as $field)
+    {
+        if (isset($table->xmltable->fields[$field]))
+            $values[$field] = "";
+    }
     $result = $table->xmltable->UpdateRecordBypk($values, $table->xmltable->primarykey, $uservalues['username']);
     FN_GetUser($user, false);
     if (is_array($result))
@@ -1611,23 +1707,21 @@ function FN_RevokeApiKey($user)
 }
 
 /**
- * Kept for the applications written before the hashed keys: a key cannot be
- * read any more, so this returns "" unless the user still has a key stored in
- * clear; with $generate a new key is created and returned.
+ * Kept for the applications written before the hashed keys: the key of the
+ * user (FN_ApiKeyReveal, "" when it cannot be read); with $generate a key is
+ * created only when the user has none, an existing key is never replaced
+ * (the OAuth consent relies on it).
  *
  * @param string $user username
- * @param bool $generate create a new key
+ * @param bool $generate create a key when the user has none
  * @return string the API key or an empty string
- * @deprecated use FN_ApiKeyInfo() and FN_GenerateApiKey()
+ * @deprecated use FN_ApiKeyInfo(), FN_ApiKeyReveal() and FN_GenerateApiKey()
  */
 function FN_GetUserApiKey($user, $generate = false)
 {
     $info = FN_ApiKeyInfo($user);
-    if ($info['legacy'])
-    {
-        $uservalues = FN_GetUser($user, false);
-        return $uservalues['apikey'];
-    }
+    if ($info['exists'])
+        return FN_ApiKeyReveal($user);
     if ($generate)
         return FN_GenerateApiKey($user);
     return "";

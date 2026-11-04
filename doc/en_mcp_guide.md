@@ -11,11 +11,13 @@ written in the site log with the user name.
 
 ## API keys
 
-* Each user has one API key. Only its hash is stored (`apikey` field of `fn_users`,
-  `v1$<sha256>`, creation date in `apikey_date`): nobody can read a key, not even an
-  administrator. Whoever copies the users table gets no usable key.
+* Each user has one API key. The stored values are its hash (`apikey` field of
+  `fn_users`, `v1$<sha256>`, used to recognize the key), the creation date (`apikey_date`)
+  and a copy encrypted with the site secret (`apikey_enc`, AES-256-GCM with a key derived
+  from `misc/secret.key.php`). Whoever copies the users table without
+  `misc/secret.key.php` gets no usable key.
 * The user generates the key with the **Generate API key** button of the profile page and
-  copies it at once: it is shown only that time. A new key replaces the previous one; the
+  copies it at once: the user sees it only that time. A new key replaces the previous one; the
   **Revoke API key** button removes it. The profile pages:
   * control center: **Users and groups > Profile** (`index.php?fnapp=controlcenter&opt=users_and_groups/profile`)
   * front end: **Edit profile** of the login module (`index.php?mod=login&op=editreg`)
@@ -23,8 +25,10 @@ written in the site log with the user name.
   the login, does not). Keys of inactive users are refused.
 * Administrators manage the keys of every user in **Users and groups > MCP server**
   (`opt=users_and_groups/mcp`): the page lists the MCP endpoints of the site, the users
-  with a key (creation date) and lets the administrator generate a key for a user (shown
-  once, to hand over), revoke it, and allow or deny the write tools.
+  with a key (creation date) and lets the administrator **show the key** of a user (**Show
+  key** button, every key shown is logged), generate a new one to hand over, revoke it,
+  and allow or deny the write tools. Keys created when only the hash was stored (finis
+  b7534f1, no `apikey_enc`) cannot be shown: a new key has to be generated.
 * Keys stored in clear by the versions before the hashes keep working: the hash replaces
   the key at its first use.
 

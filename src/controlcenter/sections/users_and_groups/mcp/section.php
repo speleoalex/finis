@@ -2,9 +2,10 @@
 
 /**
  * MCP servers: the endpoints of this site, the OAuth login, and the API keys of
- * the users (fn_users.apikey, stored hashed: nobody can read a key, the
- * administrator can only generate a new one for a user, shown once, or revoke it)
- * with the permission to use the write tools (group $_FN['mcp_write_group']).
+ * the users (fn_users.apikey hashed, fn_users.apikey_enc encrypted with the site
+ * secret: the administrator shows the key of a user, generates a new one or
+ * revokes it; every key shown is logged) with the permission to use the write
+ * tools (group $_FN['mcp_write_group']).
  *
  * @package Finis_controlcenter
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -23,6 +24,8 @@ if (!FN_IsAdmin())
     echo "<p>" . FN_Translate("operation is not permitted") . "</p>";
     return;
 }
+//apikey_enc must be in the table definition before a key is generated, or the key could not be shown
+FN_EnsureUserApiKeyField();
 $writegroup = FN_McpWriteGroup();
 if ($writegroup != "")
     FN_CreateGroupIfNotExists($writegroup);
@@ -45,9 +48,20 @@ if ($action != "")
         $newkey = FN_GenerateApiKey($user);
         $newkeyuser = $user;
         if ($newkey != "")
-            $message = FN_Translate("new key of") . " $user. " . FN_Translate("copy the key now: it is shown only this time") . " " . FN_Translate("The previous key, if any, no longer works.");
+            $message = FN_Translate("new key of") . " $user. " . FN_Translate("The previous key, if any, no longer works.");
         else
             $error = FN_Translate("error");
+    }
+    elseif ($action == "show")
+    {
+        $newkey = FN_ApiKeyReveal($user);
+        $newkeyuser = $user;
+        if ($newkey != "")
+            FN_LogEvent("API key of user $user shown to {$_FN['user']}", "apikey");
+        elseif (FN_ApiKeyInfo($user)['exists'])
+            $error = FN_Translate("this key cannot be shown: it was created when only its hash was stored. Generate a new key to see it") . ": $user";
+        else
+            $error = FN_Translate("no API key") . ": $user";
     }
     elseif ($action == "revoke")
     {
@@ -95,7 +109,7 @@ echo "<ul class=\"mb-0\">";
 echo "<li>" . FN_Translate("authentication") . ": <code>Authorization: Bearer &lt;" . FN_Translate("key") . "&gt;</code>, <code>X-Api-Key: &lt;" . FN_Translate("key") . "&gt;</code>, <code>&amp;apikey=&lt;" . FN_Translate("key") . "&gt;</code> " . FN_Translate("in the address (clients without custom headers)", "") . ", " . FN_Translate("or OAuth (login with username and password)", "") . "</li>";
 $siteurl = isset($_FN['siteurl']) ? rtrim($_FN['siteurl'], "/") . "/" : "";
 echo "<li>OAuth: <code>" . $h($siteurl . ".well-known/oauth-authorization-server") . "</code></li>";
-echo "<li>" . FN_Translate("keys are stored hashed: a key is shown only when it is generated; a new password revokes the key") . "</li>";
+echo "<li>" . FN_Translate("keys are stored as a hash and as a copy encrypted with the site secret (misc/secret.key.php): the administrators can show them here, every key shown is logged; a new password revokes the key") . "</li>";
 if (!empty($_FN['apikey_groups']))
     echo "<li>" . FN_Translate("only the administrators and the members of these groups can use a key") . ": <code>" . $h($_FN['apikey_groups']) . "</code> (<code>\$_FN['apikey_groups']</code>)</li>";
 echo "<li>" . FN_Translate("write tools") . ": " . ($writegroup != "" ? FN_Translate("administrators and group") . " <code>" . $h($writegroup) . "</code> (<code>\$_FN['mcp_write_group']</code>)" : FN_Translate("every user") . " (<code>\$_FN['mcp_write_group']</code> " . FN_Translate("empty") . ")") . "</li>";
@@ -160,6 +174,8 @@ foreach (array_slice($list, 0, $max) as $u)
         $key = "&#x1F511; <small class=\"text-warning\">" . FN_Translate("old key, stored in clear until its next use") . "</small>";
     else
         $key = "&#x1F511; <small>" . $h($info['created']) . "</small>";
+    if ($info['exists'] && !$info['viewable'])
+        $key .= " <small class=\"text-muted\">" . FN_Translate("cannot be shown: generate a new key") . "</small>";
     if ($info['exists'] && !empty($_FN['apikey_groups']) && !FN_UserCanUseApiKey($u))
         $key .= " <small class=\"text-danger\">" . FN_Translate("refused: the user is not in the groups allowed to use a key") . "</small>";
     echo "<td>$key</td>";
@@ -172,6 +188,8 @@ foreach (array_slice($list, 0, $max) as $u)
     echo "<td>$write</td>";
     echo "<td class=\"text-nowrap\"><form method=\"post\" action=\"$link" . ($q != "" ? "&amp;q=" . urlencode($q) : "") . ($all ? "&amp;all=1" : "") . "\" style=\"display:inline\">";
     echo "<input type=\"hidden\" name=\"apikey_token\" value=\"$token\" /><input type=\"hidden\" name=\"mcp_user\" value=\"" . $h($username) . "\" />";
+    if ($info['viewable'])
+        echo "<button class=\"btn btn-outline-secondary btn-sm\" type=\"submit\" name=\"mcp_action\" value=\"show\">" . FN_Translate("show key") . "</button> ";
     echo "<button class=\"btn btn-secondary btn-sm\" type=\"submit\" name=\"mcp_action\" value=\"generate\"" . ($info['exists'] ? " onclick=\"return confirm('" . addslashes(FN_Translate("generate a new key? The clients that use the current key will stop working")) . "')\"" : "") . ">" . FN_Translate("generate key") . "</button> ";
     if ($info['exists'])
         echo "<button class=\"btn btn-outline-danger btn-sm\" type=\"submit\" name=\"mcp_action\" value=\"revoke\" onclick=\"return confirm('" . addslashes(FN_Translate("revoke the key? The clients that use it will stop working")) . "')\">" . FN_Translate("revoke") . "</button> ";
