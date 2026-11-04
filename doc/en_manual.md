@@ -2,10 +2,13 @@
 
 ## Installation
 
-1. Download the source code and upload it to the provider.
-2. Create the `config.vars.local.php` file if necessary.
-3. Access the installation URL, for example, `http://[your-site]/`.
-4. Follow the installation wizard.
+1. Download the source code and upload the content of `src/` to the provider.
+2. Rename `index.php.example` to `index.php`.
+3. Create the `config.vars.local.php` file if necessary (e.g. for MySQL).
+4. Access the installation URL, for example, `http://[your-site]/`.
+5. Follow the installation wizard.
+
+Requirements, PHP extensions, web server and data folder are described in the [Installation Manual](en_installation_manual.md).
 
 ## Folder Structure
 
@@ -21,17 +24,27 @@
 - `languages/`
 - `plugins/`
 - `include/`
+- `sections/` (default sections, copied into the site by the installer)
 
 ### Website Files
 
 - `sections/`
 - `themes/`
+- `modules/` (section types of the application)
+- `controlcenter/sections/` (control center pages of the application)
+- `include/` (`autoexec.d/`, `methods/`, `auth/`, `mcp_tools.php`)
 - `config.vars.local.php`
 - `index.php`
+
+### Extension Files
+
+An extension (for example `fncommerce/`) is a separate folder with `modules/`, `sections/`, `controlcenter/sections/` and `misc/fndatabase/`, loaded with `$FINIS->addExtension()`.
 
 ### Data Files
 
 - `misc/`
+
+Besides the database, the data folder holds the site secret `misc/secret.key.php` (created automatically: back it up with the data, never commit it), the server sessions (`_sessions/`), the login attempt counters (`_login_attempts/`) and the cache (`_cache/`).
 
 The database is described within XML files in the `misc/fndatabase` folder. Each file describes a table, and each table can have its own driver to support different data storage systems such as MySQL, CSV files, MSSQL, XMLPHP, etc.
 
@@ -74,8 +87,22 @@ $_FN['xmetadb_mysqlusername'] = "root";
 $_FN['xmetadb_mysqlpassword'] = "";
 ```
 
+The defaults of these keys are in `src/include/config.vars.php`. Other keys of this file: `trusted_proxies` (reverse proxies), `home_section_force` (home section that wins over the control center setting), the login security keys and `apikey_groups` / `mcp_write_group` (see the [Installation Manual](en_installation_manual.md)). The other settings of the site are edited in the control center (`index.php?fnapp=controlcenter`).
+
 ## Application and Sources
 
 The files can coexist in the same folder, but it is possible to separate the framework sources from the website sources, for example in `finis_src/` and `website/`.
 
-The `index.php` in the website folder includes `../finis_src/FINIS.php`.
+The `index.php` in the website folder includes `../finis_src/FINIS.php`:
+
+```php
+<?php
+require_once "../finis_src/FINIS.php";
+$FINIS = new FINIS(array("src_application" => "."));
+$FINIS->addExtension("../fncommerce/"); // optional, one call per extension
+$FINIS->finis();
+```
+
+Modules (section types) and control center sections are looked up in the application folder, then in the FINIS sources, then in the extensions. `$FINIS->finis()` serves the site and the entry points chosen with `?fnapp=`: `controlcenter`, `api`, `mcp`, `oauthserver`, `thumb`, ... An application adds its own in `include/methods/<name>.php` (names made of letters, digits and `_`).
+
+The MCP server `index.php?fnapp=mcp` lets AI clients work on the site as a FINIS user, with a personal API key or an OAuth login: see the [MCP guide](en_mcp_guide.md).

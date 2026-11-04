@@ -204,6 +204,118 @@ by `config.vars.php`). With "off", `website.php` also discards what is printed o
 template, e.g. an `echo` in an autoexec script. The control center and the file manager always
 display errors.
 
+# Application structure and entry points
+
+## FINIS class (`src/FINIS.php`)
+
+*   `new FINIS($config)` copies every key of `$config` into `$_FN`, then loads
+    `src/include/finis.php`, which reads `src/include/config.vars.php` and
+    `{src_application}/config.vars.local.php`: a key defined there overwrites the constructor
+    value. `src_application` (default `.`) is the folder of the site: its `sections/`,
+    `themes/`, `modules/`, `misc/` (data, `$_FN['datadir']`) and `config.vars.local.php`.
+*   `$FINIS->finis()` runs `index.php?fnapp=<name>` (default `website`) through `__call()`: the
+    name must match `^[A-Za-z0-9_]+$`, and the first file found among
+    `{src_application}/include/applications/<name>.php`, `{src_finis}/include/applications/`,
+    `{src_application}/include/methods/`, `{src_finis}/include/methods/` is included; otherwise
+    an `Exception` is thrown. Methods of FINIS: `api`, `captcha`, `controlcenter`, `cron`,
+    `filemanager`, `install`, `mcp`, `notifications`, `oAuth`, `oauthserver`, `print`, `thumb`,
+    `website`.
+*   `runSection($section)` runs one section if `FN_UserCanViewSection()` (framework mode),
+    `runFolder($folder)` a folder, `setVar($id, $value)` sets `$_FN[$id]`,
+    `setTable($tablename, $params)` sets `$_FN['tables'][$tablename]`, `isConsole()` returns
+    `$_FN['consolemode']`.
+
+## Extensions
+
+`$FINIS->addExtension($path)` (before `finis()`) appends a folder to `$_FN['path_extensions']`
+(it dies when the folder does not exist). An extension has the layout of a site: `modules/`,
+`sections/`, `controlcenter/sections/`, `misc/fndatabase/`, `languages/`, ... Reference:
+`fncommerce/`, loaded by `examples/ecommerce/index.php`.
+
+*   Looked up after the application and FINIS by `FN_GetModulePath($module)` (an application
+    module needs its `section.php`, a FINIS or extension module only its folder; false when not
+    found), `FN_GetAllModulePaths()`, `FN_LoadConfig()`, `FN_FromTheme()`,
+    `FNCC_GetSectionPath()` and `FNCC_GetSectionTitle()` (control center sections and menu),
+    `FN_HtmlEditConfFile()` and the scan of the module types in `FN_InitSections()`.
+*   The `header.php` and `style.css` of a module are read only from `{src_finis}/modules/<type>/`
+    (a section adds its own `sections/<id>/header.php` and `style.css`): a module of the
+    application or of an extension puts them in its sections.
+*   `FN_FinisPathToApplicationPath()` does not look in the extensions: it copies a missing FINIS
+    file into the application folder and returns the relative path.
+*   The installer (`FN_Install()`) copies the `sections/` and `misc/fndatabase/` of the
+    extensions into the site once, at the first install.
+
+## Configuration keys of the core
+
+| Key | Default | Meaning |
+|---|---|---|
+| `home_section_force` | "" | home section that wins over the one saved in the control center (deployments) |
+| `datadir` | `misc` | writable data folder |
+| `default_database_driver` | `xmlphp` | driver of the tables without their own |
+| `display_errors` | "off" | see "Error display" |
+
+The home section may also live in the application's `sections/`.
+
+## Output of the website method
+
+*   Response headers of every page: `X-Finis-Visitor: public` (anonymous GET, the same for
+    every visitor) or `private` (logged user or POST), `X-Finis-Section`, `X-Finis-Lang`: a
+    service worker keeps only the public pages.
+*   `fnajax=1`: only the output of the section in a minimal HTML page, without the theme; the
+    head hooks run first, so `<title>` is the one of the full page. Used by the ajax navigation
+    of dbview (`call_ajax`).
+*   `fnshell=1`: the page with the theme and the marker `<!--fnsection-->` in place of the
+    section, which is not generated (`$_FN['fnshell']`, `FN_TPL_tp_create_section`).
+*   The login and logout forms never post back to a `fnajax`/`fnshell` address.
+
+## Menu
+
+`FN_GetMenuTree()` lists a section only when `FN_MenuSectionIsVisible($section)` too: for
+`dbview` sections the user must be in `groupadmin`, `groupview` or `groupinsert` of the module
+config (or `groupview` empty), `table_editor` sections are shown only to the administrators;
+other types follow the section permissions. A container whose entries are all hidden is left
+out. Administrators see everything.
+
+## Search
+
+For each section the search module (`src/modules/search/section.php`) looks in the title and
+description, then includes a `search.php` and calls its function with
+`($tosearch_array, $method, $sectionvalues, $maxresults)`, which returns rows with `title`,
+`link`, `text`:
+
+*   typed section: `search.php` of the module folder found with `FN_GetModulePath($type)`
+    (application, FINIS, extensions), function `FNSEARCH_module_<type>`;
+*   section without type: `{src_application}/sections/<id>/search.php`, function
+    `FNSEARCH_section_<id>`.
+
+A hidden section is skipped unless its module has a `search.php` (then its title and
+description are searched too). Static pages are searched in the current language (another
+language only when the page does not exist in it). Results are grouped per section (at most 30
+each, a flag when there are more, count and link to the filtered list); how they are shown
+depends on the search template.
+
+## Compatibility and helpers
+
+*   The code must run on PHP 7.1: no arrow functions, typed properties, `??=`, `match`,
+    `str_contains()`, `str_starts_with()`. Set cookies with
+    `FN_SetCookie($name, $value, $opts)` (`src/include/functions_sessions.inc.php`): the options
+    array of `setcookie()` (`expires`, `path`, `domain`, `secure`, `httponly`, `samesite`), also
+    on PHP < 7.3 where SameSite is appended to the path.
+*   `FN_GetGlobalVarValue($varname, $maxtime = false)` / `FN_SetGlobalVarValue($varname,
+    $value, $ttl = 0)`: a value shared by all the requests, in APCu when available (`$ttl` only
+    there), otherwise in `{datadir}/_cache/<md5>.cache` with `flock()`. `FN_ClearCache()` does
+    not empty APCu.
+*   `FN_BackupFile($file)` keeps a `*.bak~` copy before a content write (online editor, MCP).
+
+## MySQL server busy
+
+`xmetadb_mysql_connect()` retries a refused connection (errors 1040, 1203, and 1226 for
+`max_user_connections`) for about 5 seconds; then a web request ends with a 503 page with
+`Retry-After: 10` that reloads itself (no cookies, no account name). `FN_ManageLogin()` treats a
+user that could not be read as anonymous for that request only and keeps the login cookies.
+The mysql `GetRecordByPk()` returns false when the query fails and null when the record does not
+exist.
+
 # Database
 
 The application uses a custom XML-based database system called `xmetadb`. The database files are located in the `misc/fndatabase/` directory. Each `.php` file in this directory represents a table.
@@ -342,7 +454,24 @@ The table structure is defined in an XML format within each table file. The file
 - `<defaultvalue>`: Default value for the field
 - `<unique>`: Whether the field must be unique (1 or 0)
 - `<primarykey>`: Whether this is a primary key (1 or 0)
-- `<extra>`: Additional SQL attributes (e.g., `auto_increment`)
+- `<extra>`: `autoincrement` for an auto-increment primary key
+- `<defaultvalue>` is a literal: PHP expressions and variables in it are not evaluated. The
+  `xmlphp`, `csv` and `serialize` drivers write it when a record is inserted without the field;
+  MySQL uses `<mysql_default>` (an SQL expression of the column)
+- `<frm_sort>`: `numeric` or `abs` makes dbview sort a text column by its value (SQL drivers)
+- `<frm_functionview>`: function called as `function($values, $fieldname)` in the record view;
+  the HTML it returns is shown with the field title (left out when empty or the field is hidden)
+
+Widgets (`src/include/xmetadbfrm_fields/xmetadbfrm_field_<name>.php`, class
+`xmetadbfrm_field_<name>`) added recently: `int` (digits and `-`), `number` (`min`, `max`),
+`float` (`min`, `max`, `step` default `0.1`, `decimals` in the view), `json` (text area, the view
+shows the decoded value), `fn_cron_text` (schedules `Y-M-D h:m:s weekday`, used by `fn_cron`).
+`datetime` refuses a date that does not follow `frm_dateformat` or does not exist ("the date is
+not valid, use the format ..."), also accepts a value already in the storage format
+(`Y-m-d[ H:i[:s]]`, as API clients write it), saves the zero date as empty and shows an old
+partial value (`1993`) as it is. `Verify()` calls `checkformvalue($value, $fieldvalues)` of
+the field class, when it exists, for every non empty value: a non empty return is the error
+message of the field.
 
 ## Interacting with the Database
 
@@ -373,6 +502,49 @@ This function allows you to execute SQL-like queries on the database.
 $query = "SELECT * FROM fn_users WHERE level > 5 ORDER BY username";
 $high_level_users = FN_XMETADBQuery($query);
 ```
+
+The query engine (`XMETADatabase`) reads the whole table through XMETATable and filters it in
+PHP, so it works on every driver. To build it directly:
+`new XMETADatabase($_FN['database'], $_FN['datadir'], FN_setCommonParams())`. Rules:
+
+*   operators between spaces (`name = 'x'`, not `name='x'`): `=`, `<>`, `<`, `<=`, `>`, `>=`,
+    `LIKE`, with `AND`, `OR` and parentheses; `!=`, `NOT`, `IN`, `IS NULL`, `BETWEEN` are not
+    supported (`NOT (...)` ends with a fatal error);
+*   unquoted integers are compared as numbers;
+*   `LIMIT a,b` counts from 1 (`LIMIT 1,10` = the first ten); `LIMIT n` and `LIMIT 0,n` do not
+    limit the result;
+*   the characters `` ` `` `$` `{` `}` are removed from the WHERE and the PHP expression it becomes
+    is evaluated only when it contains fields, operators, numbers and quoted strings. A quote in
+    a value still changes the condition: filter request values with `GetRecords()` instead.
+
+`FN_XMDBTable()`, `FN_XMDBForm()` and `FN_XMETADBQuery()` are in
+`src/include/functions_xmetadb.inc.php`. The library is in `src/include/xmetadb/`
+(`xmetadb_core.php`, `XMETATable.php`, `XMETAField.php`, `XMETADatabase.php`, drivers
+`XMETATable_<driver>.php`; `XMETATable_sqlite.php` is legacy, PHP 5 only), in the namespace
+`Xmetadb` with `class_alias()` to the old global names; `src/include/xmetadb.php` and
+`xmetadb_query.php` are loaders kept for compatibility. `GetRecords($restr, $min, $length)`:
+`$min` is a 0-based offset on the SQL drivers, a 1-based position on the file drivers.
+
+### Files of the records
+
+*   A `file`/`image` widget keeps the file name; the file is in
+    `{datadir}/{database}/{table}/{primary key}/{field}/`. Use `$table->getFilePath($record,
+    $field)`, `getThumbPath()`, `getFileUrl($record, $field, $thumb = false)` (false when the
+    file is missing; `get_file()`, `get_thumb()`), `SetFile($field, $filepath, $filename = "")`
+    to attach a file without an upload. Put the primary key in the values: the `mysql` driver
+    handles the files only when it is there.
+*   Uploads matching `/\.(php[0-9]?|phtml|phar|shtml|pl|cgi|sh|py)(\.|$)/i` are not saved
+    (no error).
+*   `index.php?fnapp=thumb`: by record `t` (table), `i` (key), `c` (field), `d` (database
+    folder, default `fndatabase`), or `f` (path); `w`, `h` (default 32), `format` (`png`/`jpg`).
+    Tables of the site database are read with `FN_XMDBTable()`; a missing file or a non image
+    gives the generic icon.
+*   `$_FN['xmetadb_file_url']`: callable `($table, $record, $field, $thumb)` (`$table` is the
+    XMETATable) returning the address of the file, used by `getFileUrl()`; for an application
+    script that checks the access.
+*   `$_FN['xmetadb_file_access']`: callable `($tablename, $id, $field)` returning true when the
+    visitor may read the file; then `fnapp=thumb` serves a thumbnail by record only when it
+    allows it, only from the site database, and refuses an `f` path inside the data folder.
 
 ### Matching in the SQL drivers
 
@@ -435,7 +607,9 @@ Helpers in `src/include/auth/local.php`; the login module
     taken from the post by the registration and the profile forms (login module and control
     center); the API key is created only by `regenerate_apikey` (`FN_ProfileApiKey()`). The
     user record put in `$_FN['return']` (printed as JSON by `fnapp=api`) must not contain
-    `passwd`, `apikey` or `rnd`: `op=profile` and the control center profile unset them.
+    `passwd`, `apikey`, `apikey_enc` or `rnd`: pass it through
+    `FN_UserValuesForOutput($values, $passwordfield = "")` (`src/include/functions.inc.php`), as
+    `op=profile`, `op=editreg` and the control center profile do.
 *   **Templates**: the query string that the login and logout forms put in `{formaction}` is
     escaped with `htmlspecialchars`; `FN_RewriteLink()` and `TPL_ApplyTplString()` escape
     nothing, so a value from the request goes into a template only after `FN_GetParam(...,
@@ -600,3 +774,69 @@ positions shown by the theme and the site map (`FN_MCP_SiteGuide()`; application
 `$_FN['mcp_type_info'][$type]` and `$_FN['mcp_guide'][$key]`). `edit_section_content`
 replaces a snippet; content writes keep a `*.bak~` backup (`FN_BackupFile()`).
 Full documentation: `doc/en_mcp_guide.md`.
+
+# dbview module
+
+`src/modules/dbview` (class `FNDBVIEW` in `FNDBVIEW.php`, traits in `traits/`) shows a table as a
+list with search and filters, a record page and the insert/edit forms. Options in the section
+configuration (`src/modules/dbview/config.php`: `tables`, `groupview`, `groupinsert`,
+`groupadmin`, `search_fields`, `search_orders`, ...). Full description:
+`doc/en_developer_guide.md`, "The dbview Module".
+
+*   **Section files** (`{src_application}/sections/<id>/`): `custom_functions.php` (every request
+    of the section), `top.php`, `grid_header.php`, `bottom.php`, `viewheader.php`,
+    `viewfooter.php`, `bottom_edit.php` (after the edit form, also after `op=updaterecord`),
+    `exports.csv`, `default.png`. `index.php?mod=<id>&file=<name>` includes `<name>` of the
+    section folder instead of the module when `<name>` is a plain file name
+    (`[A-Za-z0-9_-][A-Za-z0-9_.-]*`), not one of the files that dbview or FINIS include by
+    themselves (`custom_functions.php`, `top.php`, `grid_header.php`, `grid_footer.php`,
+    `bottom.php`, `bottom_edit.php`, `viewheader.php`, `viewfooter.php`, `header.php`,
+    `footer.php`, `section.php`, `search.php`, `pdf.php`, `default.xml.php`, `config.php`: these
+    are ignored and the module runs) and the visitor passes `CanViewRecords()`; the file checks
+    any other permission itself.
+*   **Templates**: section folder, then the theme (`themes/<theme>/modules/dbview/`, through
+    `FN_FromTheme()`), then the module: `list.tp.html`, `detail.tp.html`, `formedit.tp.html`,
+    `form.tp.html`, `history.tp.html`, `users.tp.html`, `toolbar.tp.html`, ...
+    `list.tp.html`: `themes/<theme>/sections/<id>/`, `sections/<id>/`, theme,
+    `$_FN['dbview_list_template']` (path, for every section without its own), module.
+    `form_offline.html`: theme or module only.
+*   **List items**: `{item_title}`, `{item_urlview}`, `{item_urledit}`, `{item_urldelete}`,
+    `{item_urlimage}`, `{item_hasimage}`, `{itemvalues}`, `{viewvalue_<field>}`,
+    `{title_<field>}`, and `{value_<field>}` = raw value of every scalar field (not escaped: use
+    `{value_<field>.addHtmlEntities()}` for user text). The module template shows cards
+    (`.dbview-cards`, `.dbview-card*` in `style.css`).
+*   **Ajax navigation**: page links, filters and the search form (GET) reload the containers
+    `pageresults,collapseFilters` with `call_ajax(url, ids)` / `call_ajax_form(form, ids)`; the
+    url gets `fnajax=1`, the browser url follows with the history API. Without JavaScript the
+    links work as normal pages.
+*   **Toolbar**: `{toolbar_html}` from `toolbar.tp.html`, `{items}` with `key` (`list`, `prev`,
+    `next`, `view`, `history`, `edit`, `users`), `link`, `title`, `label`, `icon`, `active`;
+    UTF icons, replaced with `$_FN['dbview_toolbar_icons'] = array(key => char)`.
+*   **`$_FN['dbview_excluded_values']`**: callable `($tablename)` returning
+    `array(field => array(values))` for the current user: records with one of those values are
+    left out of lists and searches and refused by `CanViewRecord()`. Computed once per table per
+    request, not applied to the site administrators.
+*   **Cached record pages** for anonymous visitors: `$_FN['dbview_view_cache']`
+    (`array(section => seconds)` or one number, 0 = off), `$_FN['dbview_view_cache_tables']`
+    (`array(section => array(tables))`, default the table of the section),
+    `$_FN['dbview_view_cache_files']` (glob patterns of other files that render the page),
+    `$_FN['dbview_view_cache_keep']` (days, default 30). Only a GET with `mod`, `op=view`, `id`,
+    `lang` (and `fnajax`); files in
+    `{datadir}/_cache/pages/<section>/<theme>/<lang>/<id div 1000>/<id>.html`, stale when the
+    tables or the code are newer, removed when the record is saved or deleted from dbview and by
+    `FN_ClearCache()`.
+*   **Permissions**: every write operation (`edit`, `new`, `del`, `updaterecord`,
+    `insertrecord`, `users`, `admingroups`) needs `CanEditRecords()`, false for anonymous
+    visitors; saving an existing record needs `CanUpdateRecord($row)` (with
+    `enable_permissions_edit_each_records` only the users of `IsAdminRecord($row)` and the users
+    enabled on the record); delete needs a POST with the token of the confirmation page; the
+    version history is for `IsAdmin()` only (site administrators and `groupadmin`). The record
+    page sets no title or social tags for a record the visitor may not view.
+*   **Lists**: on the SQL drivers the query runs in the database (`COUNT(*)`, `LIMIT`,
+    `GROUP BY`, backquoted columns, ties by primary key, NULL first as in `ORDER BY`); `order` is
+    accepted only from `search_orders`, `defaultorder` or the primary key, `rpp` at most 200.
+    Foreign keys in the search form are selects that match the whole code.
+*   **Offline form**: `op=offlineform` downloads `form_offline.html` filled with the form; section
+    options `offlineform_hidden_fields`, `offlineform_text_fields` (comma separated fields).
+*   **Callbacks**: `$_FN['modparams'][<section>]['editorparams']['table']['function_on_insert']`
+    (called with the inserted record) and `function_on_update`, set in `custom_functions.php`.

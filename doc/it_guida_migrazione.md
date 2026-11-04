@@ -113,27 +113,25 @@ Una migrazione completa richiede tempo. Pianifica adeguatamente:
    $users = load_users_from_file("exported_users.csv");
    
    foreach ($users as $user) {
-       $table = FN_XMDBTable("fn_users");
-       
        $newUser = array(
            'username' => $user['user_login'],
            'email' => $user['user_email'],
            'name' => $user['display_name'],
-           'regdate' => $user['user_registered'],
            'group' => 'users',  // gruppo predefinito
            'active' => 1
        );
        
-       // Genera password temporanea
-       $newUser['password'] = FN_GenerateRandomPassword();
+       // Password temporanea casuale: FN_AddUser() ne salva l'hash bcrypt
+       $password = bin2hex(random_bytes(8));
        
-       // Inserisci utente
-       $table->InsertRecord($newUser);
-       
-       // Opzionale: invia email con password temporanea
-       FN_SendPasswordEmail($user['user_email'], $newUser['password']);
+       // Inserisci utente (username in minuscolo, registrationdate impostata ad ora)
+       if (!FN_AddUser($newUser, $password)) {
+           echo "Utente non importato: {$user['user_login']}<br>";
+       }
    }
    ```
+
+   Gli hash delle password di WordPress non sono riutilizzabili: gli utenti scelgono una nuova password con il recupero password della pagina di login.
 
 #### Migrazione Media
 1. **Copia dei file media**:
@@ -146,27 +144,21 @@ Una migrazione completa richiede tempo. Pianifica adeguatamente:
 2. **Aggiornamento dei riferimenti**:
    ```php
    <?php
-   // Script per aggiornare i riferimenti alle immagini nelle sezioni
-   $table = FN_XMDBTable("fn_sections");
-   $sections = $table->GetRecords();
+   // Script per aggiornare i riferimenti alle immagini nelle sezioni:
+   // il contenuto di una pagina è in sections/<id>/section.<lingua>.html
+   $files = glob("sections/*/section.*.html");
    
-   foreach ($sections as $section) {
-       if (isset($section['content'])) {
-           // Sostituisci i percorsi delle immagini
-           $content = $section['content'];
-           $content = str_replace(
-               'wp-content/uploads/', 
-               'misc/uploads/', 
-               $content
-           );
-           
-           // Aggiorna il record
-           $table->UpdateRecord(
-               array('content' => $content),
-               'id',
-               $section['id']
-           );
-       }
+   foreach ($files as $file) {
+       // Sostituisci i percorsi delle immagini
+       $content = file_get_contents($file);
+       $content = str_replace(
+           'wp-content/uploads/', 
+           'misc/uploads/', 
+           $content
+       );
+       
+       // Salva la pagina
+       FN_Write($content, $file);
    }
    ```
 
@@ -219,22 +211,19 @@ Una migrazione completa richiede tempo. Pianifica adeguatamente:
    $users = load_users_from_file("joomla_users.csv");
    
    foreach ($users as $user) {
-       $table = FN_XMDBTable("fn_users");
-       
        $newUser = array(
            'username' => $user['username'],
            'email' => $user['email'],
            'name' => $user['name'],
-           'regdate' => date('Y-m-d H:i:s', strtotime($user['registerDate'])),
            'group' => 'users',  // gruppo predefinito
            'active' => 1
        );
        
-       // Genera password temporanea
-       $newUser['password'] = FN_GenerateRandomPassword();
+       // Password temporanea casuale, salvata come hash bcrypt
+       $password = bin2hex(random_bytes(8));
        
        // Inserisci utente
-       $table->InsertRecord($newUser);
+       FN_AddUser($newUser, $password);
    }
    ```
 
@@ -291,21 +280,18 @@ Una migrazione completa richiede tempo. Pianifica adeguatamente:
    $users = load_users_from_file("drupal_users.csv");
    
    foreach ($users as $user) {
-       $table = FN_XMDBTable("fn_users");
-       
        $newUser = array(
            'username' => $user['name'],
            'email' => $user['mail'],
-           'regdate' => date('Y-m-d H:i:s', $user['created']),
            'group' => 'users',  // gruppo predefinito
            'active' => 1
        );
        
-       // Genera password temporanea
-       $newUser['password'] = FN_GenerateRandomPassword();
+       // Password temporanea casuale, salvata come hash bcrypt
+       $password = bin2hex(random_bytes(8));
        
        // Inserisci utente
-       $table->InsertRecord($newUser);
+       FN_AddUser($newUser, $password);
    }
    ```
 
@@ -379,7 +365,7 @@ Una migrazione completa richiede tempo. Pianifica adeguatamente:
    ```
 
 2. **Verifica dei requisiti**:
-   - Controlla che il server soddisfi i requisiti della nuova versione
+   - Controlla che il server soddisfi i requisiti della nuova versione (PHP 7.1 o superiore)
    - Verifica la compatibilità dei moduli personalizzati
    - Leggi le note di rilascio per cambiamenti significativi
 
@@ -389,25 +375,72 @@ Una migrazione completa richiede tempo. Pianifica adeguatamente:
    - Decomprimila in una cartella temporanea
 
 2. **Sostituzione dei file**:
-   ```bash
-   # Rimuovi i file del core, mantenendo configurazioni e contenuti
-   rm -rf /path/to/finis/src/*.php
-   rm -rf /path/to/finis/src/include
-   rm -rf /path/to/finis/src/modules
-   rm -rf /path/to/finis/src/controlcenter
-   
-   # Copia i nuovi file
-   cp -R /path/to/new_version/src/* /path/to/finis/src/
-   ```
+   - Installazione con sorgenti separati (`src_application`): sostituisci per intero la cartella del framework; la cartella dell'applicazione (sezioni, temi, dati, configurazione) non viene toccata:
+     ```bash
+     mv /path/to/finis_src /path/to/finis_src.old
+     cp -R /path/to/new_version/src /path/to/finis_src
+     ```
+   - Installazione standard (la cartella del sito contiene il contenuto di `src/`): il pacchetto non contiene `config.vars.local.php`, `index.php`, `.htaccess` né `misc/`, che quindi restano; `sections/` contiene le pagine del sito e va esclusa:
+     ```bash
+     # Cartelle del core sostituite per intero: i file eliminati da FINIS non devono restare
+     # (ricopia dopo i tuoi moduli, le tue sezioni del pannello di controllo e i tuoi file in include/)
+     rm -rf /path/to/finis/include
+     rm -rf /path/to/finis/modules
+     rm -rf /path/to/finis/controlcenter
+     
+     # Copia i nuovi file
+     rsync -a --exclude='sections/' /path/to/new_version/src/ /path/to/finis/
+     ```
 
-3. **Esecuzione degli script di aggiornamento**:
-   - Accedi all'URL: `http://tuosito.com/?mod=install&op=update`
-   - Segui le istruzioni per completare l'aggiornamento
+3. **Aggiornamento del database**:
+   - Non c'è uno script di aggiornamento: apri il sito. A ogni richiesta FINIS crea in `misc/fndatabase/` i descrittori delle tabelle di sistema che mancano; con MySQL le colonne dei campi aggiunti a un descrittore vengono create automaticamente
+   - I descrittori esistenti delle tabelle di sistema non vengono mai sostituiti: leggi [Aggiornamento alla Versione Attuale](#aggiornamento-alla-versione-attuale) per le modifiche da fare a mano
 
 4. **Verifica post-aggiornamento**:
    - Controlla che tutte le pagine funzionino correttamente
    - Verifica la correttezza dei contenuti
    - Controlla il log degli errori
+
+### Aggiornamento alla Versione Attuale
+
+Note per un sito installato con una versione precedente di FINIS. Leggile prima di sostituire i file.
+
+#### Segreto del Sito
+Alla prima richiesta FINIS crea il segreto del sito `misc/secret.key.php` (permessi 0600), che firma i cookie di login e i token OAuth dei client MCP e cifra le copie delle chiavi API. Da questo momento fa parte dei dati:
+
+- salvalo nei backup insieme a `misc/` e conservalo quando sposti il sito su un altro server
+- non metterlo mai in un repository: se il sito è sotto git, aggiungi `misc/secret.key.php` a `.gitignore`
+- se va perso ne viene creato uno nuovo: tutti gli utenti vengono disconnessi, i client OAuth devono rifare il login e gli amministratori non possono più mostrare le chiavi API esistenti (le chiavi continuano a funzionare)
+
+#### Login e Password
+- Il cookie di login `secid` ora è un HMAC-SHA256 firmato con il segreto del sito: i cookie della versione precedente vengono rifiutati, quindi dopo l'aggiornamento ogni utente deve rifare il login una volta. "Ricordami" dura `remember_login_days` giorni (predefinito 30).
+- Le password salvate come md5, hash di `crypt()` o in chiaro vengono ancora accettate e sostituite da un hash bcrypt al primo login riuscito di ciascun utente: non c'è niente da fare.
+- I codici di registrazione ora sono di 32 caratteri esadecimali: i codici di 5 caratteri inviati dalla versione precedente vengono rifiutati e non vengono reinviati. Attiva dal pannello di controllo (Utenti e gruppi > Utenti) gli utenti ancora in attesa di conferma.
+- I link di recupero password inviati prima dell'aggiornamento non sono più validi: gli utenti ne chiedono uno nuovo.
+- Dietro un reverse proxy imposta `$_FN['trusted_proxies']` in `config.vars.local.php`, perché il limite dei tentativi di login veda il vero indirizzo del client (vedi il [Manuale di Installazione](it_manuale_installazione.md)).
+
+#### Chiavi API
+Le chiavi API salvate in chiaro dalle versioni precedenti continuano a funzionare e vengono sostituite dal loro hash al primo uso. I campi `apikey`, `apikey_date` e `apikey_enc` vengono aggiunti a `misc/fndatabase/fn_users.php` la prima volta che una chiave viene usata o generata (il file deve essere scrivibile). Una chiave creata quando veniva salvato solo l'hash non si può più mostrare: generane una nuova. Con l'estensione `openssl` gli amministratori possono mostrare le chiavi create da ora in poi. Vedi la [guida MCP](it_guida_mcp.md).
+
+#### Configurazione
+- `display_errors` è "off" per default: imposta `$_FN['display_errors'] = "on";` in `config.vars.local.php` sulle copie di sviluppo. Con "off", quello che uno script stampa fuori dal template del tema (ad esempio un `echo` in uno script di autoexec) viene scartato.
+- Un punto di ingresso `index.php?fnapp=<nome>` deve avere un nome fatto di lettere, cifre e `_`.
+
+#### Descrittori delle Tabelle
+- `defaultvalue` in un descrittore ora viene salvato così come è scritto: il driver `xmlphp` non espande più le variabili PHP che contiene e il driver `serialize` non lo valuta più come espressione PHP. Sostituisci questi valori con valori semplici e imposta quelli dinamici nel codice prima di salvare il record.
+- `misc/fndatabase/fn_oauth_providers.php` dei siti installati con i campi `name`, `client_id`, `client_secret`, `redirect_uri`, `enabled` non ha i campi usati dal login con provider esterni (`avatar`, `auth_url`, `token_url`, `userinfo_url`, `scope`) e non viene sostituito. Copia sopra di esso `src/include/install/misc/fndatabase/fn_oauth_providers.php` (oppure aggiungi i campi), poi inserisci gli indirizzi di ogni provider nel pannello di controllo (Utenti e gruppi > Provider OAuth).
+- Il modulo news usa la chiave primaria `id` della sua tabella delle notizie. Una tabella news creata da una vecchia versione con la chiave primaria `unirecid` va convertita: rinomina il campo nel descrittore e nei record salvati (con MySQL `ALTER TABLE ... CHANGE`), prima su una copia.
+
+#### Viste di Database (dbview) ed Editor delle Tabelle
+- Le operazioni di scrittura (nuovo, modifica, eliminazione) richiedono un utente collegato con i permessi della sezione: le sezioni in cui i visitatori anonimi aggiungevano record devono ora chiedere il login. `FN_XMETATableEditor()` non consente scritture quando nessuno è collegato.
+- L'eliminazione di un record richiede un POST con un token anti-CSRF: un link di eliminazione apre un modulo di conferma.
+- La cronologia delle versioni dei record è visibile solo agli amministratori.
+
+#### Server Web
+Il blocco del `.htaccess` scritto da FINIS (`# BEGIN Finis` ... `# END Finis`) ora passa a PHP l'intestazione `Authorization` e risponde a `/.well-known/oauth-authorization-server` e `/.well-known/oauth-protected-resource/...` per il login OAuth dei client MCP. Se mod_rewrite viene rilevato e `.htaccess` è scrivibile, il blocco viene riscritto dalla prima richiesta a `index.php`; altrimenti aggiungi le regole a mano (vedi il [Manuale di Installazione](it_manuale_installazione.md) e, per un sito in una sottocartella, la [guida MCP](it_guida_mcp.md)).
+
+#### Codice Personalizzato
+La libreria del database è in `src/include/xmetadb/` e le sue classi sono nel namespace `Xmetadb`, con alias che mantengono i vecchi nomi (`XMETATable`, `XMETADatabase`, ...). Uno script autonomo che carica la libreria include `include/xmetadb.php` e `include/xmetadb_query.php`, rimasti come caricatori, e non i file dentro la cartella.
 
 ### Aggiornamento del Database
 
@@ -506,6 +539,8 @@ Per aggiornare lo schema del database dopo un aggiornamento di versione:
    
    echo "Schema database aggiornato con successo";
    ```
+
+   Attenzione: `FN_InitTables(true)` sovrascrive i descrittori delle tabelle di sistema in `misc/fndatabase/` con quelli di installazione, perdendo i campi aggiunti a mano (ad esempio i campi personalizzati di `fn_users.php`). Fai prima una copia di `misc/fndatabase/`. Senza parametro, `FN_InitTables()` crea solo i descrittori mancanti e viene già eseguita a ogni richiesta del sito.
 
 ### Migrazione dei Temi
 
@@ -727,24 +762,9 @@ echo "Migrazione file completata";
 require_once "path/to/FINIS.php";
 $FINIS = new FINIS();
 
-// Svuota directory cache
-$cacheDir = $_FN['datadir'] . "/_cache";
-$files = glob($cacheDir . '/*');
-
-foreach ($files as $file) {
-    if (is_file($file)) {
-        unlink($file);
-    } elseif (is_dir($file)) {
-        // Rimuovi directory ricorsivamente
-        $dirFiles = glob($file . '/*');
-        foreach ($dirFiles as $dirFile) {
-            if (is_file($dirFile)) {
-                unlink($dirFile);
-            }
-        }
-        rmdir($file);
-    }
-}
+// Elimina e ricrea la cartella della cache {datadir}/_cache
+// (i contatori dei tentativi di login in _login_attempts restano)
+FN_ClearCache();
 
 echo "Cache svuotata con successo";
 ```

@@ -90,27 +90,25 @@ It's always advisable to perform migration in a test environment:
    $users = load_users_from_file("exported_users.csv");
 
    foreach ($users as $user) {
-       $table = FN_XMDBTable("fn_users");
-
        $newUser = array(
            'username' => $user['user_login'],
            'email' => $user['user_email'],
            'name' => $user['display_name'],
-           'regdate' => $user['user_registered'],
            'group' => 'users',  // default group
            'active' => 1
        );
 
-       // Generate temporary password
-       $newUser['password'] = FN_GenerateRandomPassword();
+       // Random temporary password: FN_AddUser() stores its bcrypt hash
+       $password = bin2hex(random_bytes(8));
 
-       // Insert user
-       $table->InsertRecord($newUser);
-
-       // Optional: send email with temporary password
-       FN_SendPasswordEmail($user['user_email'], $newUser['password']);
+       // Insert user (username in lowercase, registrationdate set to now)
+       if (!FN_AddUser($newUser, $password)) {
+           echo "User not imported: {$user['user_login']}<br>";
+       }
    }
    ```
+
+   The WordPress password hashes cannot be reused: the users choose a new password with the password recovery of the login page.
 
 #### Media Migration
 1. **Copy media files**:
@@ -123,27 +121,21 @@ It's always advisable to perform migration in a test environment:
 2. **Update references**:
    ```php
    <?php
-   // Script to update image references in sections
-   $table = FN_XMDBTable("fn_sections");
-   $sections = $table->GetRecords();
+   // Script to update image references in sections:
+   // the content of a page is in sections/<id>/section.<lang>.html
+   $files = glob("sections/*/section.*.html");
 
-   foreach ($sections as $section) {
-       if (isset($section['content'])) {
-           // Replace image paths
-           $content = $section['content'];
-           $content = str_replace(
-               'wp-content/uploads/',
-               'misc/uploads/',
-               $content
-           );
+   foreach ($files as $file) {
+       // Replace image paths
+       $content = file_get_contents($file);
+       $content = str_replace(
+           'wp-content/uploads/',
+           'misc/uploads/',
+           $content
+       );
 
-           // Update the record
-           $table->UpdateRecord(
-               array('content' => $content),
-               'id',
-               $section['id']
-           );
-       }
+       // Save the page
+       FN_Write($content, $file);
    }
    ```
 
@@ -204,7 +196,7 @@ It's always advisable to perform migration in a test environment:
    ```
 
 2. **Verify requirements**:
-   - Check server meets new version requirements
+   - Check server meets new version requirements (PHP 7.1 or higher)
    - Verify custom module compatibility
    - Read release notes for significant changes
 
@@ -214,25 +206,72 @@ It's always advisable to perform migration in a test environment:
    - Extract to a temporary folder
 
 2. **Replace files**:
-   ```bash
-   # Remove core files, keeping configurations and content
-   rm -rf /path/to/finis/src/*.php
-   rm -rf /path/to/finis/src/include
-   rm -rf /path/to/finis/src/modules
-   rm -rf /path/to/finis/src/controlcenter
+   - Installation with separate sources (`src_application`): replace the framework folder as a whole; the application folder (sections, themes, data, configuration) is not touched:
+     ```bash
+     mv /path/to/finis_src /path/to/finis_src.old
+     cp -R /path/to/new_version/src /path/to/finis_src
+     ```
+   - Standard installation (the site folder holds the content of `src/`): the package has no `config.vars.local.php`, `index.php`, `.htaccess` or `misc/`, so they are kept; `sections/` holds the pages of the site and is left out:
+     ```bash
+     # Core folders replaced as a whole: files removed from FINIS must not stay behind
+     # (copy back afterwards your own modules, control center sections and files in include/)
+     rm -rf /path/to/finis/include
+     rm -rf /path/to/finis/modules
+     rm -rf /path/to/finis/controlcenter
 
-   # Copy new files
-   cp -R /path/to/new_version/src/* /path/to/finis/src/
-   ```
+     # Copy new files
+     rsync -a --exclude='sections/' /path/to/new_version/src/ /path/to/finis/
+     ```
 
-3. **Run update scripts**:
-   - Access URL: `http://yoursite.com/?mod=install&op=update`
-   - Follow instructions to complete the update
+3. **Update the database**:
+   - There is no update script: open the site. At each request FINIS creates the descriptors of the system tables that are missing in `misc/fndatabase/`; with MySQL the columns of the fields added to a descriptor are created automatically
+   - The existing descriptors of the system tables are never replaced: read [Upgrading to the Current Version](#upgrading-to-the-current-version) for the changes to make by hand
 
 4. **Post-update verification**:
    - Check all pages work correctly
    - Verify content correctness
    - Check error log
+
+### Upgrading to the Current Version
+
+Notes for a site installed with an earlier version of FINIS. Read them before replacing the files.
+
+#### Site Secret
+At the first request FINIS creates the site secret `misc/secret.key.php` (mode 0600). It signs the login cookies and the OAuth tokens of the MCP clients, and encrypts the copies of the API keys. From now on it is part of the data:
+
+- back it up with `misc/` and keep it when the site is moved to another server
+- never commit it: when the site is in a repository, add `misc/secret.key.php` to `.gitignore`
+- if it is lost, a new one is created: every user is logged out, the OAuth clients must log in again and the administrators can no longer show the existing API keys (the keys keep working)
+
+#### Login and Passwords
+- The `secid` login cookie is now an HMAC-SHA256 signed with the site secret: the cookies of the previous version are refused, so every user logs in once again after the upgrade. "Remember me" lasts `remember_login_days` days (default 30).
+- Passwords stored as md5, `crypt()` hashes or plain text are still accepted and are replaced by a bcrypt hash at the first successful login of each user: nothing to do.
+- Registration codes are now 32 hexadecimal characters: the 5 character codes sent by the previous version are refused and not resent. Activate the users still waiting for the confirmation in the control center (Users and groups > Users).
+- Password recovery links sent before the upgrade are no longer valid: the users ask for a new one.
+- Behind a reverse proxy, set `$_FN['trusted_proxies']` in `config.vars.local.php`, so that the login attempt limiter sees the real client address (see the [Installation Manual](en_installation_manual.md)).
+
+#### API Keys
+API keys stored in clear by older versions keep working and are replaced by their hash at the first use. The fields `apikey`, `apikey_date` and `apikey_enc` are added to `misc/fndatabase/fn_users.php` the first time a key is used or generated (the file must be writable). A key created when only its hash was stored cannot be shown again: generate a new one. With the `openssl` extension the administrators can show the keys created from now on. See the [MCP guide](en_mcp_guide.md).
+
+#### Configuration
+- `display_errors` is "off" by default: set `$_FN['display_errors'] = "on";` in `config.vars.local.php` on development copies. With "off", what a script prints outside the theme template (e.g. an `echo` in an autoexec script) is discarded.
+- An entry point `index.php?fnapp=<name>` must have a name made of letters, digits and `_`.
+
+#### Table Descriptors
+- `defaultvalue` in a descriptor is now saved as written: the `xmlphp` driver no longer expands the PHP variables written in it and the `serialize` driver no longer evaluates it as a PHP expression. Replace such values with plain values and set the dynamic ones in the code before saving the record.
+- `misc/fndatabase/fn_oauth_providers.php` of the sites installed with the fields `name`, `client_id`, `client_secret`, `redirect_uri`, `enabled` lacks the fields used by the login with external providers (`avatar`, `auth_url`, `token_url`, `userinfo_url`, `scope`) and is not replaced. Copy `src/include/install/misc/fndatabase/fn_oauth_providers.php` over it (or add the fields), then fill in the addresses of each provider in the control center (Users and groups > OAuth providers).
+- The news module works with the primary key `id` of its news table. A news table created by an old version with the primary key `unirecid` must be converted: rename the field in the descriptor and in the stored records (with MySQL, `ALTER TABLE ... CHANGE`), on a copy first.
+
+#### Database Views (dbview) and Table Editor
+- The write operations (new, edit, delete) need a logged-in user with the rights of the section: sections that let anonymous visitors add records must now ask them to log in. `FN_XMETATableEditor()` allows no write operation when nobody is logged in.
+- Deleting a record needs a POST with an anti-CSRF token: a delete link opens a confirmation form.
+- The version history of the records is shown only to the administrators.
+
+#### Web Server
+The `.htaccess` block written by FINIS (`# BEGIN Finis` ... `# END Finis`) now passes the `Authorization` header to PHP and answers `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource/...` for the OAuth login of the MCP clients. When mod_rewrite is detected and `.htaccess` is writable, the block is rewritten by the first request to `index.php`; otherwise add the rules by hand (see the [Installation Manual](en_installation_manual.md) and, for a site in a subfolder, the [MCP guide](en_mcp_guide.md)).
+
+#### Custom Code
+The database library is in `src/include/xmetadb/` and its classes are in the `Xmetadb` namespace, with aliases that keep the old names (`XMETATable`, `XMETADatabase`, ...). A standalone script that loads the library includes `include/xmetadb.php` and `include/xmetadb_query.php`, which remain as loaders, and not the files inside the folder.
 
 ### Database Update
 
@@ -395,15 +434,9 @@ rsync -av --exclude='config.vars.local.php' \
 require_once "path/to/FINIS.php";
 $FINIS = new FINIS();
 
-// Empty cache directory
-$cacheDir = $_FN['datadir'] . "/_cache";
-$files = glob($cacheDir . '/*');
-
-foreach ($files as $file) {
-    if (is_file($file)) {
-        unlink($file);
-    }
-}
+// Remove and recreate the cache folder {datadir}/_cache
+// (the login attempt counters in _login_attempts are kept)
+FN_ClearCache();
 
 echo "Cache cleared successfully";
 ```

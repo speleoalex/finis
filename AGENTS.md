@@ -14,13 +14,19 @@ php -S localhost:8000 -t src/
 ```
 
 ### Testing
+There is no automated test suite in the repository (`tests/` is git-ignored and local only).
 ```bash
-# Run specific test file
-php src/test_cron.php
+# Syntax check of the changed PHP files
+php -l src/include/functions.inc.php
 
-# Test via web browser
-# http://localhost:8000/test_cron.php
+# Try a change on an example site (php -S serves the repository root)
+php -S localhost:8000
+# http://localhost:8000/examples/website/   (the installer runs at the first visit)
+# http://localhost:8000/examples/fullcms/index.php?fnapp=controlcenter
 ```
+
+Set `$_FN['display_errors'] = "on";` in the site's `config.vars.local.php` while developing:
+the default in `src/include/config.vars.php` is "off".
 
 ### Cache Management
 ```bash
@@ -73,7 +79,16 @@ src/
   ├── themes/           # Theme templates
   └── languages/        # Translation files
 misc/fndatabase/        # Database table definitions (XML)
+fncommerce/             # E-commerce extension (loaded with $FINIS->addExtension())
+examples/               # Example sites: website, fullcms, ecommerce
 ```
+
+Modules (`FN_GetModulePath()`), their configuration files (`FN_LoadConfig()`), theme files
+(`FN_FromTheme()`) and control center sections are looked up in the application folder
+(`$_FN['src_application']`), then in `src/`, then in the extensions registered with
+`$FINIS->addExtension()`. `index.php?fnapp=<name>` runs
+`include/applications/<name>.php` or `include/methods/<name>.php` of the application or of FINIS
+(names with letters, digits and `_` only).
 
 ### PHPDoc Standards
 ```php
@@ -106,6 +121,19 @@ $id = FN_GetParam("id", $_GET, "int");        // Integer
 $name = FN_GetParam("name", $_POST, "html");  // HTML-escaped
 $price = FN_GetParam("price", $_REQUEST, "float");  // Float
 ```
+
+### Other rules
+- The template engine escapes nothing: a value from the request goes into a template only
+  after `FN_GetParam(..., "html")` or `{var.addHtmlEntities()}`.
+- Secrets (tokens, codes, keys) come from `random_bytes()` / `random_int()`, never `rand()`,
+  `mt_rand()` or `uniqid()`; compare them with `hash_equals()`.
+- Cookies are set with `FN_SetCookie($name, $value, $opts)`: the options array of `setcookie()`
+  also on PHP 7.1/7.2; pass `httponly`, `samesite` and `secure` (`FN_IsHttps()`).
+- Redirect only to internal URLs (`FN_IsInternalUrl()`); read the client address with
+  `FN_GetClientIp()`.
+- Never pass the stored password hash back to `FN_UpdateUser()`: unset `passwd`.
+- Never commit `secret.key.php` (site secret in the data folder).
+- Details: "Login security" and "API keys and MCP server" in `doc/Finis_Framework_LLM_Guide.md`.
 
 ## Section Structure
 
@@ -175,10 +203,11 @@ $SECTION['items'] = FN_XMDBTable("table_name")->GetRecords();
 $table = FN_XMDBTable("fn_users");
 
 // CRUD operations
-$records = $table->GetRecords();
-$table->AddRecord($data);
-$table->UpdateRecord($id, $data);
-$table->DeleteRecord($id);
+$records = $table->GetRecords(array("status" => 1));  // filter, LIKE on the SQL drivers
+$record = $table->GetRecordByPk($id);                  // empty when missing (mysql: false on error)
+$saved = $table->InsertRecord($data);                  // the saved record, or an error
+$table->UpdateRecord($data);                           // $data contains the primary key
+$table->DelRecord($id);
 
 // Custom queries
 $results = FN_XMETADBQuery("SELECT * FROM fn_users WHERE level > 5");
@@ -227,3 +256,7 @@ if (!$result) {
 - Use English for all new code and comments
 - Follow existing patterns in the codebase
 - The `$_FN` global array contains all framework configuration
+- PHP 7.1 compatibility: no arrow functions, typed properties, `??=`, `str_contains()`,
+  `str_starts_with()` or `match` in the framework code
+- MCP tools of an application go in `{src_application}/include/mcp_tools.php`
+  (`FN_MCP_AddTool()`, see `doc/en_mcp_guide.md`)

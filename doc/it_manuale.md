@@ -2,10 +2,13 @@
 
 ## Installazione
 
-1. Scaricare i sorgenti e caricarli sul provider.
-2. Creare il file `config.vars.local.php` se necessario.
-3. Accedere all'URL dell'installazione, ad esempio `http://[tuo-sito]/`.
-4. Seguire la procedura guidata di installazione.
+1. Scaricare i sorgenti e caricare sul provider il contenuto di `src/`.
+2. Rinominare `index.php.example` in `index.php`.
+3. Creare il file `config.vars.local.php` se necessario (ad esempio per MySQL).
+4. Accedere all'URL dell'installazione, ad esempio `http://[tuo-sito]/`.
+5. Seguire la procedura guidata di installazione.
+
+Requisiti, estensioni PHP, server web e cartella dei dati sono descritti nel [Manuale di Installazione](it_manuale_installazione.md).
 
 ## Struttura delle cartelle
 
@@ -21,17 +24,27 @@
 - `languages/`
 - `plugins/`
 - `include/`
+- `sections/` (sezioni predefinite, copiate nel sito dall'installatore)
 
 ### Files del Sito Web
 
 - `sections/`
 - `themes/`
+- `modules/` (tipi di sezione dell'applicazione)
+- `controlcenter/sections/` (pagine del pannello di controllo dell'applicazione)
+- `include/` (`autoexec.d/`, `methods/`, `auth/`, `mcp_tools.php`)
 - `config.vars.local.php`
 - `index.php`
+
+### Files delle Estensioni
+
+Un'estensione (ad esempio `fncommerce/`) è una cartella separata con `modules/`, `sections/`, `controlcenter/sections/` e `misc/fndatabase/`, caricata con `$FINIS->addExtension()`.
 
 ### Files contenenti i dati
 
 - `misc/`
+
+Oltre al database, la cartella dei dati contiene il segreto del sito `misc/secret.key.php` (creato automaticamente: va salvato nei backup insieme ai dati e mai messo in un repository), le sessioni lato server (`_sessions/`), i contatori dei tentativi di login (`_login_attempts/`) e la cache (`_cache/`).
 
 Il database è descritto all'interno dei file XML nella cartella `misc/fndatabase`. Ogni file descrive una tabella e ogni tabella può avere il proprio driver per supportare diversi sistemi di archiviazione dati come MySQL, file CSV, MSSQL, XMLPHP, ecc.
 
@@ -74,9 +87,23 @@ $_FN['xmetadb_mysqlusername'] = "root";
 $_FN['xmetadb_mysqlpassword'] = "";
 ```
 
+I valori predefiniti di queste chiavi sono in `src/include/config.vars.php`. Altre chiavi di questo file: `trusted_proxies` (reverse proxy), `home_section_force` (sezione iniziale che prevale sull'impostazione del pannello di controllo), le chiavi di sicurezza del login e `apikey_groups` / `mcp_write_group` (vedere il [Manuale di Installazione](it_manuale_installazione.md)). Le altre impostazioni del sito si modificano nel pannello di controllo (`index.php?fnapp=controlcenter`).
+
 ## Applicazione e Sorgenti
 
 I file possono convivere nella stessa cartella, ma è possibile separare i sorgenti del framework da quelli dei siti web, ad esempio in `finis_src/` e `website/`.
 
-La `index.php` nella cartella del sito web include `../finis_src/FINIS.php`.
+La `index.php` nella cartella del sito web include `../finis_src/FINIS.php`:
+
+```php
+<?php
+require_once "../finis_src/FINIS.php";
+$FINIS = new FINIS(array("src_application" => "."));
+$FINIS->addExtension("../fncommerce/"); // facoltativo, una chiamata per estensione
+$FINIS->finis();
+```
+
+I moduli (tipi di sezione) e le sezioni del pannello di controllo vengono cercati nella cartella dell'applicazione, poi nei sorgenti di FINIS, poi nelle estensioni. `$FINIS->finis()` serve il sito e i punti di ingresso scelti con `?fnapp=`: `controlcenter`, `api`, `mcp`, `oauthserver`, `thumb`, ... Un'applicazione aggiunge i propri in `include/methods/<nome>.php` (nomi fatti di lettere, cifre e `_`).
+
+Il server MCP `index.php?fnapp=mcp` permette ai client AI di lavorare sul sito come un utente FINIS, con una chiave API personale o un login OAuth: vedere la [guida MCP](it_guida_mcp.md).
 

@@ -15,7 +15,11 @@ themes/
       ├── form.tp.html       # Template per i form
       ├── grid.tp.html       # Template per le griglie
       ├── view.tp.html       # Template per la visualizzazione
-      ├── config.php         # Configurazioni del tema
+      ├── config.php         # Opzioni del tema (modificabili dal pannello di controllo)
+      ├── theme.php          # Codice PHP opzionale, incluso a ogni pagina
+      ├── modules/           # Template che sostituiscono quelli dei moduli
+      │   ├── login/login.tp.html
+      │   └── dbview/list.tp.html
       ├── css/               # Fogli di stile
       │   ├── style.css      # Stile principale
       │   └── ...            # Altri CSS
@@ -25,6 +29,34 @@ themes/
           ├── logo.png
           └── ...
 ```
+
+### Dove vengono cercati i temi
+Il tema in uso è quello indicato da `$_FN['theme']`. FINIS cerca la sua cartella in due posti:
+
+1. la cartella `themes/` del sito (l'applicazione), per esempio `themes/miotema/`;
+2. la cartella `themes/` di FINIS (`src/themes/`: `base`, `default`, `bootstrap5`).
+
+Un tema del sito funziona esattamente come un tema di FINIS: compare nell'elenco del pannello di
+controllo, si può vedere in anteprima e applicare (vedi [Attivazione del Tema](#4-attivazione-del-tema)).
+Se un file esiste in entrambe le cartelle vince la copia del sito. Se il tema non esiste in
+nessuna delle due, FINIS usa il tema predefinito e poi `base`. Le estensioni
+(`$FINIS->addExtension()`) aggiungono moduli e sezioni, non temi.
+
+Un tema di FINIS viene copiato nel sito la prima volta che si usa: `template.tp.html` e i file
+che collega con un percorso relativo (`href`, `src`, `background`), poi `form.tp.html`,
+`grid.tp.html`, `view.tp.html` e i file di `img/` quando si mostra un form o una griglia,
+finiscono in `themes/<nome>/` del sito, e da quel momento viene usata la copia del sito. Ne
+seguono due cose:
+
+- dopo aver modificato uno di questi file in `src/themes/<nome>/` bisogna aggiornare (o
+  cancellare) la copia nel sito;
+- i file richiamati solo da un CSS non vengono copiati: collegali anche dal template, oppure
+  tieni il tema nella cartella `themes/` del sito.
+
+Alcuni file vengono letti solo dalla copia del tema nel sito: `template.<sezione>.tp.html`
+(template principale di una sola sezione, per esempio `template.home.tp.html`) e
+`template.type.<modulo>.tp.html` (template principale delle sezioni di un modulo, per esempio
+`template.type.dbview.tp.html`). Se presenti sostituiscono `template.tp.html`.
 
 ### Tema Principale
 Il file fondamentale di ogni tema è `template.tp.html`, che definisce la struttura HTML di base del sito.
@@ -47,35 +79,21 @@ Il file `template.tp.html` definisce la struttura generale della pagina. Ecco un
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{site_title}</title>
     
-    <!-- CSS personalizzati -->
-    <link rel="stylesheet" href="{siteurl}themes/mytheme/css/style.css">
-    
-    <!-- CSS di sistema -->
-    {css}
-    
-    <!-- JavaScript di sistema -->
-    {javascript}
-    
-    <!-- Testa personalizzata -->
-    {head}
-    {header_append}
+    <!-- I percorsi relativi partono dalla cartella del tema -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <header>
         <div class="container">
             <div class="logo">
                 <a href="{siteurl}">
-                    <img src="{siteurl}themes/mytheme/img/logo.png" alt="{sitename}">
-                    <!-- if {isadmin} -->
-                     Admin
-                    <!-- end if {isadmin} -->
-
+                    <img src="img/logo.png" alt="{sitename}">
                 </a>
             </div>
             
             <nav class="main-menu">
                 <!-- foreach {menuitems} -->
-                <a href="{link}" class="<!-- if {active} -->active<!-- end if {active} -->">
+                <a href="{link}" accesskey="{accesskey}" class="<!-- if {active} -->active<!-- end if {active} -->">
                     {title}
                 </a>
                 <!-- end foreach {menuitems} -->
@@ -100,7 +118,7 @@ Il file `template.tp.html` definisce la struttura generale della pagina. Ecco un
                 <div class="blocks-top">
                     <!-- foreach {blocks_top} -->
                     <section>
-                        <!-- if {blocktitle} --><h3>{blocktitle}</h3><!-- end if {blocktitle} -->
+                        <!-- if not {hidetitle} --><h3>{title}</h3><!-- end if not {hidetitle} -->
                         <div>{html}</div>
                     </section>
                     <!-- end foreach {blocks_top} -->
@@ -112,7 +130,7 @@ Il file `template.tp.html` definisce la struttura generale della pagina. Ecco un
                     <aside class="sidebar-left">
                         <!-- foreach {blocks_left} -->
                         <section>
-                            <!-- if {blocktitle} --><h3>{blocktitle}</h3><!-- end if {blocktitle} -->
+                            <!-- if not {hidetitle} --><h3>{title}</h3><!-- end if not {hidetitle} -->
                             <div>{html}</div>
                         </section>
                         <!-- end foreach {blocks_left} -->
@@ -120,13 +138,12 @@ Il file `template.tp.html` definisce la struttura generale della pagina. Ecco un
                 <!-- end if {blocks_left} -->
                 
                 <div class="main-content">
-                    <h1>{title}</h1>
-                    
-                    <!-- if {path} -->
-                        <div class="breadcrumbs">
-                            {path}
-                        </div>
-                    <!-- end if {path} -->
+                    <!-- if not {is_home} -->
+                    <div class="breadcrumbs">
+                        <!-- foreach {nav} --><a href="{link}">{title}</a> &raquo; <!-- end foreach {nav} -->
+                    </div>
+                    <h1>{section_title}</h1>
+                    <!-- end if not {is_home} -->
                     
                     <!-- include section -->
                     
@@ -137,44 +154,43 @@ Il file `template.tp.html` definisce la struttura generale della pagina. Ecco un
                     <aside class="sidebar-right">
                         <!-- foreach {blocks_right} -->
                         <section>
-                            <!-- if {blocktitle} --><h3>{blocktitle}</h3><!-- end if {blocktitle} -->
+                            <!-- if not {hidetitle} --><h3>{title}</h3><!-- end if not {hidetitle} -->
                             <div>{html}</div>
                         </section>
                         <!-- end foreach {blocks_right} -->
                     </aside>
                 <!-- end if {blocks_right} -->
             </div>
-            
-            <!-- if {blocks_bottom} -->
-                <div class="blocks-bottom">
-                    <!-- foreach {blocks_bottom} -->
-                    <section>
-                        <!-- if {blocktitle} --><h3>{blocktitle}</h3><!-- end if {blocktitle} -->
-                        <div>{html}</div>
-                    </section>
-                    <!-- end foreach {blocks_bottom} -->
-                </div>
-            <!-- end if {blocks_bottom} -->
         </div>
     </main>
     
     <footer>
         <div class="container">
             <div class="copyright">
-                &copy; {year} {sitename}
+                {sitename} - {site_subtitle}
             </div>
             <div class="footer-menu">
-                {menu_footer}
+                {credits}
             </div>
         </div>
     </footer>
     
-    <!-- JavaScript aggiuntivi -->
-    <script src="{siteurl}themes/mytheme/js/script.js"></script>
-    {footer_append}
+    <script src="js/script.js" defer></script>
 </body>
 </html>
 ```
+
+Alcune note sul template principale:
+
+- La sezione (il contenuto della pagina) va dove si trova
+  `<!-- include section --><!-- end include section -->`: questo segnaposto va mantenuto, serve
+  anche alle copie offline (vedi [Copie offline e frammenti ajax](#copie-offline-e-frammenti-ajax)).
+- FINIS aggiunge la propria testata prima di `</head>`: il CSS del modulo e della sezione, gli
+  script di `include/javascripts/`, i meta tag e l'output dei file `header.php`. Al tema basta il
+  tag `</head>`. Il `<title>` viene sempre sostituito con il titolo della pagina
+  (`$_FN['site_title']`, che un modulo può cambiare, per esempio con il titolo di un record).
+- `href`, `src` e `background` con un percorso relativo (senza `:` e senza `{`) partono dalla
+  cartella del template: `css/style.css` diventa `themes/mytheme/css/style.css`.
 
 ### Template per Form
 Il file `form.tp.html` definisce come vengono renderizzati i form nel sistema:
@@ -237,132 +253,67 @@ Il file `form.tp.html` definisce come vengono renderizzati i form nel sistema:
 ```
 
 ### Template per Griglia
-Il file `grid.tp.html` definisce come vengono visualizzate le tabelle e le griglie di dati:
+Il file `grid.tp.html` definisce come vengono visualizzate le tabelle di dati (elenco dei record con
+filtri, pagine e azioni). Il punto di partenza più comodo è il `grid.tp.html` del tema
+`bootstrap5`; la parte centrale è questa:
 
 ```html
-<div class="table-responsive">
-    <!-- if {title} -->
-    <h2 class="grid-title">{title}</h2>
-    <!-- end if {title} -->
-    
-    <!-- if {actions} -->
-    <div class="grid-actions mb-3">
-        <!-- foreach {actions} -->
-        <a href="{url}" class="btn {class}" title="{title}">{label}</a>
-        <!-- end foreach {actions} -->
-    </div>
-    <!-- end if {actions} -->
-    
-    <!-- if {filters} -->
-    <div class="grid-filters mb-3">
-        <form action="{filter_action}" method="get">
-            <!-- foreach {hidden_params} -->
-            <input type="hidden" name="{name}" value="{value}">
-            <!-- end foreach {hidden_params} -->
-            
-            <div class="row">
-                <!-- foreach {filters} -->
-                <div class="col-md-3 mb-2">
-                    <label>{label}</label>
-                    {html}
-                </div>
-                <!-- end foreach {filters} -->
-                
-                <div class="col-md-3 mb-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary">{i18n:Filter}</button>
-                    <a href="{reset_url}" class="btn btn-secondary ms-2">{i18n:Reset}</a>
-                </div>
-            </div>
-        </form>
-    </div>
-    <!-- end if {filters} -->
-    
-    <!-- if {records} -->
-    <table class="table table-hover">
-        <thead>
-            <tr>
-                <!-- foreach {headers} -->
-                <th class="{class}">
-                    <!-- if {sortable} -->
-                    <a href="{sort_url}" class="sort-link {sort_class}">
-                        {label}
-                    </a>
-                    <!-- end if {sortable} -->
-                    <!-- if not {sortable} -->
-                    {label}
-                    <!-- end if not {sortable} -->
-                </th>
-                <!-- end foreach {headers} -->
-            </tr>
-        </thead>
-        <tbody>
-            <!-- foreach {records} -->
-            <tr class="{row_class}">
-                <!-- foreach {cells} -->
-                <td class="{class}">{content}</td>
-                <!-- end foreach {cells} -->
-            </tr>
-            <!-- end foreach {records} -->
-        </tbody>
-    </table>
-    
-    <!-- if {pagination} -->
-    <div class="grid-pagination">
-        <div class="pagination-info">
-            {pagination.info}
-        </div>
-        <div class="pagination-links">
-            {pagination.html}
-        </div>
-    </div>
-    <!-- end if {pagination} -->
-    <!-- end if {records} -->
-    
-    <!-- if not {records} -->
-    <div class="alert alert-info">
-        {i18n:No records found}
-    </div>
-    <!-- end if not {records} -->
-</div>
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <!-- foreach {headers} -->
+            <th><a href="{link}">{title}{arrow}</a></th>
+            <!-- end foreach {headers} -->
+            <th colspan="{numactions}"></th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- foreach {rows} -->
+        <tr>
+            <!-- foreach {cols} -->
+            <td data-title="{fieldtitle}">{fieldvalue}</td>
+            <!-- end foreach {cols} -->
+            <!-- if {action_view} --><td><a href="{link}">{text}</a></td><!-- end if {action_view} -->
+            <!-- if {action_edit} --><td><a href="{link}">{text}</a></td><!-- end if {action_edit} -->
+            <!-- if {action_delete} --><td><a href="{link}" onclick="return confirm('{i18n:are you sure you want to delete this content?}')">{text}</a></td><!-- end if {action_delete} -->
+        </tr>
+        <!-- end foreach {rows} -->
+    </tbody>
+</table>
 ```
 
+`{action_view}`, `{action_edit}` e `{action_delete}` sono array: dentro il loro blocco `if`
+valgono le loro chiavi (`{link}`, `{text}`, `{html}`). Le pagine sono in `{nav_page_prev}`,
+`{nav_pages}` (`{link}`, `{title}`, `{current}`) e `{nav_page_next}`, i filtri in `{filters}`.
+
 ### Template per Visualizzazione
-Il file `view.tp.html` definisce come vengono visualizzati i dettagli di un singolo elemento:
+Il file `view.tp.html` definisce come vengono visualizzati i dettagli di un singolo record. Come
+`form.tp.html`, è diviso in parti marcate da commenti HTML: `<!-- item -->` si ripete per ogni
+campo, `<!-- group -->` apre un gruppo di campi.
 
 ```html
 <div class="card">
-    <div class="card-header">
-        <!-- if {title} -->
-        <h2 class="view-title">{title}</h2>
-        <!-- end if {title} -->
-        
-        <!-- if {actions} -->
-        <div class="view-actions">
-            <!-- foreach {actions} -->
-            <a href="{url}" class="btn {class}" title="{title}">{label}</a>
-            <!-- end foreach {actions} -->
-        </div>
-        <!-- end if {actions} -->
-    </div>
-    
     <div class="card-body">
-        <!-- foreach {fields} -->
-        <div class="view-field {class}">
-            <strong>{label}:</strong>
-            <div class="field-value">{value}</div>
-        </div>
-        <!-- end foreach {fields} -->
-        
-        <!-- if {related_data} -->
-        <div class="related-data mt-4">
-            <!-- foreach {related_data} -->
-            <div class="related-section">
-                <h3 class="related-title">{title}</h3>
-                {content}
-            </div>
-            <!-- end foreach {related_data} -->
-        </div>
-        <!-- end if {related_data} -->
+        <table class="table table-hover">
+            <tbody>
+                <!-- contents -->
+                <!-- group -->
+                <tr><td colspan="2">{groupname}</td></tr>
+                <!-- end_group -->
+                <!-- item -->
+                <tr>
+                    <th scope="row">{title}</th>
+                    <td>{input}</td>
+                </tr>
+                <!-- end_item -->
+                <!-- endgroup -->
+                <!-- end_endgroup -->
+                <!-- end_contents -->
+            </tbody>
+        </table>
+        <!-- if {textviewlist} -->
+        <a class="btn btn-primary" href="{link_view_list}">{textviewlist}</a>
+        <!-- end if {textviewlist} -->
     </div>
 </div>
 ```
@@ -648,39 +599,69 @@ I temi del pannello di controllo stanno in `controlcenter/themes/<nome>/` (`clas
 ```
 
 - `controlcenter/sections/<gruppo>/<sezione>/*.tp.html`: i template di una singola sezione
-  (per esempio `users_and_groups/profile/form.tp.html`), trovati con `FNCC_FromTheme()`.
+  (per esempio `users_and_groups/profile/form.tp.html`), trovati con `FNCC_FromTheme()`. Una
+  copia personalizzata in `controlcenter/themes/<nome>/` del sito vince su quella di FINIS.
+
+Per `editconf.tp.html` valgono anche queste regole: il template viene usato solo se contiene un
+`<form>` (FINIS aggiunge i suoi script e i campi nascosti prima di `</form>`), ha a disposizione
+anche `{formaction}` e `{linkcancel}`, e viene letto dalla cartella del tema in FINIS
+(`src/controlcenter/themes/<nome>/`).
+
+Il file manager disegna le sue icone con caratteri Unicode (`FN_GetIconCharByFilename()`): un tema
+non deve fornire immagini per le icone dei file.
 
 ## Variabili di Template
 FINIS utilizza un sistema di template che permette di inserire variabili e logica condizionale nei template HTML.
 
 ### Variabili Principali
+Ogni stringa o numero di `$_FN` è una variabile del template (`{sitename}`, `{siteurl}`, `{lang}`,
+`{user}`...); i campi dell'utente collegato sono `{user_<campo>}` e quelli della sezione corrente
+`{section_<campo>}`. Le più usate:
+
 - `{sitename}`: Nome del sito
 - `{siteurl}`: URL base del sito
-- `{title}`: Titolo della pagina corrente
-- `{site_title}`: Titolo completo del sito (spesso sitename + titolo pagina)
+- `{site_title}`: Titolo della pagina
+- `{site_subtitle}`: Sottotitolo del sito
+- `{section_title}`, `{section_description}`: Titolo e descrizione della sezione corrente
 - `{lang}`: Codice lingua corrente
-- `{css}`: CSS di sistema
-- `{javascript}`: JavaScript di sistema
-- `{head}`: Contenuto aggiuntivo per l'header
-- `{header_append}`: Script o stili aggiunti dai moduli
-- `{footer_append}`: Script aggiunti dai moduli in fondo alla pagina
 - `{user}`: Nome utente corrente (vuoto se non loggato)
-- `{year}`: Anno corrente
 - `{url_avatar}`: URL dell'avatar utente
 - `{urllogin}`: URL per il login
 - `{urllogout}`: URL per il logout
 - `{urlprofile}`: URL della pagina profilo
 - `{urlregister}`: URL per la registrazione
+- `{is_home}`: Vero nella sezione iniziale
+- `{url_logo}`: `themes/<tema>/images/logo.png` (o `.svg`) del sito, vuoto se manca
+- `{credits}`, `{navbar}` (percorso in HTML), `{hmenu}` (menu in HTML), `{languages}` (bandiere in HTML)
+- `{nav}`: Percorso (breadcrumb) come elenco di sezioni (`{title}`, `{link}`, `{active}` sulla corrente)
+- `{notifications}`, `{notifications_count}`: Notifiche non ancora mostrate all'utente
+- le opzioni del `config.php` del tema (vedi [Configurazione del Tema](#configurazione-del-tema))
+
+Una variabile che non esiste resta nella pagina così come è scritta.
 
 ### Variabili per i Blocchi
 - `{blocks_top}`: Blocchi posizionati in alto
 - `{blocks_left}`: Blocchi posizionati a sinistra
 - `{blocks_right}`: Blocchi posizionati a destra
-- `{blocks_bottom}`: Blocchi posizionati in basso
 
-Per ogni blocco sono disponibili:
-- `{blocktitle}`: Titolo del blocco
+Ogni blocco ha i campi del suo record:
+- `{title}`: Titolo del blocco
+- `{hidetitle}`: Vero quando il titolo non va mostrato
 - `{html}`: Contenuto HTML del blocco
+
+I blocchi si possono stampare anche con un include, che funziona per tutte le posizioni (`top`,
+`left`, `right`, `bottom`):
+
+```html
+<!-- include blocks_bottom -->
+<!-- blockitem -->
+<section>
+    <!-- blockheader --><h3><!-- blocktitle -->titolo<!-- end blocktitle --></h3><!-- end blockheader -->
+    <div><!-- blockcontents -->contenuto<!-- end blockcontents --></div>
+</section>
+<!-- end blockitem -->
+<!-- end include blocks_bottom -->
+```
 
 ### Variabili Menu
 - `{menuitems}`: Voci del menu principale
@@ -688,16 +669,26 @@ Per ogni blocco sono disponibili:
   - `{link}`: URL della voce menu
   - `{id}`: ID della voce menu
   - `{active}`: Se la voce è attiva
+  - `{opened}`: Se la sezione corrente sta dentro questa voce
   - `{accesskey}`: Accesskey della voce
-  - `{havechilds}`: Se la voce ha sottovoci
+  - `{havechilds}`: Numero di sottovoci
   - `{childs}`: Array di sottovoci
+
+Il menu elenca solo le sezioni il cui contenuto l'utente può vedere: per esempio una sezione
+dbview riservata ad alcuni gruppi, o l'editor delle tabelle, non compaiono agli altri utenti.
 
 ### Variabili Multilingua
 - `{is_multilanguage}`: Se il sito è multilingua
+- `{current_language}`: La lingua corrente (stessi campi dell'elenco)
 - `{sitelanguages}`: Lista delle lingue disponibili
   - `{langname}`: Codice lingua
   - `{langtitle}`: Nome lingua
-  - `{langflag}`: Bandiera della lingua
+  - `{langflag}`: Bandiera della lingua (Unicode)
+  - `{langimg}`: URL dell'immagine della bandiera
+
+### Traduzioni
+`{i18n:testo}` stampa la traduzione di `testo` nella lingua corrente; il testo si scrive in inglese.
+La prima lettera segue quella scritta: `{i18n:Login}` dà "Accedi", `{i18n:login}` "accedi".
 
 ### Logica Condizionale
 ```html
@@ -713,15 +704,28 @@ Per ogni blocco sono disponibili:
     <aside class="sidebar-left">
         <!-- foreach {blocks_left} -->
         <section>
-            <!-- if {blocktitle} -->
-            <h3>{blocktitle}</h3>
-            <!-- end if {blocktitle} -->
+            <!-- if not {hidetitle} -->
+            <h3>{title}</h3>
+            <!-- end if not {hidetitle} -->
             <div>{html}</div>
         </section>
         <!-- end foreach {blocks_left} -->
     </aside>
 <!-- end if {blocks_left} -->
 ```
+
+La condizione è sempre una sola variabile: `<!-- if {var} -->` oppure `<!-- if not {var} -->`,
+chiusi da `<!-- end if {var} -->` o `<!-- end if not {var} -->`. Le espressioni (`&&`, `||`, `!`)
+non sono supportate. Una stringa vuota, `"0"`, `false` e un array vuoto valgono falso. Quando la
+variabile di un `if` è un array, dentro il blocco le sue chiavi diventano variabili:
+
+```html
+<!-- if {navigationbar} -->
+    {toolbar_html}
+<!-- end if {navigationbar} -->
+```
+
+Qui `{toolbar_html}` è una chiave dell'array `{navigationbar}`.
 
 ### Cicli
 ```html
@@ -734,6 +738,25 @@ Per ogni blocco sono disponibili:
 <!-- end foreach {menuitems} -->
 ```
 
+I blocchi `if` e `foreach` funzionano in template di qualunque dimensione, purché un singolo blocco
+(con i suoi cicli già espansi) resti sotto l'impostazione PHP `pcre.backtrack_limit` (1.000.000 di
+caratteri come valore predefinito): per blocchi più grandi, per esempio un elenco di migliaia di
+record dentro un solo `if`, va alzata.
+
+### Escape dei valori
+Il motore dei template stampa i valori così come sono: non fa nessun escape, e nemmeno
+`FN_RewriteLink()`. Un valore che arriva dalla richiesta (`$_GET`, `$_POST`, la query string) va
+messo in sicurezza prima di finire in un template, con `FN_GetParam($nome, $_GET, "html")` nel
+PHP oppure con un modificatore nel template:
+
+```html
+<input name="q" value="{q.addHtmlEntities()}">
+```
+
+`{var.addHtmlEntities()}` applica `htmlentities()` al valore (`{var.addSlashes()}` applica
+`addslashes()`, che non è un escape HTML). Il `{formaction}` che FINIS passa ai form di login e
+logout è già sottoposto a escape.
+
 ## Personalizzazione dei Temi
 
 ### Sovrascrittura dei File di un Modulo
@@ -743,59 +766,242 @@ Per ogni blocco sono disponibili:
 themes/mytheme/modules/login/login.tp.html
 ```
 
-Questo file sovrascriverà il file originale `modules/login/login.tp.html`.
+Questo file sovrascriverà il file originale `modules/login/login.tp.html`. Un template di modulo
+viene cercato (`FN_FromTheme()`) in quest'ordine:
+
+1. `themes/<tema>/modules/<modulo>/<file>` del sito;
+2. `src/themes/<tema>/modules/<modulo>/<file>` di FINIS;
+3. il file del modulo.
+
+Alcuni moduli danno alla cartella della sezione (`sections/<sezione>/`) la precedenza sul tema:
+vedi dbview qui sotto.
+
+### Template del modulo dbview
+Il modulo dbview (tabelle del database mostrate come elenchi e schede) ha diversi template. La
+barra della scheda (`toolbar.tp.html`) e gli altri template della scheda (`detail.tp.html`,
+`formedit.tp.html`, `history.tp.html`, `users.tp.html`) vengono cercati in quest'ordine:
+
+1. `sections/<sezione>/` del sito (vale per una sola sezione);
+2. `themes/<tema>/modules/dbview/` (sito, poi FINIS);
+3. `src/modules/dbview/`.
+
+Per l'elenco (`list.tp.html`) ci sono due posti in più:
+
+1. `themes/<tema>/sections/<sezione>/list.tp.html` nel sito (vince su tutto);
+2. `sections/<sezione>/list.tp.html`;
+3. `themes/<tema>/modules/dbview/list.tp.html` (sito, poi FINIS);
+4. il file indicato da `$_FN['dbview_list_template']` (un solo template di elenco per tutte le
+   sezioni dell'applicazione, usato solo se il tema non ha un suo template di elenco);
+5. `src/modules/dbview/list.tp.html`.
+
+**Barra della scheda.** I template della scheda stampano la barra con `{toolbar_html}` (dentro
+`<!-- if {navigationbar} -->`). `toolbar.tp.html` cicla su `{items}`, ognuno con `{key}` (`list`,
+`prev`, `next`, `view`, `history`, `edit`, `users`), `{link}`, `{title}` (testo completo, per il
+tooltip), `{label}` (testo visibile), `{icon}` e `{active}`:
+
+```html
+<ul class="nav nav-tabs dbview-toolbar">
+    <!-- foreach {items} -->
+    <li class="nav-item dbview-toolbar-{key}">
+        <a class="nav-link" href="{link}" title="{title}"><span class="dbview-toolbar-icon" aria-hidden="true">{icon}</span><span class="dbview-toolbar-text">{label}</span></a>
+    </li>
+    <!-- end foreach {items} -->
+</ul>
+```
+
+Le icone sono caratteri Unicode (`☰ ← → ⓘ ↺ ✎ 👥`) disegnati nel colore del testo. Un tema le può
+cambiare senza riscrivere il template, per esempio nel suo `theme.php`:
+
+```php
+$_FN['dbview_toolbar_icons'] = array("edit" => "✏", "history" => "🕘");
+```
+
+Lo `style.css` del modulo rende la barra compatta sugli schermi piccoli: sotto i 768 px le
+schede restano su una riga che scorre di lato e solo la scheda attiva mostra il testo; sotto i
+576 px restano solo le icone.
+
+**Schede dei record.** Il `list.tp.html` predefinito mostra i record come card in una griglia che
+mette in una riga quante card ci stanno (almeno 240 px ciascuna). Ogni record di `{items}` ha:
+
+- `{item_title}`, `{item_urlview}`, `{item_urledit}` e `{item_urldelete}` (gli ultimi due valgono
+  falso quando l'utente non può modificare o cancellare il record);
+- `{item_urlimage}` (miniatura), `{item_urlimage_fullsize}` e `{item_hasimage}` (vero quando il
+  record ha una foto: il template predefinito mostra la foto solo in quel caso);
+- `{itemvalues}`: i campi mostrati nell'elenco (`{title}`, `{value}`, `{fieldname}`);
+- `{viewvalue_<campo>}` e `{title_<campo>}`: gli stessi valori per nome del campo;
+- `{value_<campo>}`: il valore grezzo di ogni campo del record, senza escape (usa
+  `{value_<campo>.addHtmlEntities()}` per i testi scritti dagli utenti).
+
+Le card hanno lo stile dello `style.css` del modulo, con le classi `.dbview-cards` (la griglia),
+`.dbview-card`, `.dbview-card-media` (foto con proporzioni fisse), `.dbview-card-values` (una riga
+per campo), `.dbview-card-view` (il pulsante di visualizzazione) e `.dbview-noresult`; il CSS ha
+anche `.dbview-card-badges`, `.dbview-card-code`, `.dbview-card-nophoto` e `.dbview-card-noimage`
+per i template che le usano. Questo CSS viene messo nella testata della pagina dopo i fogli di
+stile del tema, quindi un tema che vuole cambiare le card deve usare selettori più specifici:
+
+```css
+.dbview-cards .dbview-card {
+    border-radius: 0;
+}
+```
+
+**Navigazione ajax.** Le pagine, i filtri per categoria e il modulo di ricerca dell'elenco si
+caricano con `call_ajax()` / `call_ajax_form()`: la pagina viene chiesta con `fnajax=1` e i
+contenitori indicati nella chiamata sostituiscono i `div`, `span`, `td` o `tr` con lo stesso `id`;
+la barra degli indirizzi segue la navigazione. Un template di elenco che vuole mantenere questo
+comportamento conserva i contenitori `<div id="pageresults">` e `<div id="collapseFilters">` e le
+chiamate:
+
+```html
+<a href="{link}" onclick="call_ajax(this.href, 'pageresults,collapseFilters');return false">2</a>
+<form onsubmit="return call_ajax_form(this, 'pageresults,collapseFilters');" method="get" action="{formaction}">
+```
+
+### Template di login e registrazione
+I template del modulo login (`login.tp.html`, `register.tp.html`, `profile.tp.html`,
+`editreg.tp.html`, quelli del recupero password e delle email) si sostituiscono in
+`themes/<tema>/modules/login/`. I temi `default` e `bootstrap5` di FINIS sono esempi completi.
+
+`login.tp.html` usa `{formaction}` (già sottoposto a escape) e delle parti marcate da commenti
+HTML, alcune delle quali FINIS toglie quando non servono:
+
+```html
+<form action="{formaction}" method="post" name="login">
+    <input name="username" type="text" autocomplete="username">
+    <input name="password" type="password" autocomplete="current-password">
+    <!-- captcha -->{htmlcaptcha}<!-- end captcha -->
+    <!-- rememberlogin -->
+    <label><input type="checkbox" name="rememberlogin" value="1"> {i18n:Stay connected}</label>
+    <!-- endrememberlogin -->
+    <button type="submit">{i18n:Login}</button>
+    <!-- register --><a href="{urlregister}">{i18n:Register}</a><!-- end register -->
+    <!-- passwordrecovery --><a href="{urlpasswordrecovery}">{i18n:Password recovery}</a><!-- end passwordrecovery -->
+    <!-- loginerror --><div class="alert">{login_error}</div><!-- end loginerror -->
+</form>
+<!-- foreach {oauth_providers} -->
+<a href="{url}"><!-- if {urlimage} --><img src="{urlimage}" alt=""> <!-- end if {urlimage} -->{i18n:Continue with}: {name}</a>
+<!-- end foreach {oauth_providers} -->
+```
+
+- `<!-- captcha -->` viene tolto quando il captcha è disattivato, `<!-- rememberlogin -->` quando
+  `remember_login` è spento, `<!-- register -->` quando la registrazione è disattivata,
+  `<!-- loginerror -->` quando non c'è un errore.
+- `{oauth_providers}` elenca i provider di login esterni abilitati: stampa solo `{name}`, `{url}`
+  e `{urlimage}` (ogni voce è il record del provider).
+- Un tema può mettere il form di login anche in `template.tp.html`, tra
+  `<!-- include FN_HtmlLoginForm -->` e `<!-- end include FN_HtmlLoginForm -->` (vedi il tema
+  `bootstrap5`): valgono le stesse variabili e le stesse parti.
+
+`register.tp.html` è un layout di form (gli input li genera il motore dei form) con una parte per
+il captcha e una per le condizioni. Conviene un layout senza tabelle, che si adatta agli schermi
+piccoli:
+
+```html
+<form enctype="multipart/form-data" action="{formaction}" method="post" name="register">
+    <!-- contents -->
+    <!-- group --><div class="group">{groupname}</div><!-- end_group -->
+    <!-- item -->
+    <div class="field">
+        <label for="{fieldname}">{title}<!-- error --><span class="error">{error}</span><!-- end_error --></label>
+        <!-- inputattributes:class="form-control" -->{input}
+    </div>
+    <!-- end_item -->
+    <!-- endgroup --><!-- end_endgroup -->
+    <!-- end_contents -->
+    <!-- conditions --><div class="field">{htmlconditions}</div><!-- endconditions -->
+    <!-- captcha -->
+    <div class="field">{htmlcaptcha} <span class="error">{txt_error_security_code}</span></div>
+    <!-- endcaptcha -->
+    <input name="updateuser" value="1" type="hidden">
+    <button type="submit">{i18n:Save}</button>
+    <button type="button" onclick="window.location = '{urlcancel}'">{i18n:Cancel}</button>
+</form>
+```
+
+- In `register.tp.html` i marcatori di chiusura sono `<!-- endcaptcha -->` e
+  `<!-- endconditions -->` (senza spazio).
+- `<!-- inputattributes:... -->` dà gli attributi a tutti gli input;
+  `<!-- inputattributes <tipo>:... -->` solo ai campi di quel tipo di form (per esempio `radio` o
+  `check`).
+- Al posto di `{htmlconditions}` il template può ciclare su `{conditions}` (`{title}`, `{text}`,
+  `{name}`, `{checked}`, `{required}`, `{error}`, `{title_accept}`).
+
+I valori di un template li fornisce il codice che lo usa. Né `FN_RewriteLink()` né il motore dei
+template fanno escape: quando un template del tema mostra un valore preso dalla richiesta, va messo
+in sicurezza (vedi [Escape dei valori](#escape-dei-valori)).
 
 ### Configurazione del Tema
-Il file `config.php` nella cartella del tema permette di definire opzioni specifiche:
+Il file `config.php` nella cartella del tema dichiara le opzioni del tema. Ogni opzione è una riga
+`$config` con il suo valore predefinito, preceduta da un commento con l'etichetta; le opzioni tra
+graffe diventano una select:
+
+```php
+<?php
+//[i18n]show search form {1=YES,0=NO}
+$config['show_search_form'] = "1";
+//[i18n]footer text
+$config['footer_text'] = "";
+```
+
+Le opzioni si modificano dal pannello di controllo (Impostazioni generali > Aspetto); i valori
+salvati lì stanno nel database, il file contiene solo i valori predefiniti. Ogni opzione è una
+variabile di `template.tp.html`:
+
+```html
+<!-- if {show_search_form} -->
+<form method="post" action="{siteurl}index.php?mod=search">...</form>
+<!-- end if {show_search_form} -->
+```
+
+Il codice PHP va in `theme.php`, che FINIS include a ogni pagina, prima di costruirla. Può
+impostare valori di `$_FN` (ogni stringa di `$_FN` è una variabile del template) e ridefinire le
+funzioni HTML che FINIS definisce solo se mancano: `FN_HtmlMenu()`, `FN_HtmlNavbar()`,
+`FN_HtmlLanguages()`, `FN_HtmlCredits()`, `FN_HtmlModalWindow()`, `FN_HtmlMainteanceMode()`,
+`FN_HtmlHeader()`.
 
 ```php
 <?php
 global $_FN;
-
-// Configurazioni del tema
-$theme_config = array(
-    'name' => 'My Theme',
-    'author' => 'Your Name',
-    'version' => '1.0',
-    'description' => 'A beautiful responsive theme for FINIS',
-    'support_responsive' => true,
-    'support_blocks_positions' => array('top', 'left', 'right', 'bottom'),
-    'default_blocks_position' => 'right'
-);
-
-// Impostazioni di tema personalizzate
-$theme_settings = array(
-    'primary_color' => '#007bff',
-    'secondary_color' => '#6c757d',
-    'show_logo' => true,
-    'show_site_name' => true,
-    'footer_text' => '&copy; ' . date('Y') . ' ' . $_FN['sitename'],
-    'enable_animations' => true,
-    'sidebar_width' => '250px',
-    'max_width' => '1200px'
-);
-
-// Funzioni specifiche del tema
-function theme_get_menu() {
-    global $_FN;
-    // Logica personalizzata per generare il menu
-    return $menu_html;
-}
-
-// Aggiungi CSS e JS personalizzati
-$_FN['header_append'] .= '
-<link rel="stylesheet" href="' . $_FN['siteurl'] . 'themes/' . $_FN['theme'] . '/css/custom.css">
-<script src="' . $_FN['siteurl'] . 'themes/' . $_FN['theme'] . '/js/custom.js" defer></script>
-';
+// {html_dir} nel template.tp.html: <html lang="{lang}" dir="{html_dir}">
+$_FN['html_dir'] = in_array($_FN['lang'], array("ar", "he")) ? "rtl" : "ltr";
 ```
+
+## Copie offline e frammenti ajax
+Due parametri di `index.php` restituiscono parti di una pagina, per la navigazione ajax e per il
+service worker di un'applicazione che conserva le pagine per l'uso offline:
+
+- `fnajax=1`: solo la sezione, senza tema, in una pagina HTML minima il cui `<title>` è quello
+  della pagina completa. Gli elenchi dbview lo usano per la navigazione ajax.
+- `fnshell=1`: la pagina con il tema e il commento `<!--fnsection-->` al posto della sezione, che
+  non viene generata. Un worker inserisce un frammento (`fnajax=1`) dentro questo guscio.
+
+Ogni pagina ha anche le intestazioni `X-Finis-Visitor` (`public` quando la pagina è uguale per
+tutti i visitatori anonimi, `private` per un utente collegato o una POST), `X-Finis-Section` e
+`X-Finis-Lang`.
+
+Perché il guscio funzioni, un tema deve:
+
+- stampare la sezione solo con `<!-- include section --><!-- end include section -->`: il
+  marcatore `<!--fnsection-->` viene messo lì;
+- tenere il contenuto della pagina dentro la sezione: un worker riusa il guscio di una sezione (e
+  di una lingua) per tutte le sue pagine, quindi quello che il tema stampa intorno alla sezione
+  deve dipendere solo da queste;
+- usare `{formaction}` nei form di login e logout: FINIS ne toglie `fnshell` e `fnajax`, così il
+  form invia alla pagina vera.
 
 ## Framework CSS Integrati
 FINIS supporta vari framework CSS popolari. Ecco come integrare Bootstrap:
 
 ### Tema con Bootstrap 5
-1. Crea una nuova cartella: `themes/bootstrap5/`
-2. Scarica i file di Bootstrap e posizionali in `themes/bootstrap5/css/` e `themes/bootstrap5/js/`
-3. Crea il template principale utilizzando le classi Bootstrap:
+FINIS contiene già due temi Bootstrap 5 in `src/themes/`: `default` (file di Bootstrap nella
+cartella del tema, menu laterale) e `bootstrap5` (Bootstrap da CDN, menu in alto, form di login
+nella barra di navigazione). Sono il punto di partenza più rapido: copiane uno nella cartella
+`themes/` del sito con un nuovo nome e modificalo. Per costruirne uno da zero:
+
+1. Crea una nuova cartella: `themes/miobootstrap/`
+2. Scarica i file di Bootstrap e posizionali in `themes/miobootstrap/css/` e `themes/miobootstrap/js/`
+3. Crea il template principale utilizzando le classi Bootstrap, con i percorsi relativi alla
+   cartella del tema:
 
 ```html
 <!DOCTYPE html>
@@ -806,27 +1012,17 @@ FINIS supporta vari framework CSS popolari. Ecco come integrare Bootstrap:
     <title>{site_title}</title>
     
     <!-- Bootstrap CSS -->
-    <link href="{siteurl}themes/bootstrap5/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
     
     <!-- CSS personalizzati -->
-    <link rel="stylesheet" href="{siteurl}themes/bootstrap5/css/style.css">
-    
-    <!-- CSS di sistema -->
-    {css}
-    
-    <!-- JavaScript di sistema -->
-    {javascript}
-    
-    <!-- Testa personalizzata -->
-    {head}
-    {header_append}
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <header>
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
             <div class="container">
                 <a class="navbar-brand" href="{siteurl}">
-                    <img src="{siteurl}themes/bootstrap5/img/logo.png" alt="{sitename}" height="30">
+                    <img src="img/logo.png" alt="{sitename}" height="30">
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
                     <span class="navbar-toggler-icon"></span>
@@ -877,11 +1073,11 @@ FINIS supporta vari framework CSS popolari. Ecco come integrare Bootstrap:
                     <div class="col-12">
                         <!-- foreach {blocks_top} -->
                         <div class="card mb-3">
-                            <!-- if {blocktitle} -->
+                            <!-- if not {hidetitle} -->
                             <div class="card-header">
-                                <h3 class="card-title">{blocktitle}</h3>
+                                <h3 class="card-title">{title}</h3>
                             </div>
-                            <!-- end if {blocktitle} -->
+                            <!-- end if not {hidetitle} -->
                             <div class="card-body">
                                 {html}
                             </div>
@@ -896,11 +1092,11 @@ FINIS supporta vari framework CSS popolari. Ecco come integrare Bootstrap:
                     <div class="col-lg-3 mb-4 mb-lg-0">
                         <!-- foreach {blocks_left} -->
                         <div class="card mb-3">
-                            <!-- if {blocktitle} -->
+                            <!-- if not {hidetitle} -->
                             <div class="card-header">
-                                <h3 class="card-title">{blocktitle}</h3>
+                                <h3 class="card-title">{title}</h3>
                             </div>
-                            <!-- end if {blocktitle} -->
+                            <!-- end if not {hidetitle} -->
                             <div class="card-body">
                                 {html}
                             </div>
@@ -909,29 +1105,26 @@ FINIS supporta vari framework CSS popolari. Ecco come integrare Bootstrap:
                     </div>
                 <!-- end if {blocks_left} -->
                 
-                <div class="col-lg-<!-- if {blocks_left} && {blocks_right} -->6<!-- end if {blocks_left} && {blocks_right} --><!-- if ({blocks_left} && !{blocks_right}) || (!{blocks_left} && {blocks_right}) -->9<!-- end if ({blocks_left} && !{blocks_right}) || (!{blocks_left} && {blocks_right}) --><!-- if !{blocks_left} && !{blocks_right} -->12<!-- end if !{blocks_left} && !{blocks_right} -->">
+                <div class="col-lg">
                     <div class="card">
+                        <!-- if not {is_home} -->
                         <div class="card-header">
-                            <h1 class="h3 mb-0">{title}</h1>
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb mb-1">
+                                    <!-- foreach {nav} -->
+                                    <!-- if {active} -->
+                                    <li class="breadcrumb-item active">{title}</li>
+                                    <!-- end if {active} -->
+                                    <!-- if not {active} -->
+                                    <li class="breadcrumb-item"><a href="{link}">{title}</a></li>
+                                    <!-- end if not {active} -->
+                                    <!-- end foreach {nav} -->
+                                </ol>
+                            </nav>
+                            <h1 class="h3 mb-0">{section_title}</h1>
                         </div>
+                        <!-- end if not {is_home} -->
                         <div class="card-body">
-                            <!-- if {path} -->
-                                <nav aria-label="breadcrumb">
-                                    <ol class="breadcrumb">
-                                        <!-- foreach {path_items} -->
-                                        <li class="breadcrumb-item <!-- if {active} -->active<!-- end if {active} -->">
-                                            <!-- if not {active} -->
-                                            <a href="{link}">{title}</a>
-                                            <!-- end if not {active} -->
-                                            <!-- if {active} -->
-                                            {title}
-                                            <!-- end if {active} -->
-                                        </li>
-                                        <!-- end foreach {path_items} -->
-                                    </ol>
-                                </nav>
-                            <!-- end if {path} -->
-                            
                             <!-- include section -->
                             
                             <!-- end include section -->
@@ -943,11 +1136,11 @@ FINIS supporta vari framework CSS popolari. Ecco come integrare Bootstrap:
                     <div class="col-lg-3 mt-4 mt-lg-0">
                         <!-- foreach {blocks_right} -->
                         <div class="card mb-3">
-                            <!-- if {blocktitle} -->
+                            <!-- if not {hidetitle} -->
                             <div class="card-header">
-                                <h3 class="card-title">{blocktitle}</h3>
+                                <h3 class="card-title">{title}</h3>
                             </div>
-                            <!-- end if {blocktitle} -->
+                            <!-- end if not {hidetitle} -->
                             <div class="card-body">
                                 {html}
                             </div>
@@ -956,25 +1149,6 @@ FINIS supporta vari framework CSS popolari. Ecco come integrare Bootstrap:
                     </div>
                 <!-- end if {blocks_right} -->
             </div>
-            
-            <!-- if {blocks_bottom} -->
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <!-- foreach {blocks_bottom} -->
-                        <div class="card mb-3">
-                            <!-- if {blocktitle} -->
-                            <div class="card-header">
-                                <h3 class="card-title">{blocktitle}</h3>
-                            </div>
-                            <!-- end if {blocktitle} -->
-                            <div class="card-body">
-                                {html}
-                            </div>
-                        </div>
-                        <!-- end foreach {blocks_bottom} -->
-                    </div>
-                </div>
-            <!-- end if {blocks_bottom} -->
         </div>
     </main>
     
@@ -982,7 +1156,7 @@ FINIS supporta vari framework CSS popolari. Ecco come integrare Bootstrap:
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
-                    <p>&copy; {year} {sitename}</p>
+                    <p>{sitename}</p>
                 </div>
                 <div class="col-md-6 text-md-end">
                     <div class="footer-menu">
@@ -996,42 +1170,22 @@ FINIS supporta vari framework CSS popolari. Ecco come integrare Bootstrap:
     </footer>
     
     <!-- Bootstrap Bundle with Popper -->
-    <script src="{siteurl}themes/bootstrap5/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- JavaScript aggiuntivi -->
-    <script src="{siteurl}themes/bootstrap5/js/script.js"></script>
-    {footer_append}
+    <script src="js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
 ```
 
-4. Crea il file `config.php` per personalizzare le funzionalità del tema:
+La colonna centrale usa `col-lg`, che prende lo spazio lasciato dalle colonne laterali: il motore
+dei template non valuta espressioni, quindi la larghezza non si calcola con un `if` su più
+variabili.
+
+4. Se il tema ha delle opzioni, dichiarale nel suo `config.php` (vedi
+   [Configurazione del Tema](#configurazione-del-tema)), come fa il tema `bootstrap5` di FINIS:
 
 ```php
 <?php
-global $_FN;
-
-// Configurazioni del tema
-$theme_config = array(
-    'name' => 'Bootstrap 5 Theme',
-    'author' => 'Your Name',
-    'version' => '1.0',
-    'description' => 'A responsive theme using Bootstrap 5',
-    'support_responsive' => true
-);
-
-// Aggiungi metadati Bootstrap
-$_FN['header_append'] .= '
-<meta name="description" content="' . $_FN['sitename'] . ' - ' . $_FN['title'] . '">
-<meta name="author" content="' . $theme_config['author'] . '">
-';
-
-// Imposta variabili per template
-if (!isset($_FN['tp']['path_items']) && isset($_FN['path'])) {
-    // Converti il percorso in formato comprensibile per Bootstrap
-    $_FN['tp']['path_items'] = array();
-    // Logica per convertire il percorso
-}
+//[i18n]show search form {1=YES,0=NO}
+$config['show_search_form'] = "1";
 ```
 
 ## Responsive Design
@@ -1106,10 +1260,9 @@ Per assicurarsi che il tema sia responsive:
 ## Ottimizzazione delle Performance
 
 ### Minimizzazione delle Risorse
-1. Minimizza CSS e JavaScript:
-```php
-// In config.php
-$_FN['header_append'] .= '<link rel="stylesheet" href="' . $_FN['siteurl'] . 'themes/' . $_FN['theme'] . '/css/style.min.css">';
+1. Minimizza CSS e JavaScript e collega le versioni minimizzate dal template principale:
+```html
+<link rel="stylesheet" href="css/style.min.css">
 ```
 
 2. Ottimizza le immagini prima di includerle nel tema
@@ -1128,21 +1281,25 @@ Per risorse non critiche, usa il caricamento asincrono:
 Per supportare lingue RTL come l'arabo o l'ebraico:
 
 1. Crea un foglio di stile dedicato: `css/rtl.css`
-2. Aggiungi la logica per caricarlo quando necessario:
+2. Imposta la direzione in `theme.php` (ogni stringa di `$_FN` diventa una variabile del template):
 ```php
-// In config.php
-$rtl_languages = array('ar', 'he');
-if (in_array($_FN['lang'], $rtl_languages)) {
-    $_FN['header_append'] .= '<link rel="stylesheet" href="' . $_FN['siteurl'] . 'themes/' . $_FN['theme'] . '/css/rtl.css">';
-    // Aggiungi l'attributo dir="rtl" al tag html
-    $_FN['html_dir'] = 'rtl';
-}
+<?php
+// themes/mytheme/theme.php
+global $_FN;
+$_FN['html_dir'] = in_array($_FN['lang'], array('ar', 'he')) ? 'rtl' : 'ltr';
+$_FN['html_rtl'] = ($_FN['html_dir'] == 'rtl') ? '1' : '';
 ```
 
-3. Nel template principale:
+3. Nel template principale usa le variabili e carica il foglio RTL solo quando serve:
 ```html
-<html lang="{lang}" dir="{html_dir|default:'ltr'}">
+<html lang="{lang}" dir="{html_dir}">
+<head>
+    ...
+    <!-- if {html_rtl} --><link rel="stylesheet" href="css/rtl.css"><!-- end if {html_rtl} -->
+</head>
 ```
+
+Il percorso del foglio va scritto senza variabili: solo così parte dalla cartella del tema.
 
 4. Esempio di regole RTL:
 ```css
@@ -1192,48 +1349,35 @@ body {
 ## Risoluzione dei Problemi
 
 ### Errori Comuni
-1. **Il tema non viene caricato**: Verifica che la cartella sia nominata correttamente e corrisponda al valore di `$_FN['theme']`
-2. **Le variabili di template non sono sostituite**: Controlla la sintassi, deve essere esattamente `{variable_name}`
-3. **I file CSS/JS non sono caricati**: Controlla i percorsi e assicurati che i file esistano
+1. **Il tema non viene caricato**: Verifica che la cartella sia nominata correttamente e corrisponda al valore di `$_FN['theme']`, nella cartella `themes/` del sito o in `src/themes/`; altrimenti FINIS usa il tema predefinito e poi `base`
+2. **Le variabili di template non sono sostituite**: Controlla la sintassi, deve essere esattamente `{variable_name}`; una variabile che non esiste resta nella pagina così come è scritta
+3. **I file CSS/JS non sono caricati**: Controlla i percorsi e assicurati che i file esistano; i percorsi relativi partono dalla cartella del tema
+4. **Le modifiche a un tema di `src/themes/` non si vedono**: il sito usa la propria copia in `themes/<nome>/` (vedi [Dove vengono cercati i temi](#dove-vengono-cercati-i-temi))
 
 ### Debug del Tema
-```php
-// In config.php, aggiungi temporaneamente:
-echo "<!-- Theme Debug: " . $_FN['theme'] . " loaded -->";
-print_r($_FN['tp']); // Mostra tutte le variabili di template
-```
+Metti temporaneamente `{listvars}` in un template: stampa le variabili usate da quel template con
+i loro valori.
 
 ## Esempio Pratico: Creazione di un Tema Personalizzato
 
 ### 1. Creazione del File di Configurazione
+Le opzioni modificabili dal pannello di controllo vanno in `config.php`:
+
 ```php
 <?php
 // themes/custom/config.php
+//[i18n]footer text
+$config['footer_text'] = "";
+```
+
+Il codice PHP, se serve, va in `theme.php`; i valori messi in `$_FN` diventano variabili del
+template:
+
+```php
+<?php
+// themes/custom/theme.php
 global $_FN;
-
-// Configurazioni
-$theme_config = array(
-    'name' => 'Custom Theme',
-    'author' => 'Your Name',
-    'version' => '1.0',
-    'support_responsive' => true
-);
-
-// Carica CSS e JS personalizzati
-$_FN['header_append'] .= '
-<link rel="stylesheet" href="' . $_FN['siteurl'] . 'themes/custom/css/custom.css">
-<script src="' . $_FN['siteurl'] . 'themes/custom/js/custom.js" defer></script>
-';
-
-// Funzione per formattare il menu
-function custom_format_menu() {
-    // Implementazione del menu personalizzato
-    return $html;
-}
-
-// Imposta variabili personalizzate
-$_FN['tp']['custom_menu'] = custom_format_menu();
-$_FN['tp']['current_year'] = date('Y');
+$_FN['current_year'] = date('Y');
 ```
 
 ### 2. Creazione del Template Principale
@@ -1245,11 +1389,8 @@ $_FN['tp']['current_year'] = date('Y');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{site_title}</title>
-    <link rel="stylesheet" href="{siteurl}themes/custom/css/custom.css">
-    {css}
-    {javascript}
-    {head}
-    {header_append}
+    <link rel="stylesheet" href="css/custom.css">
+    <script src="js/custom.js" defer></script>
 </head>
 <body>
     <div class="site-wrapper">
@@ -1265,16 +1406,17 @@ $_FN['tp']['current_year'] = date('Y');
         </main>
         
         <footer>
-            <!-- Footer personalizzato -->
+            &copy; {current_year} {sitename} - {footer_text}
         </footer>
     </div>
-    
-    {footer_append}
 </body>
 </html>
 ```
 
 ### 3. Personalizzazione per Moduli Specifici
+Le parti e le variabili del form di login sono descritte in
+[Template di login e registrazione](#template-di-login-e-registrazione).
+
 ```html
 <!-- themes/custom/modules/login/login.tp.html -->
 <div class="custom-login-form">
@@ -1283,7 +1425,17 @@ $_FN['tp']['current_year'] = date('Y');
 ```
 
 ### 4. Attivazione del Tema
-Per attivare il tema, modifica il file di configurazione o usa il pannello di amministrazione per impostare:
+Per attivare il tema, modifica il file di configurazione o usa il pannello di amministrazione
+(Impostazioni generali > Aspetto) per impostare:
 ```php
 $_FN['theme'] = 'custom';
 ```
+
+Il pannello di controllo elenca i temi di entrambe le cartelle (sito e FINIS), ne mostra
+un'anteprima e applica quello scelto. L'anteprima è il sito aperto con
+`index.php?themepreview=<nome>`: cambia il tema solo per quella richiesta, per gli amministratori
+(per tutti quando `switchtheme` è attivo). Con `switchtheme` attivo un visitatore può anche
+scegliere un tema con `index.php?change_theme=1&theme=<nome>`, che resta in un cookie; con
+`switchtheme` spento il parametro è ignorato. `theme` e `themepreview` accettano solo il nome di
+una cartella di `themes/` (lettere, cifre, `_`, `-`, `.`): un percorso o un nome sconosciuto danno
+il tema predefinito.

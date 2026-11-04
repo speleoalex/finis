@@ -19,7 +19,7 @@ written in the site log with the user name.
 * The user generates the key with the **Generate API key** button of the profile page and
   copies it at once: the user sees it only that time. A new key replaces the previous one; the
   **Revoke API key** button removes it. The profile pages:
-  * control center: **Users and groups > Profile** (`index.php?fnapp=controlcenter&opt=users_and_groups/profile`)
+  * control center: **Users and groups > Edit profile** (`index.php?fnapp=controlcenter&opt=users_and_groups/profile`)
   * front end: **Edit profile** of the login module (`index.php?mod=login&op=editreg`)
 * A new password revokes the key (a password stored again unchanged, as in the rehash at
   the login, does not). Keys of inactive users are refused.

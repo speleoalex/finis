@@ -19,7 +19,7 @@ controllo e ogni modifica finisce nel log del sito con il nome dell'utente.
 * L'utente genera la chiave con il pulsante **Genera chiave API** della pagina del profilo
   e la copia subito: all'utente viene mostrata solo quella volta. Una nuova chiave sostituisce la
   precedente; il pulsante **Revoca chiave API** la elimina. Le pagine del profilo:
-  * pannello di controllo: **Utenti e gruppi > Profilo** (`index.php?fnapp=controlcenter&opt=users_and_groups/profile`)
+  * pannello di controllo: **Utenti e gruppi > Modifica profilo** (`index.php?fnapp=controlcenter&opt=users_and_groups/profile`)
   * front end: **Modifica profilo** del modulo login (`index.php?mod=login&op=editreg`)
 * Una nuova password revoca la chiave (la stessa password salvata di nuovo, come nel
   rehash al login, no). Le chiavi degli utenti non attivi sono rifiutate.
