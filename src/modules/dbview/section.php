@@ -30,9 +30,20 @@ $config = FN_LoadConfig();
 
 $dbview = new FNDBVIEW($config);
 
-if ((false === strpos($file, "..")) && $file != "" && file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/$file"))
+// ?file=<name>: a file of the section folder called directly instead of the module. Only a plain
+// file name, never one of the files that the module (or FINIS) includes by itself: they expect
+// the checks and the context of the module (bottom_edit.php shows the record being edited).
+// The visitor must be allowed to view the records of the section; the file checks the rest.
+$fn_dbview_hookfiles = array("custom_functions.php", "top.php", "grid_header.php", "grid_footer.php",
+    "bottom.php", "bottom_edit.php", "viewheader.php", "viewfooter.php", "header.php", "footer.php",
+    "section.php", "search.php", "pdf.php", "default.xml.php", "config.php");
+$fn_dbview_file = "{$_FN['src_application']}/sections/{$_FN['mod']}/$file";
+if ($file != "" && preg_match('/^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/', $file) && !in_array(strtolower($file), $fn_dbview_hookfiles, true) && is_file($fn_dbview_file))
 {
-    include "{$_FN['src_application']}/sections/{$_FN['mod']}/$file";
+    if ($dbview->CanViewRecords())
+        include $fn_dbview_file;
+    else
+        echo FN_i18n("you are not authorized to view the data");
 }
 else
 {
