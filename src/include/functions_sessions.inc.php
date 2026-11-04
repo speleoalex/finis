@@ -1,5 +1,28 @@
 <?php
 
+
+/**
+ * setcookie() with the options array (expires, path, domain, secure, httponly,
+ * samesite) on every PHP version: before 7.3 the array signature does not exist
+ * and SameSite is appended to the path, as the browsers read it.
+ *
+ * @param string $name
+ * @param string $value
+ * @param array $opts
+ * @return bool
+ */
+function FN_SetCookie($name, $value, $opts = array())
+{
+    if (PHP_VERSION_ID >= 70300)
+        return setcookie($name, $value, $opts);
+    $expires = isset($opts['expires']) ? (int) $opts['expires'] : 0;
+    $path = isset($opts['path']) ? "{$opts['path']}" : "";
+    $domain = isset($opts['domain']) ? "{$opts['domain']}" : "";
+    if (!empty($opts['samesite']))
+        $path .= "; SameSite=" . $opts['samesite'];
+    return setcookie($name, $value, $expires, $path, $domain, !empty($opts['secure']), !empty($opts['httponly']));
+}
+
 /**
  * Return the session id of the browser, taken only from the fnsid cookie.
  * A missing id or an id not generated here (32 hex characters) is replaced
@@ -16,7 +39,7 @@ function FN_GetSessionId()
     if (!preg_match('/^[0-9a-f]{32}\z/', $sid))
     {
         $sid = bin2hex(random_bytes(16));
-        setcookie("fnsid", $sid, array(
+        FN_SetCookie("fnsid", $sid, array(
             'expires' => 0,
             'path' => $_FN['urlcookie'] ?? "/",
             'secure' => function_exists("FN_IsHttps") && FN_IsHttps(),

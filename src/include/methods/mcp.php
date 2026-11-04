@@ -1579,7 +1579,7 @@ function FN_MCP_HandleMessage($msg)
             }
             // compact JSON (or plain text) only once: the result is read by a
             // language model, indentation and a structuredContent copy cost tokens
-            $text = is_string($output) ? $output : json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+            $text = is_string($output) ? $output : json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | (defined("JSON_INVALID_UTF8_SUBSTITUTE") ? JSON_INVALID_UTF8_SUBSTITUTE : 0));
             $result = array(
                 "content" => array(array("type" => "text", "text" => $text)),
                 "isError" => $isError,

@@ -712,13 +712,13 @@ function FN_Login($fnuser, $rememberlogin = false)
                 'httponly' => true,
                 'samesite' => 'Lax',
             ];
-            setcookie("fnuser", $fnuser, $cookieOpts);
-            setcookie("secid",  FN_GetSecid($fnuser, $password), $cookieOpts);
+            FN_SetCookie("fnuser", $fnuser, $cookieOpts);
+            FN_SetCookie("secid",  FN_GetSecid($fnuser, $password), $cookieOpts);
             //"remember me" is kept in a cookie: the cookies renewed after the save of the profile keep the same duration
             if ($expires)
-                setcookie("fnremember", "1", $cookieOpts);
+                FN_SetCookie("fnremember", "1", $cookieOpts);
             else
-                setcookie("fnremember", "", ['expires' => 1] + $cookieOpts);
+                FN_SetCookie("fnremember", "", ['expires' => 1] + $cookieOpts);
         }
         FN_Log("User $fnuser login (function FN_Login).");
         $_FN['user'] = $_COOKIE['fnuser'] = $fnuser;
@@ -764,9 +764,9 @@ function FN_Logout()
 
     $clearOpts = ['expires' => 1, 'secure' => FN_IsHttps(), 'httponly' => true, 'samesite' => 'Lax'];
     foreach ([$urlcookie, '/'] as $path) {
-        setcookie("fnuser", "", $clearOpts + ['path' => $path]);
-        setcookie("secid",  "", $clearOpts + ['path' => $path]);
-        setcookie("fnremember", "", $clearOpts + ['path' => $path]);
+        FN_SetCookie("fnuser", "", $clearOpts + ['path' => $path]);
+        FN_SetCookie("secid",  "", $clearOpts + ['path' => $path]);
+        FN_SetCookie("fnremember", "", $clearOpts + ['path' => $path]);
     }
 }
 
