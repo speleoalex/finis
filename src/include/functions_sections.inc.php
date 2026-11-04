@@ -370,6 +370,27 @@ function FN_SyncSectionsFromDefaults()
 }
 
 /**
+ * Saves the type of a module folder in fn_sectionstypes, unless the table has it already.
+ * The list in memory can come from another store than the one written here: WISH reads
+ * fn_sectionstypes with the XML driver at the bootstrap and the openkis config switches
+ * the driver to MySQL afterwards, so without this check every request tried the INSERT
+ * again and printed "MySQL INSERT failed: Duplicate entry" to the administrators.
+ *
+ * @param array $values record (name, title, ...)
+ * @return array|false the record saved or found, false on error
+ */
+function FN_InsertSectionType($values)
+{
+    $table = FN_XMDBTable("fn_sectionstypes");
+    if (!$table || empty($values['name']))
+        return false;
+    $old = $table->GetRecordByPrimaryKey($values['name']);
+    if (is_array($old))
+        return $old;
+    return $table->InsertRecord($values);
+}
+
+/**
  * Init Sections
  *
  * @global array $_FN
@@ -482,8 +503,7 @@ function FN_InitSections()
                 if (empty($tmp['title']))
                     $tmp['title'] = str_replace("_", " ", $tmp['name']);
                 $flag_mod_st = true;
-                $table = FN_XMDBTable("fn_sectionstypes");
-                $table->InsertRecord($tmp);
+                FN_InsertSectionType($tmp);
                 // known from now on: the next module folders scanned may hold the same module
                 $_FN['sectionstypes'][$sectiontype] = $tmp;
             }
@@ -511,8 +531,7 @@ function FN_InitSections()
                 if (empty($tmp['title']))
                     $tmp['title'] = str_replace("_", " ", $tmp['name']);
                 $flag_mod_st = true;
-                $table = FN_XMDBTable("fn_sectionstypes");
-                $table->InsertRecord($tmp);
+                FN_InsertSectionType($tmp);
                 // known from now on: the next module folders scanned may hold the same module
                 $_FN['sectionstypes'][$sectiontype] = $tmp;
             }
@@ -545,8 +564,7 @@ function FN_InitSections()
                         if (empty($tmp['title']))
                             $tmp['title'] = str_replace("_", " ", $tmp['name']);
                         $flag_mod_st = true;
-                        $table = FN_XMDBTable("fn_sectionstypes");
-                        $table->InsertRecord($tmp);
+                        FN_InsertSectionType($tmp);
                         $_FN['sectionstypes'][$sectiontype] = $tmp;
                     }
                 }

@@ -56,12 +56,16 @@ class XMETATable_xmlphp extends \stdClass
         $this->filename = get_xml_single_element("filename", $this->xmldescriptor);
         if (is_array($params))
         {
+            // The properties above are references to the table: a parameter with the same
+            // name (the editor passes its own options, e.g. fields=false, path, table, driver,
+            // and FNCC_XMDBForm every string of $_FN) must not overwrite them, or the
+            // record functions find no field list ("Invalid argument supplied for foreach").
+            $shared = array("xmltable", "tablename", "databasename", "fields", "path", "numrecords", "usecachefile", "filename", "indexfield", "primarykey", "driver", "xmldescriptor", "xmlfieldname", "datafile", "xmltagroot");
             foreach ($params as $k => $v)
             {
-                // if (isset($this->$k))
-                {
-                    $this->$k = $v;
-                }
+                if (in_array($k, $shared, true))
+                    continue;
+                $this->$k = $v;
             }
         }
         return true;
