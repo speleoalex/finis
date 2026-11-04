@@ -490,6 +490,13 @@ function dl_file($file)
             $ctype = "application/force-download";
     }
 
+    // The page wrapper (include/methods/filemanager.php) has already
+    // buffered the HTML head: discard every buffer or the download starts
+    // with the page markup instead of the file.
+    while (ob_get_level() > 0)
+    {
+        ob_end_clean();
+    }
     //Begin writing headers
     header("Pragma: public");
     header("Expires: 0");
@@ -499,8 +506,7 @@ function dl_file($file)
     //Use the switch-generated Content-Type
     header("Content-Type: $ctype");
     //Force the download
-    $header = "Content-Disposition: attachment; filename=" . $filename . ";";
-    header($header);
+    header("Content-Disposition: attachment; filename=\"" . str_replace('"', '', $filename) . "\"");
     header("Content-Transfer-Encoding: binary");
     header("Content-Length: " . $len);
     @ readfile($file);
