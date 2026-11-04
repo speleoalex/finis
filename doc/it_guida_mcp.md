@@ -173,35 +173,69 @@ già il token (`$_FN['auth_method'] = "oauth"`) e la risposta 401 chiama
 
 ## Tool
 
-I risultati contengono i dati sia come testo JSON in `content[0].text` sia in
-`structuredContent`. Gli errori hanno `isError: true` e un messaggio `error`.
-"admin" significa livello utente 10 o superiore.
+Le risposte sono compatte: testo semplice (mappa del sito, blocchi, log, guida) oppure
+JSON senza indentazione e senza campi vuoti, inviati una sola volta in `content[0].text`
+(niente copia in `structuredContent`). Gli errori hanno `isError: true` e un messaggio
+`error`. "admin" significa livello utente 10 o superiore.
+
+### Guida del sito (`site_guide`)
+
+`site_guide` è il primo tool dell'elenco e le istruzioni di `initialize` chiedono al
+modello di chiamarlo prima degli altri. Con una chiamata (circa 1.000 token per un sito di
+20 pagine) restituisce, per l'utente collegato:
+
+* sito, utente (amministratore o editor) e lingue;
+* come sono fatte e come si modificano le pagine: un `section.<lang>.html` per lingua;
+  l'html è un template, quindi `{nome}`, `<!-- if {x} -->` e `<!-- foreach {x} -->` vanno
+  mantenuti; il flag `php` (`section.php` prepara i dati o stampa parti dinamiche che non
+  sono nell'html); le sezioni modulo; i link; i backup;
+* i tipi di modulo usati, con cosa contengono le loro pagine;
+* le posizioni dei blocchi stampate dal tema, lette da `themes/<tema>/template*.tp.html`
+  e `theme.php`: se non ce ne sono, la guida dice che i blocchi non compaiono mai;
+* la mappa del sito, una riga per sezione, figli rientrati: `id [tipo] "titolo" flag`
+  (senza `[tipo]` = pagina di testo), flag `hidden`, `off`, `private`, `php`, `edit` (solo
+  per i non amministratori), `langs:<file presenti>`, `nohtml`;
+* le note dell'applicazione.
+
+Un'applicazione descrive i propri tipi di modulo e aggiunge note nella configurazione:
+
+```php
+$_FN['mcp_type_info']['caveview'] = "cave register records: use the OpenKIS MCP server";
+$_FN['mcp_guide']['shop'] = "Products are records: use the shop tools.";
+```
 
 | Tool | Chi | Descrizione |
 |------|-----|-------------|
-| `whoami` | tutti | Utente della chiave, livello, gruppi |
-| `site_info` | tutti | Titolo, lingue, tema, home, versione, tipi di sezione |
-| `list_sections` | tutti | Mappa del sito (`parent`, `recursive`, `include_disabled`); i non admin vedono solo le sezioni visibili |
-| `get_section` | chi può vedere | Tutti i campi di una sezione, titoli per lingua, file di contenuto |
-| `list_section_types` | tutti | Tipi di sezione (moduli) |
-| `create_section` | admin | Nuova pagina: `title`, `id`, `type`, `parent`, `titles`, `descriptions`, `group_view`, `group_edit`, `content` opzionale |
-| `update_section` | editor | Gli editor (group_edit) cambiano titolo, descrizione, keywords, status, hidden, date; gli admin tutti i campi |
+| `site_guide` | tutti | Guida e mappa del sito, vedi sopra |
+| `whoami` | tutti | Nome utente, admin, livello, gruppi, email |
+| `site_info` | tutti | Titolo, indirizzo, lingue, tema, home, versione |
+| `list_sections` | tutti | Mappa del sito nel formato di `site_guide`; `parent` = solo quel ramo; i non admin vedono solo le sezioni visibili |
+| `get_section` | chi può vedere | Campi di una sezione, titoli e descrizioni per lingua, file (senza backup), indirizzo |
+| `list_section_types` | tutti | Nomi dei moduli |
+| `create_section` | admin | `title`, `id`, `parent`, `type`, `content`, `lang`; gli altri campi (`titles`, `descriptions`, `status`, `hidden`, `group_view`, ...) in `fields` |
+| `update_section` | editor | `id` + `fields`: gli editor titolo/i, descrizione/i, keywords, status, hidden, date; gli admin tutti i campi. Sono accettati anche i campi al primo livello |
 | `delete_section` | admin | Elimina record e cartella; rifiuta la home; `force=true` elimina anche i figli |
-| `get_section_content` | chi può vedere | `sections/<id>/section.<lang>.html` |
-| `set_section_content` | editor | Scrive `section.<lang>.html` e svuota la cache; gli URL assoluti del sito vengono convertiti in link locali |
-| `list_section_files` | editor | File nella cartella della sezione |
-| `read_section_file` | editor | Legge un file della sezione (php solo admin) |
+| `get_section_content` | chi può vedere | `section.<lang>.html`, con ripiego sulla lingua predefinita e su `section.html` segnalato da una nota; `php: true` se la sezione ha un `section.php` |
+| `edit_section_content` | editor | Sostituisce `old` con `new` in `section.<lang>.html`: `old` deve comparire esattamente una volta (`all=true`: tutte). Una piccola modifica costa solo il testo cambiato |
+| `set_section_content` | editor | Scrive tutto `section.<lang>.html` |
+| `list_section_files` | editor | `nome dimensione data` per file; i backup (`*.bak~`) solo contati, elencati con `backups=true` |
+| `read_section_file` | editor | Testo di un file della sezione (php solo admin) |
 | `write_section_file` | editor | Scrive un file della sezione (php solo admin) |
-| `list_blocks` | tutti | Blocchi visibili all'utente |
+| `list_blocks` | tutti | `id [tipo] posizione "titolo"`, con `off`, `not shown by the theme`, `only in: <sezioni>` |
 | `get_block_content` / `set_block_content` | vedere / editor | `blocks/<id>/section.<lang>.html` |
-| `list_settings` | admin | `fn_settings` (password e chiavi nascoste) |
+| `list_settings` | admin | `{nome: valore}` di `fn_settings` (password e chiavi nascoste) |
 | `update_setting` | admin | Modifica un'impostazione |
-| `list_users` / `get_user` | admin (get_user: anche se stesso) | Utenti senza password e chiavi |
-| `create_user` / `update_user` | admin | Utenti; la chiave API di un utente non si imposta da qui |
+| `list_users` / `get_user` | admin (get_user: anche se stesso) | Campi principali (username, email, level, group, active, name; `full=true`: tutti), mai password e chiavi |
+| `create_user` / `update_user` | admin | Campi in `fields` (email, level, group, active, ...); la chiave API non si imposta da qui |
 | `list_groups` | tutti | Gruppi |
-| `get_log` | admin | Ultime righe di `fn_log` (`limit`, `context`) |
+| `get_log` | admin | Una riga per evento, dal più recente: `data utente contesto: evento` (`limit`, `context`) |
 | `log_event` | tutti | Scrive un evento personalizzato con il nome utente |
 | `clear_cache` | editor | Svuota la cache del sito |
+
+Ogni scrittura di un file di contenuto (`edit_section_content`, `set_section_content`,
+`write_section_file`, `set_block_content`) conserva la versione precedente come
+`<file>.<mtime>.<data>.<utente>.bak~` (`FN_BackupFile()`, come l'editor online) e svuota
+la cache; riscrivere lo stesso contenuto non fa nulla.
 
 ### Link nei contenuti
 
@@ -260,7 +294,8 @@ FN_MCP_AddTool(
 );
 ```
 
-* La callback riceve l'array degli argomenti e restituisce un array (risultato JSON).
+* La callback riceve l'array degli argomenti e restituisce un array (inviato come JSON
+  compatto) o una stringa (inviata così com'è: costa meno per gli elenchi).
 * `FN_MCP_Fail($messaggio)` restituisce un errore del tool al client.
 * Helper: `FN_MCP_Arg($args, $key, $default, $required)`, `FN_MCP_RequireAdmin()`,
   `FN_MCP_SafeId($id)`, `FN_MCP_Lang($lang)`, `FN_MCP_SafePath($base, $relative)`.
@@ -268,8 +303,8 @@ FN_MCP_AddTool(
 
 ## Note di sicurezza
 
-* La chiave va trattata come una password: usare HTTPS, non metterla negli URL,
-  rigenerarla se compromessa.
+* La chiave va trattata come una password: usare HTTPS, preferire l'header a `&apikey=`
+  nell'URL (gli URL finiscono nei log), rigenerarla se compromessa.
 * L'endpoint ignora i cookie: una pagina malevola non può pilotare l'endpoint MCP
   sfruttando un browser già autenticato.
 * I non amministratori possono scrivere solo file html, e solo nelle sezioni e nei

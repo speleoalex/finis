@@ -218,30 +218,88 @@ function FN_MCP_PublicUser($uservalues)
 }
 
 /**
- * Section values with the title/description of every language.
+ * Drop the empty values ("", null, empty array) of an associative array:
+ * the results are read by a language model, every key costs tokens.
+ *
+ * @param array $values
+ * @return array
+ */
+function FN_MCP_NoEmpty($values)
+{
+    $out = array();
+    foreach ($values as $k => $v)
+    {
+        if ($v === "" || $v === null || (is_array($v) && count($v) == 0))
+            continue;
+        $out[$k] = $v;
+    }
+    return $out;
+}
+
+/**
+ * Type of a section: an empty type is a page of the "finis" module.
+ */
+function FN_MCP_SectionType($values)
+{
+    return empty($values['type']) ? "finis" : $values['type'];
+}
+
+/**
+ * Files of a section folder, without the backups (*.bak~).
+ *
+ * @global array $_FN
+ * @param string $id section id
+ * @return array file names
+ */
+function FN_MCP_SectionFiles($id)
+{
+    global $_FN;
+    $out = array();
+    $folder = "{$_FN['src_application']}/sections/$id";
+    if (is_dir($folder))
+    {
+        foreach (scandir($folder) as $f)
+        {
+            if ($f == "." || $f == ".." || substr($f, -5) == ".bak~")
+                continue;
+            $out[] = is_dir("$folder/$f") ? "$f/" : $f;
+        }
+    }
+    return $out;
+}
+
+/**
+ * Section values for the tools: titles and descriptions per language,
+ * files, url; empty values left out.
  *
  * @global array $_FN
  */
 function FN_MCP_SectionInfo($values)
 {
     global $_FN;
-    $out = $values;
-    $out['titles'] = array();
-    $out['descriptions'] = array();
-    foreach ($_FN['listlanguages'] as $lang)
+    $id = $values['id'];
+    $out = array("id" => $id, "type" => FN_MCP_SectionType($values));
+    foreach (array("parent", "position", "status", "hidden", "level", "group_view", "group_edit", "startdate", "enddate", "keywords", "accesskey", "blocksmode", "blocks") as $k)
     {
-        $out['titles'][$lang] = isset($values["title_$lang"]) ? $values["title_$lang"] : "";
-        $out['descriptions'][$lang] = isset($values["description_$lang"]) ? $values["description_$lang"] : "";
+        if (isset($values[$k]) && "{$values[$k]}" !== "")
+            $out[$k] = $values[$k];
     }
-    $folder = "{$_FN['src_application']}/sections/{$values['id']}";
-    $out['content_files'] = array();
-    if (is_dir($folder))
+    foreach (array("title" => "titles", "description" => "descriptions") as $field => $key)
     {
-        foreach (glob("$folder/section.*") as $f)
-            $out['content_files'][] = basename($f);
+        $perlang = array();
+        foreach ($_FN['listlanguages'] as $lang)
+        {
+            if (!empty($values["{$field}_$lang"]))
+                $perlang[$lang] = $values["{$field}_$lang"];
+        }
+        if (count($perlang) == 0 && !empty($values[$field]))
+            $perlang[$_FN['lang_default']] = $values[$field];
+        if (count($perlang))
+            $out[$key] = $perlang;
     }
-    $out['url'] = FN_GetMcpSiteUrl() . "index.php?mod={$values['id']}";
-    return $out;
+    $out['files'] = FN_MCP_SectionFiles($id);
+    $out['url'] = FN_GetMcpSiteUrl() . "index.php?mod=$id";
+    return FN_MCP_NoEmpty($out);
 }
 
 /**
@@ -287,24 +345,344 @@ function FN_MCP_EditorSectionFields()
     return $fields;
 }
 
+/**
+ * Write a content file keeping a backup of the old version (*.bak~, as the
+ * online editor does), then clear the cache.
+ *
+ * @param string $file absolute path
+ * @param string $content
+ * @return void
+ */
+function FN_MCP_WriteContent($file, $content)
+{
+    global $_FN;
+    if (!FN_CanModifyFile($_FN['user'], $file))
+        FN_MCP_Fail("permission denied on file " . basename($file));
+    if (file_exists($file))
+    {
+        if (file_get_contents($file) === $content)
+            return;
+        FN_BackupFile($file);
+    }
+    if (false === FN_Write($content, $file))
+        FN_MCP_Fail("cannot write " . basename($file));
+    FN_ClearCache();
+}
+
+/**
+ * Block positions printed by the theme (left, right, top, bottom), read from
+ * its templates; null when the theme has no template to look at.
+ *
+ * @global array $_FN
+ * @return array|null
+ */
+function FN_MCP_ThemeBlockPositions()
+{
+    global $_FN;
+    $dir = "{$_FN['src_application']}/themes/{$_FN['theme']}";
+    $files = glob("$dir/template*.tp.html");
+    if (!$files)
+        return null;
+    if (file_exists("$dir/theme.php"))
+        $files[] = "$dir/theme.php";
+    $src = "";
+    foreach ($files as $f)
+        $src .= file_get_contents($f);
+    $out = array();
+    foreach (array("left", "right", "top", "bottom") as $where)
+    {
+        if (strpos($src, "blocks_$where") !== false || preg_match('/FN_(GetBlocks\w*|HtmlBlocks)\(\s*["\']' . $where . '["\']/', $src))
+            $out[] = $where;
+    }
+    return $out;
+}
+
+/**
+ * What a module type puts in its pages, for the site guide.
+ * Applications can describe their own types in $_FN['mcp_type_info'][$type].
+ *
+ * @global array $_FN
+ * @param string $type
+ * @return string
+ */
+function FN_MCP_TypeInfo($type)
+{
+    global $_FN;
+    if (!empty($_FN['mcp_type_info'][$type]))
+        return $_FN['mcp_type_info'][$type];
+    $known = array(
+        "block_menu" => "menu group, no text of its own: its page lists the children",
+        "dbview" => "database records (list and sheets): data, not page text",
+        "navigator" => "database records and files",
+        "table_editor" => "database table editor",
+        "news" => "news articles (records)",
+        "calendar" => "calendar events",
+        "login" => "login, registration and profile forms",
+        "search" => "site search results",
+        "sitemap_tree" => "generated site map",
+        "redirect" => "redirect to another address",
+        "filemanager" => "file manager",
+        "contacts" => "contact form",
+        "rssviewer" => "external RSS feed",
+    );
+    return isset($known[$type]) ? $known[$type] : "generated by the module";
+}
+
+/**
+ * Flags of a section in the compact site map.
+ *
+ * @global array $_FN
+ */
+function FN_MCP_SectionFlags($id, $values, $markEdit)
+{
+    global $_FN;
+    $flags = array();
+    if (!empty($values['hidden']))
+        $flags[] = "hidden";
+    if (empty($values['status']))
+        $flags[] = "off";
+    if (!empty($values['group_view']) || (isset($values['level']) && "{$values['level']}" !== ""))
+        $flags[] = "private";
+    $folder = "{$_FN['src_application']}/sections/$id";
+    if (file_exists("$folder/section.php"))
+        $flags[] = "php";
+    if ($markEdit && FN_UserCanEditSection($id))
+        $flags[] = "edit";
+    if (FN_MCP_SectionType($values) == "finis")
+    {
+        $langs = array();
+        foreach ($_FN['listlanguages'] as $lang)
+        {
+            if (file_exists("$folder/section.$lang.html"))
+                $langs[] = $lang;
+        }
+        if (count($langs) == 0)
+            $flags[] = file_exists("$folder/section.html") ? "html:section.html" : "nohtml";
+        elseif (count($langs) < count($_FN['listlanguages']))
+            $flags[] = "langs:" . implode(",", $langs);
+    }
+    return $flags;
+}
+
+/**
+ * Compact site map: one line per section (id [type] "title" flags),
+ * children indented under their parent, in menu order.
+ *
+ * @param string $root parent of the subtree, "" = whole site
+ * @param int $max maximum number of lines
+ * @return string
+ */
+function FN_MCP_SectionsMap($root = "", $max = 400)
+{
+    $all = FN_GetAllSections();
+    $visible = array();
+    $children = array();
+    foreach ($all as $id => $values)
+    {
+        if (!FN_IsAdmin() && !FN_UserCanViewSection($id))
+            continue;
+        $visible[$id] = $values;
+        $children["{$values['parent']}"][] = $id;
+    }
+    foreach ($children as $p => $ids)
+    {
+        usort($ids, function ($a, $b) use ($visible)
+        {
+            return (int) $visible[$a]['position'] - (int) $visible[$b]['position'];
+        });
+        $children[$p] = $ids;
+    }
+    $markEdit = !FN_IsAdmin();
+    $lines = array();
+    $done = array();
+    $line = function ($id, $depth, $suffix = "") use ($visible, $markEdit)
+    {
+        $values = $visible[$id];
+        $type = FN_MCP_SectionType($values);
+        $flags = FN_MCP_SectionFlags($id, $values, $markEdit);
+        if ($suffix != "")
+            $flags[] = $suffix;
+        return str_repeat("  ", $depth) . $id . ($type != "finis" ? " [$type]" : "") . " \"" . $values['title'] . "\"" . (count($flags) ? " " . implode(" ", $flags) : "");
+    };
+    $walk = function ($parent, $depth) use (&$walk, &$lines, &$done, $children, $line, $max)
+    {
+        if (empty($children[$parent]))
+            return;
+        foreach ($children[$parent] as $id)
+        {
+            if (isset($done[$id]) || count($lines) >= $max)
+                continue;
+            $done[$id] = true;
+            $lines[] = $line($id, $depth);
+            $walk($id, $depth + 1);
+        }
+    };
+    $walk($root, 0);
+    if ($root == "")
+    {
+        // sections whose parent is missing or not visible
+        foreach ($visible as $id => $values)
+        {
+            if (!isset($done[$id]) && count($lines) < $max)
+            {
+                $done[$id] = true;
+                $lines[] = $line($id, 0, "(parent {$values['parent']} not visible)");
+                $walk($id, 1);
+            }
+        }
+    }
+    if (count($lines) >= $max)
+        $lines[] = "... list cut at $max lines: use list_sections parent=<id>";
+    return implode("\n", $lines);
+}
+
+/**
+ * Text of the site_guide tool: how the pages of this site are stored and
+ * edited, the blocks shown by the theme and the site map. Applications add
+ * lines with $_FN['mcp_guide'] (string or array of strings).
+ *
+ * @global array $_FN
+ * @return string
+ */
+function FN_MCP_SiteGuide()
+{
+    global $_FN;
+    $home = $_FN['home_section'];
+    $langs = array();
+    foreach ($_FN['listlanguages'] as $l)
+        $langs[] = $l == $_FN['lang_default'] ? "$l (default)" : $l;
+    $g = array();
+    $g[] = "SITE {$_FN['site_title']} " . FN_GetMcpSiteUrl() . " | user {$_FN['user']}" . (FN_IsAdmin() ? " (admin, can edit everything)" : " (can edit only the sections flagged edit)") . " | languages " . implode(", ", $langs);
+    $g[] = "PAGES";
+    $g[] = "- Every page is a section <id>, address index.php?mod=<id>. The home page is section '$home', also shown at the site root.";
+    $g[] = "- Page text (sections without [type] below): sections/<id>/section.<lang>.html, one file per language: change every language. A language without its file shows section.html or nothing.";
+    $g[] = "- Read it with get_section_content. Change a part with edit_section_content (exact old text -> new text, cheapest), the whole page with set_section_content. Titles, menu, visibility: update_section.";
+    $g[] = "- The html is a template filled when shown: keep {name} placeholders and <!-- if {x} --> / <!-- foreach {x} --> ... <!-- end if|foreach {x} --> blocks as they are; text in {braces} is not printed literally.";
+    $g[] = "- Flag php: sections/<id>/section.php runs first and prepares the template data or prints dynamic parts (maps, statistics, lists): that text is not in the html; only admins can read or change it (read_section_file, write_section_file).";
+    $g[] = "- Sections with a [type] are modules: the module builds the content (records, forms, results); html files in their folder are layouts, not page text.";
+    $g[] = "- Links: other pages index.php?mod=<id>; images and files with a path relative to sections/<id>/ (images/a.jpg); never a leading '/'. Absolute addresses of this site are converted on save.";
+    $g[] = "- Every write keeps the old file as *.bak~ (list_section_files backups=true, read it to restore), clears the cache and is logged with your name. Only text files can be written.";
+    $g[] = "- Menu = sections tree by parent and position. hidden: not in the menu but reachable; off: disabled; private: limited to groups or logged users.";
+    // module types in use
+    $types = array();
+    foreach (FN_GetAllSections() as $id => $values)
+    {
+        $type = FN_MCP_SectionType($values);
+        if ($type != "finis" && (FN_IsAdmin() || FN_UserCanViewSection($id)))
+            $types[$type] = FN_MCP_TypeInfo($type);
+    }
+    if (count($types))
+    {
+        $g[] = "MODULES IN USE";
+        foreach ($types as $type => $info)
+            $g[] = "- $type: $info";
+    }
+    // blocks
+    $positions = FN_MCP_ThemeBlockPositions();
+    $blocks = array();
+    $allblocks = FN_GetAllBlocks();
+    foreach (is_array($allblocks) ? $allblocks : array() as $id => $values)
+    {
+        if (!FN_IsAdmin() && !FN_UserCanViewBlock($id))
+            continue;
+        $shown = !empty($values['status']) && ($positions === null || in_array($values['where'], $positions));
+        $blocks[] = "$id" . (!empty($values['type']) ? " [{$values['type']}]" : "") . " {$values['where']} \"{$values['title']}\"" . ($shown ? "" : " not shown");
+    }
+    if ($positions === array())
+        $g[] = "BLOCKS: the theme '{$_FN['theme']}' shows no block positions, so blocks (" . count($blocks) . ") never appear on the pages: ignore them.";
+    elseif (count($blocks))
+    {
+        $g[] = "BLOCKS (side boxes; theme '{$_FN['theme']}' shows: " . ($positions === null ? "unknown" : implode(", ", $positions)) . "; html in blocks/<id>/section.<lang>.html, get_block_content/set_block_content):";
+        foreach ($blocks as $b)
+            $g[] = "- $b";
+    }
+    $g[] = "SECTIONS (indent = child; flags: hidden off private php edit, langs:<only these language files>, nohtml = no text file)";
+    $g[] = FN_MCP_SectionsMap("");
+    if (!empty($_FN['mcp_guide']))
+    {
+        $g[] = "NOTES";
+        foreach ((array) $_FN['mcp_guide'] as $line)
+            $g[] = "- $line";
+    }
+    return implode("\n", $g);
+}
+
+/**
+ * Path of the html file of a section in a language, for reading: falls back
+ * to the default language and then to section.html.
+ *
+ * @global array $_FN
+ * @return array (absolute path or "", language of the file)
+ */
+function FN_MCP_SectionHtmlFile($id, $lang)
+{
+    global $_FN;
+    $folder = "{$_FN['src_application']}/sections/$id";
+    foreach (array($lang, $_FN['lang_default']) as $l)
+    {
+        if (file_exists("$folder/section.$l.html"))
+            return array("$folder/section.$l.html", $l);
+    }
+    if (file_exists("$folder/section.html"))
+        return array("$folder/section.html", "");
+    return array("", "");
+}
+
+/**
+ * The tools take the optional properties in a "fields" object (short
+ * schemas); the same names are accepted at the top level too.
+ *
+ * @param array $args
+ * @return array arguments with the fields merged (top level wins)
+ */
+function FN_MCP_MergeFields($args)
+{
+    if (isset($args['fields']) && is_array($args['fields']))
+    {
+        $fields = $args['fields'];
+        unset($args['fields']);
+        $args = array_merge($fields, $args);
+    }
+    return $args;
+}
+
+/**
+ * Check that a section exists and can be edited by the current user.
+ */
+function FN_MCP_EditableSection($args)
+{
+    $id = FN_MCP_SafeId(FN_MCP_Arg($args, "id", "", true), "section id");
+    if (!FN_SectionExists($id))
+        FN_MCP_Fail("section not found: $id");
+    if (!FN_UserCanEditSection($id))
+        FN_MCP_Fail("permission denied: you cannot edit section $id");
+    return $id;
+}
+
 //------------------------------- tools --------------------------------------->
 
-FN_MCP_AddTool("whoami", "Return the FINIS user that owns the API key, with level, groups and permissions.", array(), function ($args)
+FN_MCP_AddTool("site_guide", "START HERE. How this site stores and edits its pages, the blocks the theme shows and the full site map. Read it before the other tools.", array(), function ($args)
 {
-    global $_FN;
-    $user = FN_MCP_PublicUser(FN_GetUser($_FN['user']));
-    return array(
-        "username" => $_FN['user'],
-        "is_admin" => FN_IsAdmin(),
-        "user" => $user,
-        "groups" => isset($user['group']) ? array_values(array_filter(explode(",", $user['group']))) : array(),
-    );
+    return FN_MCP_SiteGuide();
 });
 
-FN_MCP_AddTool("site_info", "Return general information about the site: title, languages, theme, home section, version, urls.", array(), function ($args)
+FN_MCP_AddTool("whoami", "Current user: username, admin, level, groups.", array(), function ($args)
 {
     global $_FN;
-    return array(
+    $user = FN_GetUser($_FN['user']);
+    return FN_MCP_NoEmpty(array(
+        "username" => $_FN['user'],
+        "admin" => FN_IsAdmin(),
+        "level" => isset($user['level']) ? $user['level'] : "",
+        "groups" => isset($user['group']) ? array_values(array_filter(explode(",", $user['group']))) : array(),
+        "email" => isset($user['email']) ? $user['email'] : "",
+    ));
+});
+
+FN_MCP_AddTool("site_info", "Site title, address, languages, theme, home section, version.", array(), function ($args)
+{
+    global $_FN;
+    return FN_MCP_NoEmpty(array(
         "site_title" => $_FN['site_title'],
         "site_subtitle" => $_FN['site_subtitle'],
         "siteurl" => FN_GetMcpSiteUrl(),
@@ -312,53 +690,27 @@ FN_MCP_AddTool("site_info", "Return general information about the site: title, l
         "lang_default" => $_FN['lang_default'],
         "theme" => $_FN['theme'],
         "home_section" => $_FN['home_section'],
-        "maintenance" => !empty($_FN['maintenance']),
+        "maintenance" => !empty($_FN['maintenance']) ? true : "",
         "version" => trim(@file_get_contents("{$_FN['src_finis']}/VERSION")),
-        "database_driver" => isset($_FN['dbtype']) ? $_FN['dbtype'] : "",
-        "section_types" => array_keys(FN_GetAllSectionTypes()),
-    );
+    ));
 });
 
-FN_MCP_AddTool("list_sections", "List the pages (sections) of the site map as a flat list with parent and position. Administrators see every section, other users only the ones they can view.", array(
+FN_MCP_AddTool("list_sections", "Site map, one line per section as in site_guide.", array(
     "properties" => array(
-        "parent" => array("type" => "string", "description" => "Return only the children of this section id. Empty = root level. Use recursive=true to get the whole tree."),
-        "recursive" => array("type" => "boolean", "description" => "Return all the sections (default false)."),
-        "include_disabled" => array("type" => "boolean", "description" => "Include disabled and hidden sections (default true)."),
+        "parent" => array("type" => "string", "description" => "Only the subtree of this section"),
     ),
 ), function ($args)
 {
-    global $_FN;
     $parent = FN_MCP_Arg($args, "parent", "");
-    $recursive = (bool) FN_MCP_Arg($args, "recursive", false);
-    $include_disabled = FN_MCP_Arg($args, "include_disabled", true);
-    $include_disabled = ($include_disabled === false || $include_disabled === "false" || $include_disabled === 0) ? false : true;
-    $all = FN_GetAllSections();
-    $out = array();
-    foreach ($all as $id => $values)
-    {
-        if (!$recursive && $values['parent'] != $parent)
-            continue;
-        if (!FN_IsAdmin() && !FN_UserCanViewSection($id))
-            continue;
-        if (!$include_disabled && (empty($values['status']) || !empty($values['hidden'])))
-            continue;
-        $out[] = array(
-            "id" => $id,
-            "title" => $values['title'],
-            "type" => $values['type'],
-            "parent" => $values['parent'],
-            "position" => $values['position'],
-            "status" => $values['status'],
-            "hidden" => $values['hidden'],
-            "can_edit" => FN_UserCanEditSection($id),
-        );
-    }
-    return array("sections" => $out, "count" => count($out));
+    if ($parent != "")
+        FN_MCP_SafeId($parent, "section id");
+    $map = FN_MCP_SectionsMap($parent);
+    return $map == "" ? "no sections" : $map;
 });
 
-FN_MCP_AddTool("get_section", "Return all the properties of a section (page): titles and descriptions per language, type, dates, permissions, content files.", array(
+FN_MCP_AddTool("get_section", "Properties of a section: type, parent, titles and descriptions per language, permissions, files, address.", array(
     "properties" => array(
-        "id" => array("type" => "string", "description" => "Section id"),
+        "id" => array("type" => "string"),
     ),
     "required" => array("id"),
 ), function ($args)
@@ -374,44 +726,27 @@ FN_MCP_AddTool("get_section", "Return all the properties of a section (page): ti
     return $info;
 });
 
-FN_MCP_AddTool("list_section_types", "List the section types (modules) available to create pages.", array(), function ($args)
+FN_MCP_AddTool("list_section_types", "Module types for create_section (empty type = text page).", array(), function ($args)
 {
-    global $_FN;
-    $types = FN_GetAllSectionTypes();
-    $out = array();
-    foreach ($types as $name => $values)
-    {
-        $out[] = array(
-            "name" => $name,
-            "title" => isset($values['title']) ? $values['title'] : $name,
-            "has_template" => file_exists("{$_FN['src_finis']}/modules/$name/section_template"),
-        );
-    }
-    return array("types" => $out);
+    return array("types" => array_keys(FN_GetAllSectionTypes()));
 });
 
-FN_MCP_AddTool("create_section", "Create a new page (section) in the site map. Administrators only. Returns the new section.", array(
+FN_MCP_AddTool("create_section", "Admin. New section (page), added after its last sibling. Without type it is a text page.", array(
     "properties" => array(
-        "title" => array("type" => "string", "description" => "Title in the default language"),
-        "id" => array("type" => "string", "description" => "Section id (directory name). Generated from the title when empty."),
-        "type" => array("type" => "string", "description" => "Section type (module). Empty for a static html page. See list_section_types."),
-        "parent" => array("type" => "string", "description" => "Parent section id. Empty = root level."),
-        "titles" => array("type" => "object", "description" => "Titles per language, e.g. {\"it\":\"Chi siamo\",\"en\":\"About us\"}"),
-        "descriptions" => array("type" => "object", "description" => "Descriptions per language"),
-        "description" => array("type" => "string"),
-        "keywords" => array("type" => "string"),
-        "status" => array("type" => "string", "description" => "1 = enabled (default), 0 = disabled"),
-        "hidden" => array("type" => "string", "description" => "1 = not shown in menus"),
-        "group_view" => array("type" => "string", "description" => "Comma separated groups allowed to view (empty = everyone)"),
-        "group_edit" => array("type" => "string", "description" => "Comma separated groups allowed to edit"),
-        "content" => array("type" => "string", "description" => "Optional HTML content written in section.<lang>.html (links to other pages as index.php?mod=<section id>; absolute URLs of this site are converted to local links on save)"),
-        "lang" => array("type" => "string", "description" => "Language of the content (default: site default language)"),
+        "title" => array("type" => "string", "description" => "Default language"),
+        "id" => array("type" => "string", "description" => "Default: from the title"),
+        "parent" => array("type" => "string", "description" => "Empty = top level"),
+        "type" => array("type" => "string", "description" => "Module (list_section_types)"),
+        "content" => array("type" => "string", "description" => "Html in lang"),
+        "lang" => array("type" => "string"),
+        "fields" => array("type" => "object", "description" => "titles {lang:..}, descriptions {lang:..}, description, keywords, status (1 default, 0 off), hidden (1 = not in menu), group_view, group_edit (comma separated groups)"),
     ),
     "required" => array("title"),
 ), function ($args)
 {
     global $_FN;
     FN_MCP_RequireAdmin();
+    $args = FN_MCP_MergeFields($args);
     $title = FN_MCP_Arg($args, "title", "", true);
     $id = FN_MCP_Arg($args, "id", "");
     if ($id == "")
@@ -494,38 +829,18 @@ FN_MCP_AddTool("create_section", "Create a new page (section) in the site map. A
     return FN_MCP_SectionInfo(FN_GetSectionValues($id, false));
 });
 
-FN_MCP_AddTool("update_section", "Update the properties of a section. Administrators can change every field; editors (group_edit) only title, description, keywords, status, hidden, dates. Content is changed with set_section_content.", array(
+FN_MCP_AddTool("update_section", "Change section properties (page text: edit_section_content).", array(
     "properties" => array(
-        "id" => array("type" => "string", "description" => "Section id"),
-        "title" => array("type" => "string", "description" => "Title in the default language"),
-        "titles" => array("type" => "object", "description" => "Titles per language"),
-        "description" => array("type" => "string"),
-        "descriptions" => array("type" => "object", "description" => "Descriptions per language"),
-        "keywords" => array("type" => "string"),
-        "status" => array("type" => "string"),
-        "hidden" => array("type" => "string"),
-        "startdate" => array("type" => "string"),
-        "enddate" => array("type" => "string"),
-        "parent" => array("type" => "string", "description" => "Move under another section (admin)"),
-        "position" => array("type" => "integer", "description" => "Order among siblings (admin)"),
-        "type" => array("type" => "string", "description" => "Section type (admin)"),
-        "group_view" => array("type" => "string", "description" => "(admin)"),
-        "group_edit" => array("type" => "string", "description" => "(admin)"),
-        "level" => array("type" => "string", "description" => "(admin)"),
-        "accesskey" => array("type" => "string"),
-        "blocksmode" => array("type" => "string", "description" => "(admin)"),
-        "blocks" => array("type" => "string", "description" => "(admin)"),
+        "id" => array("type" => "string"),
+        "fields" => array("type" => "object", "description" => "title, titles {lang:..}, description, descriptions {lang:..}, keywords, status (1/0), hidden (1 = not in menu), startdate, enddate; admin only: parent, position (order among siblings), type, group_view, group_edit, level, accesskey, blocksmode, blocks"),
     ),
     "required" => array("id"),
 ), function ($args)
 {
     global $_FN;
-    $id = FN_MCP_SafeId(FN_MCP_Arg($args, "id", "", true), "section id");
+    $args = FN_MCP_MergeFields($args);
+    $id = FN_MCP_EditableSection($args);
     $oldvalues = FN_GetSectionValues($id);
-    if (!$oldvalues)
-        FN_MCP_Fail("section not found: $id");
-    if (!FN_UserCanEditSection($id))
-        FN_MCP_Fail("permission denied: you cannot edit section $id");
     $form = FN_XMDBForm("fn_sections");
     $allowed = FN_IsAdmin() ? array_keys($form->xmltable->fields) : FN_MCP_EditorSectionFields();
     $newvalues = array();
@@ -586,9 +901,9 @@ FN_MCP_AddTool("update_section", "Update the properties of a section. Administra
     return FN_MCP_SectionInfo(FN_GetSectionValues($id, false));
 });
 
-FN_MCP_AddTool("delete_section", "Delete a section and its directory with all the content files. Administrators only. Sections with children are refused unless force=true (children are deleted too).", array(
+FN_MCP_AddTool("delete_section", "Admin. Delete a section and its folder; children only with force=true. Not the home.", array(
     "properties" => array(
-        "id" => array("type" => "string", "description" => "Section id"),
+        "id" => array("type" => "string"),
         "force" => array("type" => "boolean", "description" => "Delete the children too"),
     ),
     "required" => array("id"),
@@ -633,139 +948,156 @@ FN_MCP_AddTool("delete_section", "Delete a section and its directory with all th
     return array("deleted" => $todelete);
 });
 
-FN_MCP_AddTool("get_section_content", "Return the HTML content of a static page: sections/<id>/section.<lang>.html (falls back to the default language file).", array(
+FN_MCP_AddTool("get_section_content", "Html of a page in one language (falls back to the default language).", array(
     "properties" => array(
-        "id" => array("type" => "string", "description" => "Section id"),
-        "lang" => array("type" => "string", "description" => "Language code (default: site default language)"),
+        "id" => array("type" => "string"),
+        "lang" => array("type" => "string", "description" => "Default: site language"),
     ),
     "required" => array("id"),
 ), function ($args)
 {
     global $_FN;
     $id = FN_MCP_SafeId(FN_MCP_Arg($args, "id", "", true), "section id");
-    if (!FN_SectionExists($id))
+    $values = FN_GetSectionValues($id);
+    if (!$values)
         FN_MCP_Fail("section not found: $id");
     if (!FN_IsAdmin() && !FN_UserCanViewSection($id))
         FN_MCP_Fail("permission denied");
     $lang = FN_MCP_Lang(FN_MCP_Arg($args, "lang", ""));
-    $folder = "{$_FN['src_application']}/sections/$id";
-    $file = "$folder/section.$lang.html";
-    $used = $lang;
-    if (!file_exists($file) && file_exists("$folder/section.{$_FN['lang_default']}.html"))
-    {
-        $file = "$folder/section.{$_FN['lang_default']}.html";
-        $used = $_FN['lang_default'];
-    }
-    $out = array("id" => $id, "lang" => $lang, "file_lang" => $used, "exists" => file_exists($file), "content" => "");
-    if (file_exists($file))
-        $out['content'] = file_get_contents($file);
-    $out['has_php'] = file_exists("$folder/section.php");
+    list($file, $filelang) = FN_MCP_SectionHtmlFile($id, $lang);
+    $type = FN_MCP_SectionType($values);
+    $out = array("id" => $id, "lang" => $lang);
+    if ($file == "")
+        $out['note'] = "no html file for this page";
+    elseif ($filelang != $lang)
+        $out['file'] = basename($file) . " (no section.$lang.html)";
+    if ($type != "finis")
+        $out['type'] = "$type: module page, this html is not its main content";
+    if (file_exists("{$_FN['src_application']}/sections/$id/section.php"))
+        $out['php'] = true;
+    $out['content'] = $file != "" ? file_get_contents($file) : "";
     return $out;
 });
 
-FN_MCP_AddTool("set_section_content", "Write the HTML content of a static page: sections/<id>/section.<lang>.html. The user must be allowed to edit the section (administrator or member of group_edit).", array(
+FN_MCP_AddTool("edit_section_content", "Replace text in the html of a page (section.<lang>.html). old must match exactly, once unless all=true. Cheapest way to change a page.", array(
     "properties" => array(
-        "id" => array("type" => "string", "description" => "Section id"),
-        "content" => array("type" => "string", "description" => "Full HTML content of the page (body fragment, no <html>/<body>). Links to other pages must be written as index.php?mod=<section id>; absolute URLs of this site are converted to local relative links on save."),
-        "lang" => array("type" => "string", "description" => "Language code (default: site default language)"),
+        "id" => array("type" => "string"),
+        "old" => array("type" => "string", "description" => "Exact current text, with enough context to be unique"),
+        "new" => array("type" => "string"),
+        "lang" => array("type" => "string", "description" => "Default: site language"),
+        "all" => array("type" => "boolean", "description" => "Replace every occurrence"),
+    ),
+    "required" => array("id", "old", "new"),
+), function ($args)
+{
+    global $_FN;
+    $id = FN_MCP_EditableSection($args);
+    if (!isset($args['old']) || !is_string($args['old']) || $args['old'] === "")
+        FN_MCP_Fail("missing required argument: old");
+    if (!isset($args['new']) || !is_string($args['new']))
+        FN_MCP_Fail("missing required argument: new");
+    $lang = FN_MCP_Lang(FN_MCP_Arg($args, "lang", ""));
+    $file = "{$_FN['src_application']}/sections/$id/section.$lang.html";
+    if (!file_exists($file))
+        FN_MCP_Fail("section.$lang.html does not exist: write it with set_section_content");
+    $content = file_get_contents($file);
+    $count = substr_count($content, $args['old']);
+    if ($count == 0)
+        FN_MCP_Fail("old text not found in section.$lang.html (it must match exactly, spaces and entities included)");
+    if ($count > 1 && empty($args['all']))
+        FN_MCP_Fail("old text found $count times: add context or set all=true");
+    $content = str_replace($args['old'], FN_MCP_LocalizeLinks($args['new'], "sections/$id"), $content);
+    FN_MCP_WriteContent($file, $content);
+    FN_LogEvent("section content edited:$id ($lang)", "mcp");
+    return array("replaced" => $count, "bytes" => strlen($content));
+});
+
+FN_MCP_AddTool("set_section_content", "Write the whole html of a page (section.<lang>.html): body fragment, no <html>/<body>.", array(
+    "properties" => array(
+        "id" => array("type" => "string"),
+        "content" => array("type" => "string"),
+        "lang" => array("type" => "string", "description" => "Default: site language"),
     ),
     "required" => array("id", "content"),
 ), function ($args)
 {
     global $_FN;
-    $id = FN_MCP_SafeId(FN_MCP_Arg($args, "id", "", true), "section id");
-    if (!FN_SectionExists($id))
-        FN_MCP_Fail("section not found: $id");
-    if (!FN_UserCanEditSection($id))
-        FN_MCP_Fail("permission denied: you cannot edit section $id");
+    $id = FN_MCP_EditableSection($args);
     if (!isset($args['content']) || !is_string($args['content']))
         FN_MCP_Fail("missing required argument: content");
     $lang = FN_MCP_Lang(FN_MCP_Arg($args, "lang", ""));
     $folder = "{$_FN['src_application']}/sections/$id";
     if (!is_dir($folder))
         FN_MkDir($folder);
-    $file = "$folder/section.$lang.html";
-    if (!FN_CanModifyFile($_FN['user'], $file))
-        FN_MCP_Fail("permission denied on file " . basename($file));
     $content = FN_MCP_LocalizeLinks($args['content'], "sections/$id");
-    if (false === FN_Write($content, $file))
-        FN_MCP_Fail("cannot write " . basename($file));
-    FN_ClearCache();
+    FN_MCP_WriteContent("$folder/section.$lang.html", $content);
     FN_LogEvent("section content updated:$id ($lang)", "mcp");
-    return array("id" => $id, "lang" => $lang, "file" => "sections/$id/section.$lang.html", "bytes" => strlen($content));
+    return array("file" => "sections/$id/section.$lang.html", "bytes" => strlen($content));
 });
 
-FN_MCP_AddTool("list_section_files", "List the files inside the directory of a section (sections/<id>/).", array(
+FN_MCP_AddTool("list_section_files", "Files in sections/<id>/: name size date.", array(
     "properties" => array(
-        "id" => array("type" => "string", "description" => "Section id"),
-        "path" => array("type" => "string", "description" => "Sub directory (optional)"),
+        "id" => array("type" => "string"),
+        "path" => array("type" => "string", "description" => "Sub folder"),
+        "backups" => array("type" => "boolean", "description" => "Also the *.bak~ copies"),
     ),
     "required" => array("id"),
 ), function ($args)
 {
     global $_FN;
-    $id = FN_MCP_SafeId(FN_MCP_Arg($args, "id", "", true), "section id");
-    if (!FN_SectionExists($id))
-        FN_MCP_Fail("section not found: $id");
-    if (!FN_UserCanEditSection($id))
-        FN_MCP_Fail("permission denied");
+    $id = FN_MCP_EditableSection($args);
     $base = "{$_FN['src_application']}/sections/$id";
     $path = FN_MCP_Arg($args, "path", "");
     $dir = $path == "" ? realpath($base) : FN_MCP_SafePath($base, $path);
     if (!$dir || !is_dir($dir))
         FN_MCP_Fail("directory not found");
+    $withbackups = !empty($args['backups']);
     $out = array();
+    $backups = 0;
     foreach (scandir($dir) as $f)
     {
         if ($f == "." || $f == "..")
             continue;
-        $out[] = array(
-            "name" => $f,
-            "type" => is_dir("$dir/$f") ? "dir" : "file",
-            "size" => is_file("$dir/$f") ? filesize("$dir/$f") : 0,
-            "modified" => date("Y-m-d H:i:s", filemtime("$dir/$f")),
-        );
+        if (substr($f, -5) == ".bak~")
+        {
+            $backups++;
+            if (!$withbackups)
+                continue;
+        }
+        $out[] = is_dir("$dir/$f") ? "$f/" : "$f " . filesize("$dir/$f") . " " . date("Y-m-d H:i", filemtime("$dir/$f"));
     }
-    return array("id" => $id, "path" => $path, "files" => $out);
+    return FN_MCP_NoEmpty(array("files" => $out, "backups" => $withbackups ? "" : $backups));
 });
 
-FN_MCP_AddTool("read_section_file", "Read a text file inside the directory of a section.", array(
+FN_MCP_AddTool("read_section_file", "Read a text file of sections/<id>/ (php: admin).", array(
     "properties" => array(
-        "id" => array("type" => "string", "description" => "Section id"),
-        "path" => array("type" => "string", "description" => "File path relative to sections/<id>/"),
+        "id" => array("type" => "string"),
+        "path" => array("type" => "string", "description" => "Relative to sections/<id>/"),
     ),
     "required" => array("id", "path"),
 ), function ($args)
 {
     global $_FN;
-    $id = FN_MCP_SafeId(FN_MCP_Arg($args, "id", "", true), "section id");
-    if (!FN_SectionExists($id))
-        FN_MCP_Fail("section not found: $id");
-    if (!FN_UserCanEditSection($id))
-        FN_MCP_Fail("permission denied");
+    $id = FN_MCP_EditableSection($args);
     $file = FN_MCP_SafePath("{$_FN['src_application']}/sections/$id", FN_MCP_Arg($args, "path", "", true));
     if (!is_file($file))
         FN_MCP_Fail("file not found");
     if (!FN_IsAdmin() && FN_GetFileExtension($file) == "php")
         FN_MCP_Fail("permission denied: php files are reserved to administrators");
-    return array("id" => $id, "path" => $args['path'], "content" => file_get_contents($file));
+    return file_get_contents($file);
 });
 
-FN_MCP_AddTool("write_section_file", "Write a text file inside the directory of a section (creates sub directories). Non administrators can write only html files.", array(
+FN_MCP_AddTool("write_section_file", "Write a text file in sections/<id>/ (creates folders; php: admin).", array(
     "properties" => array(
-        "id" => array("type" => "string", "description" => "Section id"),
-        "path" => array("type" => "string", "description" => "File path relative to sections/<id>/"),
+        "id" => array("type" => "string"),
+        "path" => array("type" => "string", "description" => "Relative to sections/<id>/"),
         "content" => array("type" => "string"),
     ),
     "required" => array("id", "path", "content"),
 ), function ($args)
 {
     global $_FN;
-    $id = FN_MCP_SafeId(FN_MCP_Arg($args, "id", "", true), "section id");
-    if (!FN_SectionExists($id))
-        FN_MCP_Fail("section not found: $id");
-    if (!FN_UserCanEditSection($id))
-        FN_MCP_Fail("permission denied");
+    $id = FN_MCP_EditableSection($args);
     if (!isset($args['content']) || !is_string($args['content']))
         FN_MCP_Fail("missing required argument: content");
     $path = FN_MCP_Arg($args, "path", "", true);
@@ -777,40 +1109,37 @@ FN_MCP_AddTool("write_section_file", "Write a text file inside the directory of 
     if ($subdir != "." && $subdir != "")
         FN_MkDir("$base/$subdir");
     $file = FN_MCP_SafePath($base, $relative);
-    if (!FN_CanModifyFile($_FN['user'], $file))
-        FN_MCP_Fail("permission denied on file " . basename($file));
-    if (false === FN_Write($args['content'], $file))
-        FN_MCP_Fail("cannot write the file");
-    FN_ClearCache();
+    FN_MCP_WriteContent($file, $args['content']);
     FN_LogEvent("file written:sections/$id/$relative", "mcp");
-    return array("id" => $id, "path" => $relative, "bytes" => strlen($args['content']));
+    return array("file" => "sections/$id/$relative", "bytes" => strlen($args['content']));
 });
 
-FN_MCP_AddTool("list_blocks", "List the blocks (side contents shown in the theme positions).", array(), function ($args)
+FN_MCP_AddTool("list_blocks", "Blocks (side boxes): id [type] position \"title\", and whether the theme shows them.", array(), function ($args)
 {
-    $blocks = FN_GetAllBlocks();
+    $positions = FN_MCP_ThemeBlockPositions();
     $out = array();
-    foreach ($blocks as $id => $values)
+    $allblocks = FN_GetAllBlocks();
+    foreach (is_array($allblocks) ? $allblocks : array() as $id => $values)
     {
         if (!FN_IsAdmin() && !FN_UserCanViewBlock($id))
             continue;
-        $out[] = array(
-            "id" => $id,
-            "title" => $values['title'],
-            "type" => $values['type'],
-            "where" => $values['where'],
-            "position" => $values['position'],
-            "status" => $values['status'],
-            "sections" => $values['sections'],
-            "can_edit" => FN_UserCanEditBlock($id),
-        );
+        $flags = array();
+        if (empty($values['status']))
+            $flags[] = "off";
+        elseif ($positions !== null && !in_array($values['where'], $positions))
+            $flags[] = "not shown by the theme";
+        if (!empty($values['sections']))
+            $flags[] = "only in: {$values['sections']}";
+        if (!FN_IsAdmin() && FN_UserCanEditBlock($id))
+            $flags[] = "edit";
+        $out[] = "$id" . (!empty($values['type']) ? " [{$values['type']}]" : "") . " {$values['where']} \"{$values['title']}\"" . (count($flags) ? " " . implode(", ", $flags) : "");
     }
-    return array("blocks" => $out);
+    return count($out) ? implode("\n", $out) : "no blocks";
 });
 
-FN_MCP_AddTool("get_block_content", "Return the HTML content of a block: blocks/<id>/section.<lang>.html.", array(
+FN_MCP_AddTool("get_block_content", "Html of a block (blocks/<id>/section.<lang>.html).", array(
     "properties" => array(
-        "id" => array("type" => "string", "description" => "Block id"),
+        "id" => array("type" => "string"),
         "lang" => array("type" => "string"),
     ),
     "required" => array("id"),
@@ -828,12 +1157,18 @@ FN_MCP_AddTool("get_block_content", "Return the HTML content of a block: blocks/
     $file = "$folder/section.$lang.html";
     if (!file_exists($file))
         $file = "$folder/section.{$_FN['lang_default']}.html";
-    return array("id" => $id, "lang" => $lang, "block" => $blocks[$id], "exists" => file_exists($file), "content" => file_exists($file) ? file_get_contents($file) : "", "has_php" => file_exists("$folder/section.php"));
+    $out = array("id" => $id, "lang" => $lang);
+    if (!file_exists($file))
+        $out['note'] = "no html file for this block";
+    if (file_exists("$folder/section.php"))
+        $out['php'] = true;
+    $out['content'] = file_exists($file) ? file_get_contents($file) : "";
+    return $out;
 });
 
-FN_MCP_AddTool("set_block_content", "Write the HTML content of a block: blocks/<id>/section.<lang>.html.", array(
+FN_MCP_AddTool("set_block_content", "Write the html of a block (blocks/<id>/section.<lang>.html).", array(
     "properties" => array(
-        "id" => array("type" => "string", "description" => "Block id"),
+        "id" => array("type" => "string"),
         "content" => array("type" => "string"),
         "lang" => array("type" => "string"),
     ),
@@ -853,18 +1188,13 @@ FN_MCP_AddTool("set_block_content", "Write the HTML content of a block: blocks/<
     $folder = "{$_FN['src_application']}/blocks/$id";
     if (!is_dir($folder))
         FN_MkDir($folder);
-    $file = "$folder/section.$lang.html";
-    if (!FN_CanModifyFile($_FN['user'], $file))
-        FN_MCP_Fail("permission denied on file " . basename($file));
     $content = FN_MCP_LocalizeLinks($args['content'], "blocks/$id");
-    if (false === FN_Write($content, $file))
-        FN_MCP_Fail("cannot write " . basename($file));
-    FN_ClearCache();
+    FN_MCP_WriteContent("$folder/section.$lang.html", $content);
     FN_LogEvent("block content updated:$id ($lang)", "mcp");
-    return array("id" => $id, "lang" => $lang, "bytes" => strlen($content));
+    return array("file" => "blocks/$id/section.$lang.html", "bytes" => strlen($content));
 });
 
-FN_MCP_AddTool("list_settings", "List the site settings (fn_settings). Administrators only.", array(), function ($args)
+FN_MCP_AddTool("list_settings", "Admin. Site settings {name: value} (secrets hidden).", array(), function ($args)
 {
     FN_MCP_RequireAdmin();
     $table = FN_XMDBTable("fn_settings");
@@ -876,15 +1206,16 @@ FN_MCP_AddTool("list_settings", "List the site settings (fn_settings). Administr
         {
             if (preg_match('/pass|secret|key/i', $r['varname']))
                 continue;
-            $out[$r['varname']] = array("value" => $r['varvalue'], "default" => $r['defaultvalue']);
+            $out[$r['varname']] = $r['varvalue'];
         }
     }
-    return array("settings" => $out);
+    ksort($out);
+    return $out;
 });
 
-FN_MCP_AddTool("update_setting", "Change a site setting (fn_settings). Administrators only. The new value is used from the next request.", array(
+FN_MCP_AddTool("update_setting", "Admin. Change a site setting (site_title, home_section, theme, maintenance...).", array(
     "properties" => array(
-        "name" => array("type" => "string", "description" => "Setting name, e.g. site_title, maintenance, home_section, theme"),
+        "name" => array("type" => "string"),
         "value" => array("type" => "string"),
     ),
     "required" => array("name", "value"),
@@ -909,23 +1240,37 @@ FN_MCP_AddTool("update_setting", "Change a site setting (fn_settings). Administr
     return array("name" => $name, "value" => $value, "old_value" => $old['varvalue']);
 });
 
-FN_MCP_AddTool("list_users", "List the users (without passwords and keys). Administrators only.", array(
+FN_MCP_AddTool("list_users", "Admin. Users: username, email, level, group, active, name (full=true: every field).", array(
     "properties" => array(
-        "filter" => array("type" => "object", "description" => "Field => value filter, e.g. {\"active\":\"1\"}"),
+        "filter" => array("type" => "object", "description" => "{field: value}, e.g. {\"active\":\"1\"}"),
+        "full" => array("type" => "boolean"),
     ),
 ), function ($args)
 {
     FN_MCP_RequireAdmin();
     $filter = FN_MCP_Arg($args, "filter", array());
     $users = FN_GetUsers(is_array($filter) && count($filter) ? $filter : false);
+    $full = !empty($args['full']);
     $out = array();
     if (is_array($users))
+    {
         foreach ($users as $u)
-            $out[] = FN_MCP_PublicUser($u);
-    return array("users" => $out, "count" => count($out));
+        {
+            $u = FN_MCP_PublicUser($u);
+            if (!$full)
+            {
+                $short = array();
+                foreach (array("username", "email", "level", "group", "active", "name", "surname") as $k)
+                    $short[$k] = isset($u[$k]) ? $u[$k] : "";
+                $u = $short;
+            }
+            $out[] = FN_MCP_NoEmpty($u);
+        }
+    }
+    return array("count" => count($out), "users" => $out);
 });
 
-FN_MCP_AddTool("get_user", "Return a user record (without secrets). Administrators, or the user themself.", array(
+FN_MCP_AddTool("get_user", "A user without secrets (admin, or yourself).", array(
     "properties" => array("username" => array("type" => "string")),
     "required" => array("username"),
 ), function ($args)
@@ -937,18 +1282,14 @@ FN_MCP_AddTool("get_user", "Return a user record (without secrets). Administrato
     $u = FN_GetUser($username);
     if (!$u)
         FN_MCP_Fail("user not found: $username");
-    return FN_MCP_PublicUser($u);
+    return FN_MCP_NoEmpty(FN_MCP_PublicUser($u));
 });
 
-FN_MCP_AddTool("create_user", "Create a new user. Administrators only.", array(
+FN_MCP_AddTool("create_user", "Admin. New user.", array(
     "properties" => array(
         "username" => array("type" => "string"),
         "password" => array("type" => "string"),
-        "email" => array("type" => "string"),
-        "level" => array("type" => "string", "description" => "User level: 10 = administrator"),
-        "group" => array("type" => "string", "description" => "Comma separated groups"),
-        "active" => array("type" => "string", "description" => "1 = active (default)"),
-        "fields" => array("type" => "object", "description" => "Other fields of the users table"),
+        "fields" => array("type" => "object", "description" => "email, level (10 = admin, default 1), group (comma separated), active (default 1), other user fields"),
     ),
     "required" => array("username", "password"),
 ), function ($args)
@@ -961,24 +1302,28 @@ FN_MCP_AddTool("create_user", "Create a new user. Administrators only.", array(
     $newvalues = FN_MCP_Arg($args, "fields", array());
     if (!is_array($newvalues))
         $newvalues = array();
+    foreach (array("email", "level", "group", "active") as $k)
+    {
+        if (isset($args[$k]) && !is_array($args[$k]))
+            $newvalues[$k] = "{$args[$k]}";
+    }
     $newvalues['username'] = $username;
-    $newvalues['email'] = FN_MCP_Arg($args, "email", isset($newvalues['email']) ? $newvalues['email'] : "");
-    $newvalues['level'] = "" . FN_MCP_Arg($args, "level", "1");
-    $newvalues['group'] = FN_MCP_Arg($args, "group", "");
-    $newvalues['active'] = "" . FN_MCP_Arg($args, "active", "1");
+    $newvalues += array("email" => "", "level" => "1", "group" => "", "active" => "1");
+    $newvalues['level'] = "{$newvalues['level']}";
+    $newvalues['active'] = "{$newvalues['active']}";
     unset($newvalues['apikey'], $newvalues['passwd'], $newvalues['password']);
     $r = FN_AddUser($newvalues, $password);
     if (!$r)
         FN_MCP_Fail("user creation failed" . (!empty($GLOBALS['_FN']['return']['errors']) ? ": " . json_encode($GLOBALS['_FN']['return']['errors']) : ""));
     FN_LogEvent("user created:$username", "mcp");
-    return FN_MCP_PublicUser(FN_GetUser($username, false));
+    return FN_MCP_NoEmpty(FN_MCP_PublicUser(FN_GetUser($username, false)));
 });
 
-FN_MCP_AddTool("update_user", "Update a user. Administrators only (level, group, active, email, password and other fields). API keys cannot be changed here.", array(
+FN_MCP_AddTool("update_user", "Admin. Change user fields or password (not the API key).", array(
     "properties" => array(
         "username" => array("type" => "string"),
-        "fields" => array("type" => "object", "description" => "Fields to change, e.g. {\"level\":\"10\",\"email\":\"a@b.c\"}"),
-        "password" => array("type" => "string", "description" => "New password (optional)"),
+        "fields" => array("type" => "object", "description" => "e.g. {\"level\":\"10\",\"email\":\"a@b.c\"}"),
+        "password" => array("type" => "string"),
     ),
     "required" => array("username"),
 ), function ($args)
@@ -1002,18 +1347,18 @@ FN_MCP_AddTool("update_user", "Update a user. Administrators only (level, group,
     if (!$r)
         FN_MCP_Fail("user update failed");
     FN_LogEvent("user updated:$username (" . implode(",", array_keys($fields)) . ($password != "" ? ",password" : "") . ")", "mcp");
-    return FN_MCP_PublicUser(FN_GetUser($username, false));
+    return FN_MCP_NoEmpty(FN_MCP_PublicUser(FN_GetUser($username, false)));
 });
 
-FN_MCP_AddTool("list_groups", "List the user groups.", array(), function ($args)
+FN_MCP_AddTool("list_groups", "User groups.", array(), function ($args)
 {
-    return array("groups" => array_values(FN_GetGroups()));
+    return array_values(FN_GetGroups());
 });
 
-FN_MCP_AddTool("get_log", "Return the last events of the site log (fn_log). Administrators only.", array(
+FN_MCP_AddTool("get_log", "Admin. Last log events, newest first: date user context: event.", array(
     "properties" => array(
-        "limit" => array("type" => "integer", "description" => "Max rows (default 50)"),
-        "context" => array("type" => "string", "description" => "Filter by context (cms, mcp, apikey, ...)"),
+        "limit" => array("type" => "integer", "description" => "Default 50"),
+        "context" => array("type" => "string", "description" => "cms, mcp, apikey..."),
     ),
 ), function ($args)
 {
@@ -1031,13 +1376,16 @@ FN_MCP_AddTool("get_log", "Return the last events of the site log (fn_log). Admi
     {
         return strcmp("{$b['date']}", "{$a['date']}");
     });
-    return array("events" => array_slice($rows, 0, $limit));
+    $out = array();
+    foreach (array_slice($rows, 0, $limit) as $r)
+        $out[] = "{$r['date']} " . ($r['user'] != "" ? $r['user'] : "-") . " {$r['context']}: {$r['event']}";
+    return count($out) ? implode("\n", $out) : "no events";
 });
 
-FN_MCP_AddTool("log_event", "Write a custom event in the site log, with the identity of the API key owner.", array(
+FN_MCP_AddTool("log_event", "Write an event in the site log with your name.", array(
     "properties" => array(
         "event" => array("type" => "string"),
-        "context" => array("type" => "string", "description" => "Default: mcp"),
+        "context" => array("type" => "string", "description" => "Default mcp"),
     ),
     "required" => array("event"),
 ), function ($args)
@@ -1048,7 +1396,7 @@ FN_MCP_AddTool("log_event", "Write a custom event in the site log, with the iden
     return array("logged" => true);
 });
 
-FN_MCP_AddTool("clear_cache", "Clear the site cache. Users that can edit at least one section may call it.", array(), function ($args)
+FN_MCP_AddTool("clear_cache", "Clear the site cache (writes already do it).", array(), function ($args)
 {
     global $_FN;
     $allowed = FN_IsAdmin();
@@ -1161,7 +1509,7 @@ function FN_MCP_HandleMessage($msg)
                     "title" => "FINIS CMS: " . $_FN['site_title'],
                     "version" => trim(@file_get_contents("{$_FN['src_finis']}/VERSION")),
                 ),
-                "instructions" => "FINIS CMS server for the site '" . $_FN['site_title'] . "' (" . FN_GetMcpSiteUrl() . "). You are operating as user '" . $_FN['user'] . "'" . (FN_IsAdmin() ? " (administrator)" : "") . ". Pages are called sections: use list_sections/get_section to explore the site map, get_section_content/set_section_content to read and write the HTML of a page. Every change is logged with the name of the user.",
+                "instructions" => "FINIS CMS of the site '" . $_FN['site_title'] . "' (" . FN_GetMcpSiteUrl() . "), user '" . $_FN['user'] . "'" . (FN_IsAdmin() ? " (admin)" : "") . ". Call site_guide first: it explains how the pages (sections) of this site are stored and edited and lists them. Changes are logged with your name.",
             ));
         case "ping":
             return FN_MCP_Result($id, new stdClass());
@@ -1202,13 +1550,13 @@ function FN_MCP_HandleMessage($msg)
                 $output = array("error" => "internal error: " . $e->getMessage());
                 FN_LogEvent("tool $name failed: " . $e->getMessage(), "mcp");
             }
-            $text = is_string($output) ? $output : json_encode($output, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            // compact JSON (or plain text) only once: the result is read by a
+            // language model, indentation and a structuredContent copy cost tokens
+            $text = is_string($output) ? $output : json_encode($output, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
             $result = array(
                 "content" => array(array("type" => "text", "text" => $text)),
                 "isError" => $isError,
             );
-            if (is_array($output))
-                $result['structuredContent'] = count($output) ? $output : new stdClass();
             return FN_MCP_Result($id, $result);
         case "prompts/list":
             return FN_MCP_Result($id, array("prompts" => array()));

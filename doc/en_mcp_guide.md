@@ -181,35 +181,69 @@ the access token (`$_FN['auth_method'] = "oauth"`), and the 401 answer calls
 
 ## Tools
 
-Tool results carry the data twice: as JSON text in `content[0].text` and as
-`structuredContent`. Errors are returned with `isError: true` and an `error` message.
+Results are compact: plain text (site map, blocks, log, guide) or JSON without
+indentation and without empty fields, sent once in `content[0].text` (no
+`structuredContent` copy). Errors have `isError: true` and an `error` message.
 "admin" means the user must have level 10 or more.
+
+### Site guide (`site_guide`)
+
+`site_guide` is the first tool of the list, and the `initialize` instructions ask the
+model to call it before the others. In one call (about 1,000 tokens on a site with 20
+pages) it returns, for the current user:
+
+* site, user (admin or editor) and languages;
+* how the pages are stored and edited: one `section.<lang>.html` per language; the html is
+  a template, so `{name}`, `<!-- if {x} -->` and `<!-- foreach {x} -->` must be kept;
+  the `php` flag (`section.php` prepares the data or prints dynamic parts that are not in
+  the html); module sections; links; backups;
+* the module types in use, with what their pages contain;
+* the block positions printed by the theme, read from `themes/<theme>/template*.tp.html`
+  and `theme.php`: when there are none, the guide says that blocks never appear;
+* the site map, one line per section, children indented: `id [type] "title" flags`
+  (no `[type]` = text page), flags `hidden`, `off`, `private`, `php`, `edit` (only for
+  non admins), `langs:<files present>`, `nohtml`;
+* the notes of the application.
+
+An application describes its own module types and adds notes in its configuration:
+
+```php
+$_FN['mcp_type_info']['caveview'] = "cave register records: use the OpenKIS MCP server";
+$_FN['mcp_guide']['shop'] = "Products are records: use the shop tools.";
+```
 
 | Tool | Who | Description |
 |------|-----|-------------|
-| `whoami` | all | User of the key, level, groups |
-| `site_info` | all | Title, languages, theme, home section, version, section types |
-| `list_sections` | all | Site map (`parent`, `recursive`, `include_disabled`); non admins see only the sections they can view |
-| `get_section` | viewers | All the fields of a section, titles per language, content files |
-| `list_section_types` | all | Section types (modules) |
-| `create_section` | admin | New page: `title`, `id`, `type`, `parent`, `titles`, `descriptions`, `group_view`, `group_edit`, optional `content` |
-| `update_section` | editors | Editors (group_edit) can change title, description, keywords, status, hidden, dates; admins every field (parent, position, type, groups, ...) |
+| `site_guide` | all | Guide and site map, see above |
+| `whoami` | all | Username, admin, level, groups, email |
+| `site_info` | all | Title, address, languages, theme, home section, version |
+| `list_sections` | all | Site map in the `site_guide` format; `parent` = only that subtree; non admins see only the sections they can view |
+| `get_section` | viewers | Fields of a section, titles and descriptions per language, files (no backups), address |
+| `list_section_types` | all | Module names |
+| `create_section` | admin | `title`, `id`, `parent`, `type`, `content`, `lang`; the other fields (`titles`, `descriptions`, `status`, `hidden`, `group_view`, ...) in `fields` |
+| `update_section` | editors | `id` + `fields`: editors title(s), description(s), keywords, status, hidden, dates; admins every field. Fields at the top level are accepted too |
 | `delete_section` | admin | Removes record and directory; refuses the home section; `force=true` deletes children |
-| `get_section_content` | viewers | `sections/<id>/section.<lang>.html` |
-| `set_section_content` | editors | Writes `section.<lang>.html` and clears the cache; absolute URLs of the site are converted to local links |
-| `list_section_files` | editors | Files inside the section directory |
-| `read_section_file` | editors | Reads a file of the section (php files: admin only) |
+| `get_section_content` | viewers | `section.<lang>.html`, falling back to the default language and `section.html` with a note; `php: true` when the section has a `section.php` |
+| `edit_section_content` | editors | Replaces `old` with `new` in `section.<lang>.html`: `old` must match exactly once (`all=true`: every occurrence). A small change costs only the changed text |
+| `set_section_content` | editors | Writes the whole `section.<lang>.html` |
+| `list_section_files` | editors | `name size date` per file; backups (`*.bak~`) only counted unless `backups=true` |
+| `read_section_file` | editors | Text of a file of the section (php files: admin only) |
 | `write_section_file` | editors | Writes a file of the section (php files: admin only) |
-| `list_blocks` | all | Blocks the user can view |
+| `list_blocks` | all | `id [type] position "title"`, flagged `off`, `not shown by the theme`, `only in: <sections>` |
 | `get_block_content` / `set_block_content` | viewers / editors | `blocks/<id>/section.<lang>.html` |
-| `list_settings` | admin | `fn_settings` (passwords and keys hidden) |
+| `list_settings` | admin | `{name: value}` of `fn_settings` (passwords and keys hidden) |
 | `update_setting` | admin | Changes one setting |
-| `list_users` / `get_user` | admin (get_user: also self) | Users without passwords and keys |
-| `create_user` / `update_user` | admin | Users; the API key of a user cannot be set from here |
+| `list_users` / `get_user` | admin (get_user: also self) | Main fields (username, email, level, group, active, name; `full=true`: all), never passwords and keys |
+| `create_user` / `update_user` | admin | Fields in `fields` (email, level, group, active, ...); the API key of a user cannot be set from here |
 | `list_groups` | all | Groups |
-| `get_log` | admin | Last rows of `fn_log` (`limit`, `context`) |
+| `get_log` | admin | One line per event, newest first: `date user context: event` (`limit`, `context`) |
 | `log_event` | all | Writes a custom event with the user name |
 | `clear_cache` | editors | Clears the site cache |
+
+Every write of a content file (`edit_section_content`, `set_section_content`,
+`write_section_file`, `set_block_content`) keeps the previous version as
+`<file>.<mtime>.<date>.<user>.bak~` (`FN_BackupFile()`, as the online editor does)
+and clears the cache; writing the same content again does nothing.
 
 ### Links in the content
 
@@ -268,7 +302,8 @@ FN_MCP_AddTool(
 );
 ```
 
-* The callback receives the arguments array and returns an array (JSON result).
+* The callback receives the arguments array and returns an array (sent as compact JSON)
+  or a string (sent as is: cheaper for lists).
 * `FN_MCP_Fail($message)` returns a tool error to the client.
 * Helpers: `FN_MCP_Arg($args, $key, $default, $required)`, `FN_MCP_RequireAdmin()`,
   `FN_MCP_SafeId($id)`, `FN_MCP_Lang($lang)`, `FN_MCP_SafePath($base, $relative)`.
@@ -276,7 +311,8 @@ FN_MCP_AddTool(
 
 ## Security notes
 
-* Treat the key as a password: use HTTPS, do not put it in URLs, regenerate it if leaked.
+* Treat the key as a password: use HTTPS, prefer the header to `&apikey=` in the URL
+  (URLs end up in logs), regenerate it if leaked.
 * The endpoint ignores cookies, so a logged in browser cannot be driven by a malicious
   page through the MCP endpoint.
 * Non administrators can write only html files, and only in the sections and blocks

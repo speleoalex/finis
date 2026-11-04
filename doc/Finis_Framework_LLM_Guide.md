@@ -574,4 +574,10 @@ cookies) and runs every tool as the user: permission checks use `FN_IsAdmin()`, 
 (= `FN_RewriteLinksAbsoluteToLocal($content, "sections/$id")`), the same conversion the
 editor applies on save: absolute URLs of the site become relative links; page links must
 be written as `index.php?mod=<id>` (rewritten by the template engine at render time).
+Results are compact (JSON without indentation and empty fields, or plain text, no
+`structuredContent`). The `site_guide` tool (called first, as the `initialize`
+instructions say) explains how the pages of the site are stored and edited, the block
+positions shown by the theme and the site map (`FN_MCP_SiteGuide()`; applications add
+`$_FN['mcp_type_info'][$type]` and `$_FN['mcp_guide'][$key]`). `edit_section_content`
+replaces a snippet; content writes keep a `*.bak~` backup (`FN_BackupFile()`).
 Full documentation: `doc/en_mcp_guide.md`.
