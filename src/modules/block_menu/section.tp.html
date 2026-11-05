@@ -1,0 +1,14 @@
+<!-- if {hasitems} -->
+<div class="fn-block-menu list-group">
+    <!-- foreach {items} -->
+    <a class="list-group-item list-group-item-action" href="{link}">
+        <strong>{title}</strong><!-- if {description} --><br /><small class="text-muted">{description}</small><!-- end if {description} -->
+    </a>
+    <!-- if {havechilds} -->
+    <!-- foreach {childs} -->
+    <a class="list-group-item list-group-item-action" style="padding-left:2.5rem" href="{link}">{title}</a>
+    <!-- end foreach {childs} -->
+    <!-- end if {havechilds} -->
+    <!-- end foreach {items} -->
+</div>
+<!-- end if {hasitems} -->
