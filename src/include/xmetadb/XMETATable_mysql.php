@@ -1224,9 +1224,21 @@ function xmetadb_mysql_connect($host, $user, $password, $port)
 /**
  * Ends the request with a "503 Service Unavailable" page that reloads itself
  * (GET requests) after a few seconds. No cookie is sent.
+ *
+ * An entry point that is not a web page (an API, an MCP server) sets the global
+ * $xmetadb_mysql_unavailable_handler to a callable BEFORE loading finis: it is
+ * called instead of printing the page, so the client gets the same news in the
+ * format it reads (an MCP client could only report "HTTP 503: <!DOCTYPE html>...").
+ * The request ends right after it either way.
  */
 function xmetadb_mysql_unavailable()
 {
+    global $xmetadb_mysql_unavailable_handler;
+    if (!empty($xmetadb_mysql_unavailable_handler) && is_callable($xmetadb_mysql_unavailable_handler))
+    {
+        call_user_func($xmetadb_mysql_unavailable_handler);
+        exit;
+    }
     if (!headers_sent())
     {
         while (ob_get_level() > 0)
