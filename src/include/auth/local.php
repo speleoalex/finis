@@ -1770,13 +1770,20 @@ function FN_GetMcpEndpoints()
 
 /**
  * Shared logic of the profile editors (control center and login module):
- * handles the generate / revoke buttons and fills the template variables of
- * the API key block. The key is shown once, only to its owner, when generated.
+ * handles the show / generate / revoke buttons and fills the template variables
+ * of the API key block. Only the owner sees the key: when generated and, later,
+ * with the "show" button (decrypted from fn_users.apikey_enc, FN_ApiKeyReveal;
+ * every key shown is logged), together with the parameters of the MCP clients.
  *
  * Template variables: apikey_allowed (the block is shown), apikey_exists,
- * apikey_status (text), apikey_new (the key just generated, once),
- * apikey_message, apikey_token (hidden field), apikey_write (bool),
- * mcp_url (CMS server), mcp_endpoints (array name => url).
+ * apikey_status (text), apikey_new (the key generated or shown now),
+ * apikey_shown (the key was shown on request, not generated), apikey_viewable
+ * (the "show" button: a key exists, can be decrypted and is not on the page),
+ * apikey_message, apikey_error, apikey_token (hidden field), apikey_write (bool),
+ * mcp_url (CMS server), mcp_endpoints (array name, url), and, with the key on the
+ * page: apikey_endpoints (array name, url, url_key: address with the key, CMS
+ * only), apikey_commands (claude mcp add lines), apikey_json (configuration of
+ * the other clients); every value is HTML escaped.
  *
  * @global array $_FN
  * @param string $user username being edited
@@ -1791,9 +1798,15 @@ function FN_ProfileApiKey($user, &$tplvars)
     $tplvars['apikey_exists'] = "";
     $tplvars['apikey_status'] = "";
     $tplvars['apikey_new'] = "";
+    $tplvars['apikey_shown'] = "";
+    $tplvars['apikey_viewable'] = "";
     $tplvars['apikey_message'] = "";
+    $tplvars['apikey_error'] = "";
     $tplvars['apikey_token'] = "";
     $tplvars['apikey_write'] = "";
+    $tplvars['apikey_endpoints'] = array();
+    $tplvars['apikey_commands'] = "";
+    $tplvars['apikey_json'] = "";
     $tplvars['mcp_url'] = FN_GetMcpUrl();
     $tplvars['mcp_endpoints'] = array();
     if ($user == "" || $user != $_FN['user'])
@@ -1806,7 +1819,7 @@ function FN_ProfileApiKey($user, &$tplvars)
     foreach (FN_GetMcpEndpoints() as $name => $url)
         $tplvars['mcp_endpoints'][] = array("name" => $name, "url" => $url);
     $action = "";
-    foreach (array("generate_apikey", "regenerate_apikey", "revoke_apikey") as $button)
+    foreach (array("show_apikey", "generate_apikey", "regenerate_apikey", "revoke_apikey") as $button)
     {
         if (!empty($_POST[$button]))
             $action = $button;
@@ -1816,19 +1829,40 @@ function FN_ProfileApiKey($user, &$tplvars)
         // the buttons are inside the profile form: do not save the profile
         unset($_POST['updateuser']);
         if (!hash_equals(FN_ApiKeyFormToken(), (string) FN_GetParam("apikey_token", $_POST, "html")))
-            $tplvars['apikey_message'] = FN_Translate("invalid request, reload the page and try again");
+            $tplvars['apikey_error'] = FN_Translate("invalid request, reload the page and try again");
         elseif ($action == "revoke_apikey")
-            $tplvars['apikey_message'] = FN_RevokeApiKey($user) ? FN_Translate("the API key has been revoked") : FN_Translate("error");
+        {
+            if (FN_RevokeApiKey($user))
+                $tplvars['apikey_message'] = FN_Translate("the API key has been revoked");
+            else
+                $tplvars['apikey_error'] = FN_Translate("error");
+        }
+        elseif ($action == "show_apikey")
+        {
+            $apikey = FN_ApiKeyReveal($user);
+            if ($apikey != "")
+            {
+                $tplvars['apikey_new'] = $apikey;
+                $tplvars['apikey_shown'] = true;
+                FN_LogEvent("API key of user $user shown to its owner (profile)", "apikey");
+            }
+            elseif (FN_ApiKeyInfo($user)['exists'])
+                $tplvars['apikey_error'] = FN_Translate("this key cannot be shown: it was created when only its hash was stored. Generate a new key to see it");
+            else
+                $tplvars['apikey_error'] = FN_Translate("no API key");
+        }
         else
         {
+            //apikey_enc must be in the table definition before the key is generated, or it could not be shown again
+            FN_EnsureUserApiKeyField();
             $apikey = FN_GenerateApiKey($user);
             if ($apikey != "")
             {
                 $tplvars['apikey_new'] = $apikey;
-                $tplvars['apikey_message'] = FN_Translate("copy the key now: it is shown only this time");
+                $tplvars['apikey_message'] = FN_ApiKeyInfo($user)['viewable'] ? FN_Translate("copy the key now; you can show it again later with the button of this page") : FN_Translate("copy the key now: it is shown only this time");
             }
             else
-                $tplvars['apikey_message'] = FN_Translate("error");
+                $tplvars['apikey_error'] = FN_Translate("error");
         }
     }
     $info = FN_ApiKeyInfo($user);
@@ -1839,7 +1873,61 @@ function FN_ProfileApiKey($user, &$tplvars)
         $tplvars['apikey_status'] = FN_Translate("API key created on") . " " . $info['created'];
     else
         $tplvars['apikey_status'] = FN_Translate("API key present");
+    if ($info['exists'] && !$info['viewable'])
+        $tplvars['apikey_status'] .= ". " . FN_Translate("this key cannot be shown: it was created when only its hash was stored. Generate a new key to see it");
+    $tplvars['apikey_viewable'] = $info['exists'] && $info['viewable'] && $tplvars['apikey_new'] == "" ? true : "";
     $tplvars['apikey_write'] = FN_UserCanWriteByApiKey($user) ? true : "";
+    if ($tplvars['apikey_new'] != "")
+    {
+        $params = FN_ApiKeyClientParameters($tplvars['apikey_new']);
+        $h = function ($s)
+        {
+            return htmlspecialchars((string) $s, ENT_QUOTES, "UTF-8");
+        };
+        foreach ($params['endpoints'] as $item)
+            $tplvars['apikey_endpoints'][] = array("name" => $h($item['name']), "url" => $h($item['url']), "url_key" => $h($item['url_key']));
+        $tplvars['apikey_commands'] = $h($params['commands']);
+        $tplvars['apikey_json'] = $h($params['json']);
+        $tplvars['apikey_new'] = $h($tplvars['apikey_new']);
+    }
+}
+
+/**
+ * Parameters of the MCP clients for a key: the endpoints of the site
+ * (FN_GetMcpEndpoints) with the address carrying the key (only the CMS server
+ * reads &apikey=, "" for the others), the "claude mcp add" commands and the
+ * JSON configuration (mcpServers) of the other clients. The CMS server is named
+ * "<first application endpoint>_cms" (openkis_cms) or "finis".
+ *
+ * @param string $apikey
+ * @return array endpoints (array of name, url, url_key), commands, json (plain text)
+ */
+function FN_ApiKeyClientParameters($apikey)
+{
+    $all = FN_GetMcpEndpoints();
+    // name of the CMS server in the clients: "<first application endpoint>_cms" (openkis_cms), "finis" alone
+    $first = "";
+    foreach ($all as $name => $url)
+    {
+        if ($name != "cms")
+        {
+            $first = $name;
+            break;
+        }
+    }
+    $endpoints = array();
+    $commands = array();
+    $servers = array();
+    foreach ($all as $name => $url)
+    {
+        $id = preg_replace('/[^A-Za-z0-9_-]/', "_", $name == "cms" ? ($first != "" ? "{$first}_cms" : "finis") : $name);
+        $urlkey = $name == "cms" ? $url . (strpos($url, "?") === false ? "?" : "&") . "apikey=" . urlencode($apikey) : "";
+        $endpoints[] = array("name" => $name, "url" => $url, "url_key" => $urlkey);
+        $commands[] = "claude mcp add --transport http $id \"$url\" --header \"X-API-Key: $apikey\"";
+        $servers[$id] = array("type" => "http", "url" => $url, "headers" => array("X-API-Key" => $apikey));
+    }
+    $json = json_encode(array("mcpServers" => $servers), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    return array("endpoints" => $endpoints, "commands" => implode("\n", $commands), "json" => $json);
 }
 
 /**

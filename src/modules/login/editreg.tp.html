@@ -23,13 +23,30 @@
             <td valign="top">{i18n:API key}</td>
             <td valign="top">
                 <input type="hidden" name="apikey_token" value="{apikey_token}" />
+                <!-- if {apikey_error} --><b style="color:red">{apikey_error}</b><br /><!-- end if {apikey_error} -->
                 <!-- if {apikey_new} -->
-                <input type="text" readonly="readonly" value="{apikey_new}" onclick="this.select()" style="width:100%;max-width:30em" />
+                <div class="apikey-params" style="border:1px solid #9c9;padding:6px;margin:4px 0">
+                    <div><input type="text" readonly="readonly" value="{apikey_new}" onclick="this.select()" style="width:100%;max-width:30em" />
+                    <button type="button" onclick="var i=this.parentNode.querySelector('input');i.select();if(navigator.clipboard)navigator.clipboard.writeText(i.value);else document.execCommand('copy');">{i18n:Copy}</button>
+                    <button type="button" onclick="window.location=window.location.href">{i18n:Hide the key}</button></div>
+                    <!-- if {apikey_message} --><b style="color:green">{apikey_message}</b><br /><!-- end if {apikey_message} -->
+                    <b>{i18n:Parameters}</b>
+                    <table>
+                        <!-- foreach {apikey_endpoints} --><tr><td valign="top">{name}</td><td><code>{url}</code><!-- if {url_key} --><br /><small>{i18n:in the address (clients without custom headers)}:</small> <code style="word-break:break-all">{url_key}</code><!-- end if {url_key} --></td></tr><!-- end foreach {apikey_endpoints} -->
+                        <tr><td valign="top">{i18n:Transport}</td><td><code>Streamable HTTP</code> (<code>type: http</code>)</td></tr>
+                        <tr><td valign="top">{i18n:Header}</td><td><code>X-API-Key: {apikey_new}</code><br /><small>{i18n:or}</small> <code>Authorization: Bearer {apikey_new}</code></td></tr>
+                    </table>
+                    <b>Claude Code</b>
+                    <pre style="white-space:pre-wrap;word-break:break-all">{apikey_commands}</pre>
+                    <b>{i18n:Other MCP clients (JSON configuration)}</b>
+                    <pre>{apikey_json}</pre>
+                    <small>{i18n:the key is personal: whoever has it can act on the site as this user}</small>
+                </div>
                 <!-- end if {apikey_new} -->
-                <!-- if {apikey_message} --><b style="color:green">{apikey_message}</b><br /><!-- end if {apikey_message} -->
+                <!-- if not {apikey_new} --><!-- if {apikey_message} --><b style="color:green">{apikey_message}</b><br /><!-- end if {apikey_message} --><!-- end if not {apikey_new} -->
                 <div>{apikey_status}<!-- if {apikey_exists} --> &middot; {i18n:the key is used with the permissions of your account}<!-- if {apikey_write} --> ({i18n:write tools allowed})<!-- end if {apikey_write} --><!-- end if {apikey_exists} --></div>
                 <small>{i18n:MCP servers}: <!-- foreach {mcp_endpoints} --><code>{url}</code> <!-- end foreach {mcp_endpoints} --></small>
-                <br /><button type="submit" name="generate_apikey" value="1"<!-- if {apikey_exists} --> onclick="return confirm('{i18n:generate a new key? The clients that use the current key will stop working}')"<!-- end if {apikey_exists} -->>{i18n:Generate API key}</button>
+                <br /><!-- if {apikey_viewable} --><button type="submit" name="show_apikey" value="1">&#x1F511; {i18n:Show the key and the parameters}</button> <!-- end if {apikey_viewable} --><button type="submit" name="generate_apikey" value="1"<!-- if {apikey_exists} --> onclick="return confirm('{i18n:generate a new key? The clients that use the current key will stop working}')"<!-- end if {apikey_exists} -->>{i18n:Generate API key}</button>
                 <!-- if {apikey_exists} --><button type="submit" name="revoke_apikey" value="1" onclick="return confirm('{i18n:revoke the key? The clients that use it will stop working}')">{i18n:Revoke API key}</button><!-- end if {apikey_exists} -->
             </td>
         </tr>

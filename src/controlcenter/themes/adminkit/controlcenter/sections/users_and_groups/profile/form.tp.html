@@ -49,13 +49,31 @@
                 <label class="col-sm-2 col-form-label">{i18n:API key}:</label>
                 <div class="col-sm-10">
                     <input type="hidden" name="apikey_token" value="{apikey_token}" />
+                    <!-- if {apikey_error} --><div class="text-danger fw-bold">{apikey_error}</div><!-- end if {apikey_error} -->
                     <!-- if {apikey_new} -->
-                    <input type="text" class="form-control" readonly="readonly" value="{apikey_new}" onclick="this.select()" />
+                    <div class="apikey-params card border-success mb-2"><div class="card-body">
+                        <div class="input-group mb-1"><input type="text" class="form-control" readonly="readonly" value="{apikey_new}" onclick="this.select()" />
+                        <button class="btn btn-outline-secondary" type="button" onclick="var i=this.parentNode.querySelector('input');i.select();if(navigator.clipboard)navigator.clipboard.writeText(i.value);else document.execCommand('copy');">{i18n:Copy}</button>
+                        <button class="btn btn-outline-secondary" type="button" onclick="window.location=window.location.href">{i18n:Hide the key}</button></div>
+                        <!-- if {apikey_message} --><div class="text-success fw-bold mb-2">{apikey_message}</div><!-- end if {apikey_message} -->
+                        <div class="fw-bold mt-2">{i18n:Parameters}</div>
+                        <div class="table-responsive"><table class="table table-sm mb-2"><tbody>
+                            <!-- foreach {apikey_endpoints} --><tr><th style="width:10em">{name}</th><td><code>{url}</code><!-- if {url_key} --><br /><small class="text-muted">{i18n:in the address (clients without custom headers)}:</small> <code style="word-break:break-all">{url_key}</code><!-- end if {url_key} --></td></tr><!-- end foreach {apikey_endpoints} -->
+                            <tr><th>{i18n:Transport}</th><td><code>Streamable HTTP</code> (<code>type: http</code>)</td></tr>
+                            <tr><th>{i18n:Header}</th><td><code>X-API-Key: {apikey_new}</code><br /><small class="text-muted">{i18n:or}</small> <code>Authorization: Bearer {apikey_new}</code></td></tr>
+                        </tbody></table></div>
+                        <div class="fw-bold">Claude Code</div>
+                        <pre style="white-space:pre-wrap;word-break:break-all">{apikey_commands}</pre>
+                        <div class="fw-bold">{i18n:Other MCP clients (JSON configuration)}</div>
+                        <pre>{apikey_json}</pre>
+                        <div class="form-text">{i18n:the key is personal: whoever has it can act on the site as this user}</div>
+                    </div></div>
                     <!-- end if {apikey_new} -->
-                    <!-- if {apikey_message} --><div class="text-success fw-bold">{apikey_message}</div><!-- end if {apikey_message} -->
+                    <!-- if not {apikey_new} --><!-- if {apikey_message} --><div class="text-success fw-bold">{apikey_message}</div><!-- end if {apikey_message} --><!-- end if not {apikey_new} -->
                     <div>{apikey_status}<!-- if {apikey_exists} --> &middot; {i18n:the key is used with the permissions of your account}<!-- if {apikey_write} --> ({i18n:write tools allowed})<!-- end if {apikey_write} --><!-- end if {apikey_exists} --></div>
                     <div class="form-text text-muted">{i18n:MCP servers}: <!-- foreach {mcp_endpoints} --><code>{url}</code> <!-- end foreach {mcp_endpoints} --></div>
                     <div class="mt-2">
+                        <!-- if {apikey_viewable} --><button class="btn btn-primary btn-sm" type="submit" name="show_apikey" value="1">&#x1F511; {i18n:Show the key and the parameters}</button><!-- end if {apikey_viewable} -->
                         <button class="btn btn-secondary btn-sm" type="submit" name="generate_apikey" value="1"<!-- if {apikey_exists} --> onclick="return confirm('{i18n:generate a new key? The clients that use the current key will stop working}')"<!-- end if {apikey_exists} -->>{i18n:Generate API key}</button>
                         <!-- if {apikey_exists} --><button class="btn btn-outline-danger btn-sm" type="submit" name="revoke_apikey" value="1" onclick="return confirm('{i18n:revoke the key? The clients that use it will stop working}')">{i18n:Revoke API key}</button><!-- end if {apikey_exists} -->
                     </div>

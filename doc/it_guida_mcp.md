@@ -16,8 +16,12 @@ controllo e ogni modifica finisce nel log del sito con il nome dell'utente.
   (`apikey_date`) e una copia cifrata con il segreto del sito (`apikey_enc`, AES-256-GCM
   con una chiave ricavata da `misc/secret.key.php`). Chi copia la tabella degli utenti
   senza `misc/secret.key.php` non ottiene chiavi utilizzabili.
-* L'utente genera la chiave con il pulsante **Genera chiave API** della pagina del profilo
-  e la copia subito: all'utente viene mostrata solo quella volta. Una nuova chiave sostituisce la
+* L'utente genera la chiave con il pulsante **Genera chiave API** della pagina del profilo;
+  il pulsante **Mostra la chiave e i parametri** la mostra di nuovo in seguito (decifrata da
+  `apikey_enc`, ogni visualizzazione finisce nel log) con i parametri dei client: gli
+  endpoint, gli header, l'indirizzo del CMS con `&apikey=`, i comandi `claude mcp add` e la
+  configurazione JSON. Una chiave creata quando se ne salvava solo l'hash non si può
+  mostrare: va generata una nuova. Una nuova chiave sostituisce la
   precedente; il pulsante **Revoca chiave API** la elimina. Le pagine del profilo:
   * pannello di controllo: **Utenti e gruppi > Modifica profilo** (`index.php?fnapp=controlcenter&opt=users_and_groups/profile`)
   * front end: **Modifica profilo** del modulo login (`index.php?mod=login&op=editreg`)

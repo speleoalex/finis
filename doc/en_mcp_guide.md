@@ -16,8 +16,12 @@ written in the site log with the user name.
   and a copy encrypted with the site secret (`apikey_enc`, AES-256-GCM with a key derived
   from `misc/secret.key.php`). Whoever copies the users table without
   `misc/secret.key.php` gets no usable key.
-* The user generates the key with the **Generate API key** button of the profile page and
-  copies it at once: the user sees it only that time. A new key replaces the previous one; the
+* The user generates the key with the **Generate API key** button of the profile page; the
+  **Show the key and the parameters** button shows it again later (decrypted from
+  `apikey_enc`, every key shown is logged) with the parameters of the clients: the
+  endpoints, the headers, the CMS address with `&apikey=`, the `claude mcp add` commands
+  and the JSON configuration. A key created when only its hash was stored cannot be shown:
+  generate a new one. A new key replaces the previous one; the
   **Revoke API key** button removes it. The profile pages:
   * control center: **Users and groups > Edit profile** (`index.php?fnapp=controlcenter&opt=users_and_groups/profile`)
   * front end: **Edit profile** of the login module (`index.php?mod=login&op=editreg`)

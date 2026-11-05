@@ -732,9 +732,14 @@ user, logged; generate for a user; revoke; allow the write tools). A new passwor
     `FN_UserCanWriteByApiKey($user)` (administrators and the group `$_FN['mcp_write_group']`,
     default `mcp_write`; `FN_McpWriteGroup()`, `FN_SetUserGroup()`)
 *   `FN_ProfileApiKey($user, &$tplvars)`: fills `{apikey_allowed}`, `{apikey_exists}`,
-    `{apikey_status}`, `{apikey_new}`, `{apikey_message}`, `{apikey_token}`, `{apikey_write}`,
-    `{mcp_url}`, `{mcp_endpoints}` for the profile templates and handles the
+    `{apikey_status}`, `{apikey_new}` (key generated or shown now), `{apikey_shown}`,
+    `{apikey_viewable}` (the "show" button), `{apikey_message}`, `{apikey_error}`,
+    `{apikey_token}`, `{apikey_write}`, `{mcp_url}`, `{mcp_endpoints}` and, with the key on
+    the page, `{apikey_endpoints}` (name, url, url_key), `{apikey_commands}`, `{apikey_json}`
+    (HTML escaped) for the profile templates and handles the `show_apikey` /
     `generate_apikey` / `revoke_apikey` POST
+*   `FN_ApiKeyClientParameters($apikey)`: endpoints with the address carrying the key,
+    `claude mcp add` commands and JSON configuration of the MCP clients
 *   `FN_GetMcpEndpoints()`: the CMS endpoint plus `$_FN['mcp_endpoints']` (name => url) of
     the application; `FN_ApiKeyFormToken()`
 *   `FN_EnsureUserApiKeyField()`: adds the fields to an old `fn_users.php` definition
