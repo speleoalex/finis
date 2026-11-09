@@ -14,6 +14,23 @@ class xmetadbfrm_field_datetime
         $html="";
         $attributes=isset($params["htmlattributes"]) ? $params["htmlattributes"] : "";
 
+        // Use the browser's native date picker for fields that opt in. The
+        // stored value remains a datetime; only the date is edited here.
+        if (!empty($params['frm_html5date']))
+        {
+            $value=isset($params['value']) ? trim($params['value']) : "";
+            if (preg_match('/^([0-9]{4}-[0-9]{2}-[0-9]{2})/', $value, $matches))
+                $value=$matches[1];
+            elseif ($value != "" && ($timestamp=strtotime($value)) !== false)
+                $value=date('Y-m-d', $timestamp);
+            else
+                $value="";
+            $name=htmlspecialchars($params['name'], ENT_QUOTES, 'UTF-8');
+            $value=htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+            $tooltip=($params['frm_help'] != "") ? " title=\"".htmlspecialchars($params['frm_help'], ENT_QUOTES, 'UTF-8')."\"" : "";
+            return "<input type=\"date\" $attributes autocomplete=\"off\"$tooltip name=\"$name\" id=\"$name\" value=\"$value\" />";
+        }
+
         if ($idcalendar == 1)
         {
             $html.="
