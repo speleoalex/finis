@@ -2895,6 +2895,8 @@ set_changed();
                 }
             }
         }
+        if (!empty($config['title_function']) && function_exists($config['title_function']))
+            $titlename = call_user_func($config['title_function'], $data, $titlename);
         $tplvars['item_title'] = FN_FixEncoding($titlename);
         //----title--------------------------------<
         // Raw record values, usable by the list template as {value_fieldname}
