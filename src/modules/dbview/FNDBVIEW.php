@@ -2504,13 +2504,8 @@ set_changed();
                 $orderby_item = array();
                 if (!isset($_table_form->xmltable->fields[$o]))
                     continue;
-                $tt = "frm_{$_FN['lang']}";
-                if (isset($_table_form->xmltable->fields[$o]->$tt))
-                    $no = $_table_form->xmltable->fields[$o]->$tt;
-                elseif (isset($_table_form->xmltable->fields[$o]->frm_i18n)) {
-                    $no = FN_Translate($_table_form->xmltable->fields[$o]->frm_i18n);
-                } else
-                    $no = $_table_form->xmltable->fields[$o]->title;
+                // same label as the search filters (falls back to the translated field name)
+                $no = isset($_table_form->formvals[$o]['title']) ? $_table_form->formvals[$o]['title'] : $o;
                 if ($order == $o)
                     $s = "selected=\"selected\"";
                 else
