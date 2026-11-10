@@ -1665,13 +1665,14 @@ set_changed();
                                             $value = $row[$field['name']];
 
                                             if ($field['frm_type'] == "image") {
-                                                $image = $table->xmltable->get_file($row, $field['name']);
+                                                // the table builds the thumbnail address: it may be
+                                                // an opaque link (protected files), not a path to rewrite
+                                                $image = $table->xmltable->get_thumb($row, $field['name']);
                                                 if ($image != "") {
                                                     $himage = 16;
                                                     if (isset($params['imagesize'])) {
                                                         $himage = $params['imagesize'];
                                                     }
-                                                    $image = dirname($image) . "/thumbs/" . basename($image) . ".jpg";
                                                     $vimage = "<img src=\"" . $image . "\" height=\"$himage\" />";
                                                     $value = "";
                                                 }
