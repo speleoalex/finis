@@ -1636,6 +1636,9 @@ select_allcke = function(el){
 
         $vars['txt_rsults'] = $position . "/" . $total;
         $vars['txt_num_records'] = $position . "/" . $total;
+        // same wording as the list ("search results 1 - 12 of 1199"); empty when the
+        // record is not among the current results (e.g. a search that excludes it)
+        $vars['txt_position'] = ($position > 0 && $total > 0) ? FN_Translate("search results", "Aa") . " $position " . FN_i18n("of") . " $total" : "";
         $vars['linkusermodify'] = $linkusermodify;
         $vars['linkmodify'] = $linkmodify;
         $vars['linklist'] = $linklist;
@@ -1718,7 +1721,7 @@ select_allcke = function(el){
         //-----view/modify/history/users buttons ----------------------------------<
         $ret['user_options'] = $user_options;
         $ret['items'] = $this->ToolbarItems($ret);
-        $ret['toolbar_html'] = $this->ToolbarHtml($ret['items']);
+        $ret['toolbar_html'] = $this->ToolbarHtml($ret['items'], $ret['txt_position']);
         return $ret;
     }
 
@@ -1780,16 +1783,17 @@ select_allcke = function(el){
      * Toolbar html from toolbar.tp.html (sections/<mod>/, then the theme, then the module)
      *
      * @param array $items from ToolbarItems()
+     * @param string $txt_position "search results N of TOTAL", empty to hide it
      * @return string
      */
-    function ToolbarHtml($items)
+    function ToolbarHtml($items, $txt_position = "")
     {
         global $_FN;
         $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/toolbar.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/toolbar.tp.html" : FN_FromTheme("{$this->moddir}/toolbar.tp.html", false);
         if (!file_exists($tplfile)) {
             return "";
         }
-        return FN_TPL_ApplyTplFile($tplfile, array("items" => $items));
+        return FN_TPL_ApplyTplFile($tplfile, array("items" => $items, "txt_position" => $txt_position));
     }
 
     /**
