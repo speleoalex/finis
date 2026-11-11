@@ -69,32 +69,56 @@ trait FNDBVIEWCRUD
             }
 
             if ($toupdate) {
-                $newvalues['recordupdate'] = XMETATable::now();
-
-                // History management
-                if ($config['enable_history']) {
-                    $this->saveRecordHistory($tablename, $Table, $oldvalues);
-                }
-
-                $Table->UpdateRecord($newvalues, $pkold);
-                $this->InvalidateCache($tablename);
-                $this->ViewCacheInvalidate($_FN['mod'], $pkold);
-                if (isset($newvalues[$Table->xmltable->primarykey]) && $newvalues[$Table->xmltable->primarykey] != $pkold)
-                    $this->ViewCacheInvalidate($_FN['mod'], $newvalues[$Table->xmltable->primarykey]);
-                FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename modified.");
+                $newvalues = $this->saveRecordChanges($Table, $tablename, $oldvalues, $newvalues, $pkold);
                 FN_Alert(FN_Translate("record updated"));
             }
         }
 
-        // Callback function on update
+        $this->runUpdateHook($newvalues);
+
+        return $this->EditRecordForm($newvalues[$Table->xmltable->primarykey], $Table, $errors);
+    }
+
+    /**
+     * Writes the changes of a record: update date, previous version in the
+     * history, cache invalidation and log. Used by the edit form and by the
+     * accepted proposals, so both leave the same traces.
+     * @param object $Table xmetadb_frm of the table
+     * @param string $tablename
+     * @param array $oldvalues the stored record
+     * @param array $newvalues values in form format (all the fields or only the changed ones)
+     * @param string $pkold primary key of the stored record
+     * @return array $newvalues with recordupdate
+     */
+    protected function saveRecordChanges($Table, $tablename, $oldvalues, $newvalues, $pkold)
+    {
+        global $_FN;
+        $newvalues['recordupdate'] = XMETATable::now();
+        if ($this->config['enable_history']) {
+            $this->saveRecordHistory($tablename, $Table, $oldvalues);
+        }
+        $Table->UpdateRecord($newvalues, $pkold);
+        $this->InvalidateCache($tablename);
+        $this->ViewCacheInvalidate($_FN['mod'], $pkold);
+        if (isset($newvalues[$Table->xmltable->primarykey]) && $newvalues[$Table->xmltable->primarykey] != $pkold)
+            $this->ViewCacheInvalidate($_FN['mod'], $newvalues[$Table->xmltable->primarykey]);
+        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename modified.");
+        return $newvalues;
+    }
+
+    /**
+     * Calls the function_on_update callback of the section, if any
+     * @param array $newvalues
+     */
+    protected function runUpdateHook($newvalues)
+    {
+        global $_FN;
         if (isset($_FN['modparams'][$_FN['mod']]['editorparams']['table']['function_on_update'])) {
             $function = $_FN['modparams'][$_FN['mod']]['editorparams']['table']['function_on_update'];
             if (function_exists($function)) {
                 $function($newvalues);
             }
         }
-
-        return $this->EditRecordForm($newvalues[$Table->xmltable->primarykey], $Table, $errors);
     }
 
     /**

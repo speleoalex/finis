@@ -15,6 +15,7 @@ require_once __DIR__ . '/traits/FNDBVIEWCRUD.php';
 require_once __DIR__ . '/traits/FNDBVIEWExport.php';
 require_once __DIR__ . '/traits/FNDBVIEWUtils.php';
 require_once __DIR__ . '/traits/FNDBVIEWViewCache.php';
+require_once __DIR__ . '/traits/FNDBVIEWProposals.php';
 
 /**
  * Classe FNDBVIEW - Gestione visualizzazione database
@@ -24,6 +25,7 @@ require_once __DIR__ . '/traits/FNDBVIEWViewCache.php';
  * - FNDBVIEWCRUD: operazioni Create, Read, Update, Delete
  * - FNDBVIEWExport: esportazione dati (CSV, Sitemap, RSS)
  * - FNDBVIEWUtils: utility varie (MakeLink, SecureHtml, etc.)
+ * - FNDBVIEWProposals: changes proposed by users who cannot edit a record
  */
 class FNDBVIEW
 {
@@ -32,6 +34,7 @@ class FNDBVIEW
     use FNDBVIEWExport;
     use FNDBVIEWUtils;
     use FNDBVIEWViewCache;
+    use FNDBVIEWProposals;
 
     var $config;
     var $moddir;
@@ -220,6 +223,9 @@ class FNDBVIEW
 		<type>string</type>
 	</field>", $str_table);
             FN_Write($str_table, $_FN['datadir'] . "/" . $_FN['database'] . "/{$tablename}_versions.php");
+        }
+        if (!empty($config['enable_proposals'])) {
+            $this->InitProposalsTable();
         }
         //------------------- tabella delle statistiche -------------------------
         if ($config['enable_statistics'] == 1) {
@@ -1315,6 +1321,9 @@ class FNDBVIEW
         $htmlView = $Table->HtmlShowView($Table->GetRecordTranslatedByPrimarykey($id_record));
         if ($viewcache)
             $this->ViewCacheSet($_FN['mod'], $id_record, $htmlView);
+        // after the cache: the notice depends on the user
+        if (!$inner && $shownavigatebar)
+            $htmlView = $this->ProposalsNotice($row, $Table) . $htmlView;
         return $htmlView;
 
         //------------------------------visualizzazione--------------------------------<
@@ -1709,6 +1718,13 @@ select_allcke = function(el){
             $vars['active'] = ($op == "users");
             $user_options['users'] = $vars;
         }
+        elseif ($this->CanProposeRecord($row)) {
+            $vars['title'] = FN_Translate("propose a change");
+            $vars['image'] = FN_FromTheme("images/modify.png");
+            $vars['link'] = $this->MakeLink(array("op" => "propose", "id" => $id_record), "&");
+            $vars['active'] = ($op == "propose");
+            $user_options['propose'] = $vars;
+        }
         /*
           if ($config['enable_offlineform'])
           {
@@ -1744,6 +1760,7 @@ select_allcke = function(el){
             "view" => "ⓘ",
             "history" => "↺",
             "edit" => "✎",
+            "propose" => "✎",
             "users" => "👥",
         );
         if (!empty($_FN['dbview_toolbar_icons']) && is_array($_FN['dbview_toolbar_icons'])) {
@@ -1821,12 +1838,7 @@ select_allcke = function(el){
         // === PROTEZIONE CSRF (fix 2026-07): la cancellazione avviene SOLO via POST con token valido.
         // Su GET (o senza token) mostra una pagina di conferma con form POST: un bot/prefetcher che
         // segue il link di cancellazione NON elimina nulla. Vedi report assistance 2026-07-15 §8.1. ===
-        $secret = FN_GetUserSessionValue('fn_csrf_secret');
-        if (empty($secret)) {
-            $secret = bin2hex(function_exists('random_bytes') ? random_bytes(16) : pack('N*', mt_rand(), mt_rand(), mt_rand(), mt_rand()));
-            FN_SetUserSessionValue('fn_csrf_secret', $secret);
-        }
-        $expected = hash_hmac('sha256', "del|" . $tablename . "|" . $id_record, $secret);
+        $expected = $this->CsrfToken("del|" . $tablename . "|" . $id_record);
         $isPost = (isset($_SERVER['REQUEST_METHOD']) && strtoupper($_SERVER['REQUEST_METHOD']) === 'POST');
         $tokenOk = $isPost && isset($_POST['confirmdelete']) && isset($_POST['fn_csrf'])
             && hash_equals($expected, (string) $_POST['fn_csrf']);
@@ -1898,9 +1910,11 @@ select_allcke = function(el){
      * @param string $id_record
      * @param object $Table
      * @param array $errors
-     * @return type 
+     * @param bool $reloadDataFromDb
+     * @param bool $proposing true: form of a change proposed by a user who cannot edit the record
+     * @return string
      */
-    function EditRecordForm($id_record, $Table, $errors = array(), $reloadDataFromDb = false)
+    function EditRecordForm($id_record, $Table, $errors = array(), $reloadDataFromDb = false, $proposing = false)
     {
         global $_FN;
 
@@ -1911,11 +1925,14 @@ select_allcke = function(el){
         //--config--<
         $tb = FN_XMDBTable($tablename);
         $row = $tb->GetRecordByPk($id_record);
-        if (!$this->CanUpdateRecord($row))
+        if ($proposing ? !$this->CanProposeRecord($row) : !$this->CanUpdateRecord($row))
             return FN_Translate("you may not do that");
         $tpvars['navigationbar'] = $this->Toolbar($config, $row);
 
         $html = "";
+        if ($proposing) {
+            $html .= "<div class=\"alert alert-info\">" . FN_Translate("your changes will be sent for review to the users who manage this record") . "</div>";
+        }
         $html .= "
 <script type=\"text/javascript\">
 //<!--
@@ -1976,7 +1993,7 @@ set_changed();
         $tplvars['url_offlineform'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=offlineform&id=$id_record");
         $tplvars['url_offlineforminsert'] = FN_RewriteLink("index.php?mod={$_FN['mod']}&op=offlineform");
 
-        $tpvars['formaction'] = $this->MakeLink(array("op" => "updaterecord", "id" => $id_record), "&amp;"); //index.php?mod={$_FN['mod']}&amp;op=updaterecord&amp;id=$id_record
+        $tpvars['formaction'] = $this->MakeLink(array("op" => $proposing ? "propose" : "updaterecord", "id" => $id_record), "&amp;");
         $tpvars['urlcancel'] = $this->MakeLink(array("op" => null, "id" => null), "&");
 
 
@@ -2001,8 +2018,24 @@ set_changed();
                 $nv = $row;
             else
                 $nv = $Table->getbypost();
+            // the form of a proposal starts from the pending proposal of the user
+            if ($proposing && count($_POST) == 0)
+                $nv = $this->PendingProposalValues($row, $tablename);
+            if ($proposing) {
+                // the form object is shared in the request: hide the fields only for this form
+                $formvals = $Table->formvals;
+                $this->HideNonProposalFields($Table);
+            }
             $html .= $Table->HtmlShowUpdateForm($id_record, FN_IsAdmin(), $nv, $errors);
+            if ($proposing)
+                $Table->formvals = $formvals;
             $pk = $Table->xmltable->primarykey;
+        }
+        if ($proposing) {
+            // no linked tables and no "copy and add new": only the fields of the record
+            $link = $this->MakeLink(array("op" => "view", "id" => $id_record));
+            $html .= "<br /><button type=\"button\" onclick=\"window.location='$link'\">" . FN_Translate("exit and view") . "</button>";
+            return $html;
         }
 
         //editor inner tables ----------------------------------------------------->

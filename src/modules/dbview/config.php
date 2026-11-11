@@ -72,6 +72,10 @@ $config['permissions_records_groups'] = "dbview_rw,dbview_ro";
 $config['permissions_records_edit_groups'] = "dbview_rw,dbview_ro";
 //[i18n]enables data history {1=yes,0=no}
 $config['enable_history'] = "0";
+//[i18n]logged-in users can propose changes to the records they can view {1=yes,0=no}
+$config['enable_proposals'] = "0";
+//[i18n]sends an e-mail on new proposed changes and on their review (the site notifications are always sent) {1=yes,0=no}
+$config['proposals_mail'] = "1";
 //[i18n]enables export {1=yes,0=no}
 $config['enable_export'] = "0";
 //$appendquery = "";

@@ -35,6 +35,21 @@ trait FNDBVIEWUtils
      * @param int $onlyquery
      * @return string
      */
+    /**
+     * Token that binds a POST to the session of the user and to one action
+     * @param string $action e.g. "del|<table>|<id>"
+     * @return string
+     */
+    function CsrfToken($action)
+    {
+        $secret = FN_GetUserSessionValue('fn_csrf_secret');
+        if (empty($secret)) {
+            $secret = bin2hex(function_exists('random_bytes') ? random_bytes(16) : pack('N*', mt_rand(), mt_rand(), mt_rand(), mt_rand()));
+            FN_SetUserSessionValue('fn_csrf_secret', $secret);
+        }
+        return hash_hmac('sha256', $action, $secret);
+    }
+
     function MakeLink($params = false, $sep = "&amp;", $norewrite = false, $onlyquery = 0)
     {
         global $_FN;

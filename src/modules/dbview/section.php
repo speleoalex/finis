@@ -196,6 +196,15 @@ else
                     $shownavigatebar = false;
                 $html .= $dbview->ViewRecordPage($id, false, $shownavigatebar); // visualizza la pagina col record
                 break;
+            case "propose" : // change proposed by a user who cannot edit the record
+                if (isset($_POST['xmetadbsave']))
+                    $html .= $dbview->SaveProposal($Table);
+                else
+                    $html .= $dbview->EditRecordForm($id, $Table, array(), false, true);
+                break;
+            case "proposal" : // accept or discard a proposed change
+                $html .= $dbview->ReviewProposal($id, $Table);
+                break;
             case "request" :
                 $html .= $dbview->Request($id);
                 break;

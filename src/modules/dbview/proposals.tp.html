@@ -1,0 +1,33 @@
+<section class="alert alert-warning dbview-proposals" aria-label="{i18n:proposed changes}">
+    <!-- foreach {proposals} -->
+    <form method="post" action="{action}" class="dbview-proposal mb-3">
+        <input type="hidden" name="proposal" value="{id}" />
+        <input type="hidden" name="fn_csrf" value="{token}" />
+        <p class="mb-2"><strong>{i18n:change proposed by} {user}</strong> - {date}</p>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">{i18n:accept the field}</th>
+                        <th scope="col">{i18n:field}</th>
+                        <th scope="col">{i18n:current value}</th>
+                        <th scope="col">{i18n:proposed value}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- foreach {fields} -->
+                    <tr>
+                        <td><input type="checkbox" class="form-check-input" style="width:1.6em;height:1.6em" name="proposal_fields[]" value="{name}" id="{inputid}" checked="checked" /></td>
+                        <td><label for="{inputid}">{title}</label><!-- if {changed} --><br /><small class="text-danger">{i18n:the record changed after the proposal}</small><!-- end if {changed} --></td>
+                        <td>{current}</td>
+                        <td>{proposed}</td>
+                    </tr>
+                    <!-- end foreach {fields} -->
+                </tbody>
+            </table>
+        </div>
+        <button type="submit" name="action" value="accept" class="btn btn-primary">{i18n:accept the selected fields}</button>
+        <button type="submit" name="action" value="reject" class="btn btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:discard the whole proposal?}">{i18n:discard all}</button>
+    </form>
+    <!-- end foreach {proposals} -->
+</section>
