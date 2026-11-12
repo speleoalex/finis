@@ -73,7 +73,7 @@ trait FNDBVIEWProposals
 
     /**
      * Fields a proposal may change: the visible data fields, without primary key,
-     * files, admin-only, read-only and system fields
+     * files, admin-only, read-only, system fields and the fields of proposals_exclude_fields
      * @param object $Table xmetadb_frm
      * @return array field names
      */
@@ -81,9 +81,10 @@ trait FNDBVIEWProposals
     {
         $system = array("username", "userupdate", "recordinsert", "recordupdate", "recorddeleted",
             "groupview", "groupinsert", "view", "insert", "update");
+        $excluded = array_map("trim", explode(",", isset($this->config['proposals_exclude_fields']) ? $this->config['proposals_exclude_fields'] : ""));
         $fields = array();
         foreach ($Table->formvals as $name => $field) {
-            if (!empty($field['primarykey']) || in_array($name, $system, true) || xmetadb_is_file_field($field))
+            if (!empty($field['primarykey']) || in_array($name, $system, true) || in_array($name, $excluded, true) || xmetadb_is_file_field($field))
                 continue;
             if (isset($field['frm_show']) && ($field['frm_show'] === "0" || $field['frm_show'] === 0 || $field['frm_show'] === false))
                 continue;

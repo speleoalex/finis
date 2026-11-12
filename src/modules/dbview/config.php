@@ -76,6 +76,8 @@ $config['enable_history'] = "0";
 $config['enable_proposals'] = "0";
 //[i18n]sends an e-mail on new proposed changes and on their review (the site notifications are always sent) {1=yes,0=no}
 $config['proposals_mail'] = "1";
+//[i18n]fields that a proposed change may not modify (comma separated)
+$config['proposals_exclude_fields'] = "";
 //[i18n]enables export {1=yes,0=no}
 $config['enable_export'] = "0";
 //$appendquery = "";

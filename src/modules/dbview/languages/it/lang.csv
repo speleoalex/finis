@@ -118,6 +118,7 @@
 "no image","nessuna immagine"
 "logged-in users can propose changes to the records they can view {1=yes,0=no}","gli utenti registrati possono proporre modifiche alle schede che vedono {1=si,0=no}"
 "sends an e-mail on new proposed changes and on their review (the site notifications are always sent) {1=yes,0=no}","invia una mail per le nuove proposte di modifica e per il loro esito (le notifiche del sito sono sempre inviate) {1=si,0=no}"
+"fields that a proposed change may not modify (comma separated)","campi che una proposta di modifica non può cambiare (separati da virgola)"
 "propose a change","proponi una modifica"
 "your changes will be sent for review to the users who manage this record","le modifiche non vengono salvate subito: sono inviate a chi gestisce la scheda, che può accettarle o scartarle"
 "no changes compared to the record","nessuna modifica rispetto alla scheda"

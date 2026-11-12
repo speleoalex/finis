@@ -2000,8 +2000,8 @@ set_changed();
         //$esc =uniqid("_");
         //$template =str_replace("if {",$esc,$template);
         $template = FN_TPL_ApplyTplString($template, $tpvars);
-        //$template =str_replace($esc,"if {",$template); 
-        $Table->SetlayoutTemplate($template);    //----template---------<    
+        //$template =str_replace($esc,"if {",$template);
+        $Table->SetlayoutTemplate($this->FormTemplateWithoutAutofill($template));    //----template---------<
         $delinner = false;
         if ($Table->innertables) {
             foreach ($Table->innertables as $k => $v) {
@@ -2165,10 +2165,22 @@ set_changed();
     }
 
     /**
+     * Turns off the browser autofill on the record form: the fields are catalogue data,
+     * not personal data, and the browser offered addresses, passwords and payment cards
+     * (on mobile Chrome a bar with these buttons above the keyboard)
+     * @param string $template form template, the first <form> tag is the record form
+     * @return string
+     */
+    protected function FormTemplateWithoutAutofill($template)
+    {
+        return preg_replace('/<form\b(?![^>]*\bautocomplete=)/i', '<form autocomplete="off"', $template, 1);
+    }
+
+    /**
      *
      * @global array $_FN
      * @param object $Table
-     * @param array $errors 
+     * @param array $errors
      */
     function NewRecordForm($Table, $errors = array())
     {
@@ -2189,7 +2201,7 @@ set_changed();
         //$_TPL_DEBUG=1;
         $template = FN_TPL_ApplyTplString($template, $tpvars);
         //$template =str_replace($esc,"if {",$template);
-        $Table->SetlayoutTemplate($template);
+        $Table->SetlayoutTemplate($this->FormTemplateWithoutAutofill($template));
         $html = "";
         //----template---------<
         //----gestione esci senza salvare ------->
