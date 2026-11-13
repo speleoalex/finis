@@ -15,3 +15,16 @@ function dbview_MenuSectionIsVisible($section)
     $dbview = new FNDBVIEW(FN_LoadConfig("modules/dbview/config.php", $section['id']));
     return $dbview->CanViewRecords();
 }
+
+/**
+ * Sitemap hook (FN_GetModuleMenuFunction()): the groups of the section
+ * settings that may view the records, "" when everyone may.
+ *
+ * @param array $section values of the section (FN_GetSections())
+ * @return string
+ */
+function dbview_SectionViewRestriction($section)
+{
+    $config = FN_LoadConfig("modules/dbview/config.php", $section['id']);
+    return isset($config['groupview']) ? $config['groupview'] : "";
+}

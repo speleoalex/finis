@@ -429,6 +429,7 @@ var syncdiv = function (id)
         $htmlgrid.=FNCC_print_node("",$sections,$tmp);
         $htmlgrid.="<tr id=\"__last\" ><td colspan=\"8\"></td></tr>";
         $htmlgrid.="</tbody></table>";
+        $htmlgrid.="<p style=\"font-size:12px;margin-top:8px\">&#128274; ".FN_Translate("level")." &nbsp; &#128272; ".FN_Translate("groups for viewing")." &nbsp; &#128271; ".FN_Translate("permissions inside the page type")." &nbsp; &#128161; ".FN_Translate("hidden")."</p>";
         $htmlgrid.="</div>";
         $htmlgrid.="<input type=\"hidden\" id=\"sectionstring\" name=\"sectionstring\" size=\"200\"  value=\"\"/>";
         $htmlgrid.="<br /><p><button type=\"submit\">".FN_i18n("save")."</button></p>";
@@ -743,6 +744,13 @@ function FNCC_print_section($section,$level)
         if ($section['group_view']!== "")
             $t="&#128272;";
     }
+    // permissions inside the page type (module settings, e.g. the groups of a dbview section)
+    $restriction="";
+    $function=FN_GetModuleMenuFunction($section['type'],"SectionViewRestriction");
+    if ($function!= "")
+        $restriction=htmlspecialchars($function($section));
+    if ($restriction!= "")
+        $t.="<span title=\"".FN_Translate("permissions inside the page type").": $restriction\">&#128271;</span>";
     //-----hidden------>
     $ck=empty($section['hidden']) ? "" : "checked=checked";
     $html.="<td style=\"text-align:center\">
@@ -799,7 +807,7 @@ function FNCC_print_section($section,$level)
 
 
     $html.="<td style=\"text-align:left;border-left:1px solid #dadada\">{$section['level']}</td>";
-    $html.="<td style=\"text-align:left;border-left:1px solid #dadada\">{$section['group_view']}</td>";
+    $html.="<td style=\"text-align:left;border-left:1px solid #dadada\">{$section['group_view']}".($restriction!= "" ? " &#128271;&nbsp;$restriction" : "")."</td>";
     $html.="<td style=\"text-align:left;border-left:1px solid #dadada\">{$section['group_edit']}</td>";
 
     $end=$start="";

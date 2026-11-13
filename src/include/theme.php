@@ -980,10 +980,36 @@ function FN_GetMenuTree($parent = "")
 }
 
 /**
+ * Name of the function <type>_<name> that a module (page type) defines in the
+ * file menu.php of its folder, "" when the module has none. Hooks:
+ * - <type>_MenuSectionIsVisible($section): false hides the section from the
+ *   menu of the current user;
+ * - <type>_SectionViewRestriction($section): who may view the content
+ *   according to the module settings (e.g. the groups), "" when anyone who
+ *   can open the section; shown by the sitemap of the control center.
+ *
+ * @param string $type type of the section
+ * @param string $name name of the hook
+ * @return string
+ */
+function FN_GetModuleMenuFunction($type, $name)
+{
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $type))
+        return "";
+    $function = "{$type}_{$name}";
+    if (!function_exists($function))
+    {
+        $path = FN_GetModulePath($type);
+        if ($path && file_exists("$path/menu.php"))
+            include_once "$path/menu.php";
+    }
+    return function_exists($function) ? $function : "";
+}
+
+/**
  * Whether a menu entry leads to content the user may see. FN_GetSections()
- * checks the permissions of the section; a module with rules of its own adds
- * them with a function <type>_MenuSectionIsVisible($section) in the file
- * menu.php of its folder. Without it the menu would list sections that
+ * checks the permissions of the section, the module its own rules
+ * (FN_GetModuleMenuFunction()). Without it the menu would list sections that
  * answer "you don't have permission".
  *
  * @param array $section values of the section (FN_GetSections())
@@ -993,17 +1019,8 @@ function FN_MenuSectionIsVisible($section)
 {
     if (FN_IsAdmin())
         return true;
-    $type = isset($section['type']) ? $section['type'] : "";
-    if (!preg_match('/^[A-Za-z0-9_]+$/', $type))
-        return true;
-    $function = "{$type}_MenuSectionIsVisible";
-    if (!function_exists($function))
-    {
-        $path = FN_GetModulePath($type);
-        if ($path && file_exists("$path/menu.php"))
-            include_once "$path/menu.php";
-    }
-    return !function_exists($function) || $function($section);
+    $function = FN_GetModuleMenuFunction(isset($section['type']) ? $section['type'] : "", "MenuSectionIsVisible");
+    return $function == "" || $function($section);
 }
 
 /**
