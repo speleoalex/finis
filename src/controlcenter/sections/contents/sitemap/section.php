@@ -133,7 +133,7 @@ else
 //-------sitemap--------------------------------------------------------------->
     if (!$newsection)
     {
-        $img="<img title=\"\" alt=\"\" src=\"".FN_FromTheme("images/add.png")."\" />";
+        $img="<span aria-hidden=\"true\">&#x2795;</span>";
         if (empty($_GET["pk___xdb_fn_sections"]))
             echo "$img <a href=\"?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;newsection=1\">".FN_i18n("create a new page")."</a>";
         $htmlgrid="";
@@ -347,6 +347,7 @@ var syncdiv = function (id)
 		{
 			var span = document.getElementById('span_'+divitems[i].id );
 			var left = parseInt(  span.style.paddingLeft.replace('px',''))/30;
+			span.innerHTML = left > 0 ? '&#x2514;' : '';
 			str = str + sep + divitems[i].id+':'+left;
 			var ck = '0';
 			if ( document.getElementById('hide_'+divitems[i].id ).checked)
@@ -646,10 +647,10 @@ var syncdiv = function (id)
                         FN_UpdateDefaultXML($nv);
                         echo FN_i18n("the page has been created");
                         echo "<br />";
-                        echo "<br /><a href=\"{$_FN['controlcenter']}?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt\">".FN_Translate("next")."</a> <img style=\"vertical-align:middle\" src=\"images/right.png\" alt=\"\"/>";
+                        echo "<br /><a href=\"{$_FN['controlcenter']}?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt\">".FN_Translate("next")."</a> &#x27A1;";
                         if ($newvalues['type']!= "" && file_exists("{$_FN['src_finis']}/modules/{$newvalues['type']}/config.php"))
                         {
-                            echo "<br /><a href=\"{$_FN['controlcenter']}?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;op___xdb_fn_sections=insnew&amp;pk___xdb_fn_sections={$newvalues['id']}\">".FN_Translate("module options that is loaded in this page")."</a> <img style=\"vertical-align:middle\" src=\"images/right.png\" alt=\"\"/>";
+                            echo "<br /><a href=\"{$_FN['controlcenter']}?fnapp=controlcenter&mod={$_FN['mod']}&amp;opt=$opt&amp;op___xdb_fn_sections=insnew&amp;pk___xdb_fn_sections={$newvalues['id']}\">".FN_Translate("module options that is loaded in this page")."</a> &#x27A1;";
                         }
                         FN_Log("created new section:{$newvalues['id']}");
                         FN_OnSitemapChange();
@@ -755,12 +756,10 @@ function FNCC_print_section($section,$level)
     $html.="<td>";
     $link="{$_FN['controlcenter']}?fnapp=controlcenter&mod={$section['id']}&edit=sections/{$section['id']}/section.php&opt=$opt";
     //   window.open("mioFile.htm","","width=" + w + ",height=" + h + ",top=" + t + ",left=" + l);
-    // $html .= "<img style=\"cursor:pointer;vertical-align:middle\" alt=\"".FN_i18n("preview")."\" onclick=\"preview=window.open('".FN_RewriteLink("index.php?mod={$section['id']}")."','preview','top=10,left=10,scrollbars=yes');preview.focus();\" src=\"images/mime/web.png\" title=\"".FN_i18n("preview")."\" />";
     $border="border:1px solid #ffffff";
     if (file_exists($_FN['src_application']."/sections/{$section['id']}/section.php"))
         $border="border:1px solid #00ff00";
-    FN_PathSite("images/delete.png");
-    $html.="<img style=\"vertical-align:middle;cursor:pointer\" onclick=\"if(confirm ('".FN_i18n("you want to permanently delete this page?")."')){window.location='$linkdelete'} else {return false;}\" src=\"images/delete.png\" /></span>";
+    $html.="<span style=\"cursor:pointer;vertical-align:middle;font-size:16px;line-height:1\" title=\"".FN_i18n("delete")."\" onclick=\"if(confirm ('".FN_i18n("you want to permanently delete this page?")."')){window.location='$linkdelete'} else {return false;}\">&#x274C;</span>";
     $html.="&nbsp;&nbsp;<a style=\"height:22px;cursor:pointer;vertical-align:middle;$border\" alt=\"\" onclick=\"window.location='$link'\">PHP</a>";
     foreach($_FN['listlanguages'] as $l)
     {
@@ -768,31 +767,31 @@ function FNCC_print_section($section,$level)
         if (file_exists($_FN['src_application']."/sections/{$section['id']}/section.$l.html"))
             $border="border:1px solid #00ff00";
         $link="{$_FN['controlcenter']}?fnapp=controlcenter&mod={$section['id']}&edit=sections/{$section['id']}/section.$l.html&opt=$opt";
-        $html.=" <img style=\"cursor:pointer;vertical-align:middle;$border\" onclick=\"window.location='$link'\" src=\"images/flags/$l.png\" />";
+        $html.=" <a style=\"cursor:pointer;vertical-align:middle;padding:0 2px;$border\" onclick=\"window.location='$link'\">".strtoupper($l)."</a>";
     }
     //pagine ---<
-    $html.="<img style=\"vertical-align:middle;cursor:pointer\" onclick=\"window.location='$linkedit';return false;\" src=\"images/configure.png\" /></td>";
+    $html.=" <span style=\"cursor:pointer;vertical-align:middle;font-size:16px;line-height:1\" title=\"".FN_i18n("settings")."\" onclick=\"window.location='$linkedit';return false;\">&#x2699;</span></td>";
 //    $html .= "</span>";
     //up --->
     $html.="<td><a href=\"javascript:;\" onclick=\"moveup(this.parentNode);\">";
-    $html.="<img id=\"imageup_{$section['id']}\" style=\"height:9px;width:13px;vertical-align:middle;border:0px;\" src=\"".FN_FromTheme("images/fn_up.png")."\" title=\"".FN_i18n("move up")."\" /></a>";
+    $html.="<span id=\"imageup_{$section['id']}\" style=\"vertical-align:middle;font-size:11px;text-decoration:none\" title=\"".FN_i18n("move up")."\">&#x25B2;</span></a>";
     //up ---<
     //down --->
     $html.="<a href=\"javascript:;\" onclick=\"movedown(this.parentNode);\">";
-    $html.="<img id=\"imagedown_{$section['id']}\" style=\"height:9px;width:13px;vertical-align:middle;border:0px;\" src=\"".FN_FromTheme("images/fn_down.png")."\" title=\"".FN_i18n("move down")."\" /></a>";
+    $html.="<span id=\"imagedown_{$section['id']}\" style=\"vertical-align:middle;font-size:11px;text-decoration:none\" title=\"".FN_i18n("move down")."\">&#x25BC;</span></a>";
     //down --->
     //left --->
     $html.="<a href=\"javascript:;\" onclick=\"moveleft(this.parentNode);\">";
-    $html.="<img id=\"imageleft_{$section['id']}\" style=\"height:9px;width:13px;vertical-align:middle;border:0px;\" src=\"".FN_FromTheme("images/fn_left.png")."\" title=\"".FN_i18n("move left")."\" /></a>";
+    $html.="<span id=\"imageleft_{$section['id']}\" style=\"vertical-align:middle;font-size:11px;text-decoration:none\" title=\"".FN_i18n("move left")."\">&#x25C4;</span></a>";
     //left ---<
     //right --->
     $html.="<a href=\"javascript:;\" onclick=\"moveright(this.parentNode);\">";
-    $html.="<img id=\"imageright_{$section['id']}\"  style=\"height:9px;width:13px;vertical-align:middle;border:0px;\" src=\"".FN_FromTheme("images/fn_right.png")."\" title=\"".FN_i18n("move right")."\" /></a>";
+    $html.="<span id=\"imageright_{$section['id']}\" style=\"vertical-align:middle;font-size:11px;text-decoration:none\" title=\"".FN_i18n("move right")."\">&#x25BA;</span></a>";
     //right ---<
     $html.="</td><td>";
 
 //icon --->
-    $html.="<span id=\"span_{$section['id']}\"  style=\"background-position: bottom right;background-image:url(".FN_FinisPathToApplicationPath("controlcenter/sections/contents/sitemap/node.png").");background-repeat:no-repeat;padding-left:{$left}px\"></span>";
+    $html.="<span id=\"span_{$section['id']}\" style=\"color:#999;padding-left:{$left}px\">".($left > 0 ? "&#x2514;" : "")."</span>";
     $html.="<span>&#128193;$t&nbsp;<a style=\"$textdecoration\" title=\"".FN_Translate("preview")."\" href=\"#\" onclick=\"preview=window.open('".FN_RewriteLink("index.php?mod={$section['id']}")."','preview','top=10,left=10,scrollbars=yes');preview.focus();\" >{$section['title']}</a>$disabled";
     //icon ---<
 

@@ -94,15 +94,15 @@ function FNCC_print_section($section,$level)
         if (file_exists($_FN['src_application'] ."/sections/{$section['id']}/section.$l.html"))
             $border="border:1px solid #00ff00";
         $link="{$_FN['controlcenter']}?mod={$section['id']}&edit=sections/{$section['id']}/section.$l.html&opt=$opt";
-        $html.=" <img style=\"cursor:pointer;vertical-align:middle;$border\" onclick=\"window.location='$link'\" src=\"images/flags/$l.png\" />";
+        $html.=" <a style=\"cursor:pointer;vertical-align:middle;padding:0 2px;$border\" onclick=\"window.location='$link'\">".strtoupper($l)."</a>";
     }
     //pagine ---<
     $html.="</td><td>";
 
     //icon --->
     $link = FN_RewriteLink("index.php?mod={$section['id']}");
-    $html.="<span id=\"span_{$section['id']}\"  style=\"background-position: bottom right;background-image:url(controlcenter/sections/contents/sitemap/node.png);background-repeat:no-repeat;padding-left:{$left}px\"></span>";
-    $html.="<span><img style=\"vertical-align:middle;border:0px;height:22px;\" src=\"".FN_FromTheme("images/mime/dir.png")."\" />$t&nbsp;<a title=\"".FN_Translate("preview")."\" href=\"$link\" onclick=\"preview=window.open('$link','preview','top=10,left=10,scrollbars=yes');preview.focus();return false;\" >{$section['title']}</a>";
+    $html.="<span id=\"span_{$section['id']}\" style=\"color:#999;padding-left:{$left}px\">".($left > 0 ? "&#x2514;" : "")."</span>";
+    $html.="<span>&#x1F4C1;$t&nbsp;<a title=\"".FN_Translate("preview")."\" href=\"$link\" onclick=\"preview=window.open('$link','preview','top=10,left=10,scrollbars=yes');preview.focus();return false;\" >{$section['title']}</a>";
     //icon ---<
 
     $html.="</td>";
