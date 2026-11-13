@@ -7,7 +7,14 @@
         <form method="post" action="{formaction}">
             <!-- foreach {items} -->
             <div class="fncc-field">
+                <!-- a group of checkboxes is not one control: a label pointing at
+                     the group would send the click nowhere -->
+                <!-- if {is_multicheck} -->
+                <span class="fncc-field__label">{title}</span>
+                <!-- end if {is_multicheck} -->
+                <!-- if not {is_multicheck} -->
                 <label for="{id}">{title}</label>
+                <!-- end if not {is_multicheck} -->
                 {htmlinput}
             </div>
             <!-- end foreach {items} -->

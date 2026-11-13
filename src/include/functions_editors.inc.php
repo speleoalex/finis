@@ -507,14 +507,21 @@ var movedown = function (node)
                 $title = $varname;
             $html .= "<tr><td style=\"border-bottom:1px dotted #dadada;text-align:left;\">";
 
-            $html .= "\n<label for=\"conf_$varkey\">$title:</label>";
+            // The label points at its field with for=, so the two must carry the
+            // same string: it is built from the key, like the name, because the
+            // readable variable name holds spaces and is not a valid id.
+            $fieldid = "conf_" . preg_replace('/[^A-Za-z0-9_\-]/', "_", $varkey);
+            // A group of checkboxes is not one control: a for= pointing at the
+            // group would send the click nowhere, so that label carries none.
+            $ismulti = (!empty($options) && isset($options[0][0]) && $options[0][0] == "+");
+            $html .= "\n<label" . ($ismulti ? "" : " for=\"$fieldid\"") . ">$title:</label>";
             $item_field['title'] = $title;
             $item_field['type'] = $type;
             $item_field['onchange'] = "";
             $html .= "</td><td style=\"border-bottom:1px dotted #dadada;text-align:left;\">";
             $item_field['is_color'] = false;
             $item_field['is_password'] = false;
-            $item_field['is_multicheck'] = false;
+            $item_field['is_multicheck'] = $ismulti;
             $item_field['is_text'] = false;
 
             $item_field['varname'] = $varname;
@@ -523,7 +530,7 @@ var movedown = function (node)
             $item_field['value'] = htmlentities($varvalue);
             $item_field['required'] = false;
             $htmlitem = "";
-            $item_field['id'] = "conf_$varname";
+            $item_field['id'] = $fieldid;
 
             // The hint below goes into a title attribute: a default value may
             // hold quotes and HTML (the footer license text does), which would
@@ -533,7 +540,7 @@ var movedown = function (node)
                 $item_field['is_color'] = true;
                 $item_field['onchange'] = "try{document.getElementById(\"cc_conf_$i\").style.backgroundColor=\"#\"+this.value}catch(e){}' class=\"color {hash:true,caps:false,adjust:false,styleElement:'cc_conf_$i'}";
                 $item_field['id'] = "cc_conf_$i";
-                $htmlitem .= "<input {$inputattributes['text']} onchange='try{document.getElementById(\"cc_conf_$i\").style.backgroundColor=\"#\"+this.value}catch(e){}' title=\"$varname (" . FN_i18n("default value") . ": " . htmlentities($defaultvalue) . ")\" type=\"text\" name=\"conf_$varkey\" size=\"15\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" style=\"display:inline-block;width:auto;vertical-align:middle\" />";
+                $htmlitem .= "<input id=\"$fieldid\" {$inputattributes['text']} onchange='try{document.getElementById(\"cc_conf_$i\").style.backgroundColor=\"#\"+this.value}catch(e){}' title=\"$varname (" . FN_i18n("default value") . ": " . htmlentities($defaultvalue) . ")\" type=\"text\" name=\"conf_$varkey\" size=\"15\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" style=\"display:inline-block;width:auto;vertical-align:middle\" />";
                 $htmlitem .= " <span id=\"cc_conf_$i\" style=\"display:inline-block;vertical-align:middle;width:2em;height:2em;border:#000000 1px solid;background-color:#$varvalue\"></span>";
                 $html .= $htmlitem;
                 $item_field['htmlinput'] = $htmlitem;

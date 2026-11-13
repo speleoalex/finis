@@ -335,7 +335,10 @@
 
 /* ----------------------------------------------------------------- fields */
 .fncc-field { margin-bottom: var(--fncc-gap); }
-.fncc-field > label { display: block; font-weight: 500; margin-bottom: .25rem; }
+/* The second selector is for the name of a group of controls, which is not a
+   label because there is no single field for it to point at. */
+.fncc-field > label,
+.fncc-field__label { display: block; font-weight: 500; margin-bottom: .25rem; }
 .fncc-field__hint { color: var(--fncc-muted); font-size: .85rem; }
 .fncc-field__error { color: var(--fncc-danger); font-size: .85rem; }
 

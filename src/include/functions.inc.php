@@ -1635,8 +1635,15 @@ function FN_Redirect($url)
 function FN_ClearCache()
 {
     global $_FN;
-    FN_RemoveDir("{$_FN['datadir']}/_cache");
-    mkdir("{$_FN['datadir']}/_cache");
+    $cache = "{$_FN['datadir']}/_cache";
+    // The folder is emptied, not removed and made again: another request may
+    // be writing in it right now, and then the removal fails and the mkdir()
+    // that followed printed "File exists" on the page.
+    FN_EmptyDir($cache);
+    if (!is_dir($cache))
+    {
+        mkdir($cache, 0777, true);
+    }
 }
 
 /**

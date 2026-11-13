@@ -218,13 +218,50 @@ function FN_IsWritable($file)
 
 
 /**
+ * True when the folder holds nothing but "." and "..".
+ *
+ * @param string $dir
+ * @return bool
+ */
+function FN_DirIsEmpty($dir)
+{
+    $handle = @opendir($dir);
+    if ($handle === false)
+    {
+        return false;
+    }
+    while (false !== ($entry = readdir($handle)))
+    {
+        if ($entry !== "." && $entry !== "..")
+        {
+            closedir($handle);
+            return false;
+        }
+    }
+    closedir($handle);
+    return true;
+}
+
+/**
+ * Deletes everything inside a folder, the folder itself excluded.
+ *
+ * @param string $dirtoempty
+ */
+function FN_EmptyDir($dirtoempty)
+{
+    FN_RemoveDir($dirtoempty, true);
+}
+
+/**
  *
  * @param string $folder
+ * @param bool $keepfolder empty the folder but leave it in place
+ * @return bool false when something was left behind
  */
-function FN_RemoveDir($dirtodelete)
+function FN_RemoveDir($dirtodelete, $keepfolder = false)
 {
     if (!$dirtodelete)
-        return;
+        return false;
     if (strpos($dirtodelete,"../")!== false)
         die("error");
     if (false!= ($objs=glob($dirtodelete."/.*")))
@@ -251,7 +288,19 @@ function FN_RemoveDir($dirtodelete)
             is_dir($obj) ? FN_RemoveDir($obj) : unlink($obj);
         }
     }
-    rmdir($dirtodelete);
+    if ($keepfolder || !is_dir($dirtodelete))
+    {
+        return true;
+    }
+    // A cache folder is written by every request: one of them can drop a file
+    // in here between the loop above and this line, and rmdir() would then
+    // print "Directory not empty" on the page of whoever asked for the
+    // cleaning. Leaving the folder behind is harmless, the warning is not.
+    if (!FN_DirIsEmpty($dirtodelete))
+    {
+        return false;
+    }
+    return @rmdir($dirtodelete);
 }
 
 /**
