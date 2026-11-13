@@ -2181,8 +2181,11 @@ set_changed();
      * @global array $_FN
      * @param object $Table
      * @param array $errors
+     * @param bool $proposing true: new record proposed by a user who cannot add records
+     * @param array $proposal pending proposal of the user that the form changes
+     * @return string HTML
      */
-    function NewRecordForm($Table, $errors = array())
+    function NewRecordForm($Table, $errors = array(), $proposing = false, $proposal = null)
     {
         global $_FN;
         //--config-->
@@ -2193,7 +2196,7 @@ set_changed();
         $template = file_get_contents($tplfile);
         //die ($tplfile);
         $tpvars = array();
-        $tpvars['formaction'] = $this->MakeLink(array("op" => "new"), "&amp;");
+        $tpvars['formaction'] = $proposing ? $this->MakeLink(array("op" => "propose", "id" => null, "proposal" => $proposal ? $proposal['id'] : null), "&amp;") : $this->MakeLink(array("op" => "new"), "&amp;");
         $tpvars['urlcancel'] = $this->MakeLink(array("op" => null, "id" => null), "&");
         //$esc =uniqid("_");
         //$template =str_replace("if {",$esc,$template);
@@ -2203,6 +2206,8 @@ set_changed();
         //$template =str_replace($esc,"if {",$template);
         $Table->SetlayoutTemplate($this->FormTemplateWithoutAutofill($template));
         $html = "";
+        if ($proposing)
+            $html .= "<div class=\"alert alert-info\">" . FN_Translate("the new record will be sent for review to the users who manage this section") . "</div>";
         //----template---------<
         //----gestione esci senza salvare ------->
         $html .= "
@@ -2230,7 +2235,18 @@ set_changed();
         }
         //----gestione esci senza salvare -------<
         $nv = $Table->getbypost();
-        $Table->ShowInsertForm(FN_IsAdmin(), $nv, $errors);
+        if (!$proposing)
+            return $html . $Table->HtmlShowInsertForm(FN_IsAdmin(), $nv, $errors);
+        if ($proposal && count($_POST) == 0) {
+            foreach ($this->ProposalChanges($proposal) as $field => $change)
+                $nv[$field] = $change['new'];
+        }
+        // the form object is shared in the request: hide the fields only for this form
+        $formvals = $Table->formvals;
+        $this->HideNonProposalFields($Table);
+        $html .= $Table->HtmlShowInsertForm(FN_IsAdmin(), $nv, $errors);
+        $Table->formvals = $formvals;
+        return $html;
     }
 
     /**

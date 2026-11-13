@@ -207,79 +207,77 @@ trait FNDBVIEWCRUD
      */
     function InsertRecord($Table)
     {
-        global $_FN;
-        $config = $this->config;
-        $tables = explode(",", $config['tables']);
-        $tablename = $tables[0];
-
-        $html = "";
-        $username = $_FN['user'];
-
         if (!$this->CanAddRecord())
             die(FN_Translate("you may not do that"));
+        list($record, $errors) = $this->CreateRecord($Table, $Table->getbypost());
+        if (!$record)
+            return $this->NewRecordForm($Table, $errors);
+        return FN_HtmlAlert(FN_Translate("the data were successfully inserted"))
+            . $this->EditRecordForm($record[$Table->xmltable->primarykey], $Table, array(), true);
+    }
 
-        $newvalues = $Table->getbypost();
+    /**
+     * Stores a new record owned by the current user: the values of the insert form
+     * or of an accepted proposal, in form format. Runs the same steps for both:
+     * field transformations, checks, record permissions, users of the record,
+     * function_on_insert of the section and the mailalert notification.
+     * @param object $Table
+     * @param array $newvalues
+     * @return array array(stored record or null, errors)
+     */
+    protected function CreateRecord($Table, $newvalues)
+    {
+        global $_FN;
+        $config = $this->config;
+        $tablename = $this->ProposalsTableName();
+        $username = $_FN['user'];
+
         $newvalues['insert'] = time();
         $newvalues['update'] = time();
         $newvalues['username'] = $username;
-
         $newvalues = $this->applyFieldTransformations($newvalues, $Table);
-
         $errors = $Table->VerifyInsert($newvalues);
+        if (count($errors) > 0)
+            return array(null, $errors);
 
-        if (count($errors) == 0) {
-            $newvalues['recordupdate'] = XMETATable::now();
-            $newvalues['recordinsert'] = XMETATable::now();
-            $newvalues['userupdate'] = $_FN['user'];
-            $newvalues['username'] = $_FN['user'];
+        $newvalues['recordupdate'] = XMETATable::now();
+        $newvalues['recordinsert'] = XMETATable::now();
+        $newvalues['userupdate'] = $username;
 
-            // Record permissions management
-            if (!empty($config['enable_permissions_edit_each_records']) && $config['enable_permissions_edit_each_records'] == 1) {
-                if ($config['permissions_records_edit_groups'] != "") {
-                    $newvalues = $this->applyRecordPermissions($newvalues, $config);
-                }
+        // Record permissions management
+        if (!empty($config['enable_permissions_edit_each_records']) && $config['enable_permissions_edit_each_records'] == 1) {
+            if ($config['permissions_records_edit_groups'] != "") {
+                $newvalues = $this->applyRecordPermissions($newvalues, $config);
             }
-
-            $record = $Table->xmltable->InsertRecord($newvalues);
-            $this->InvalidateCache($tablename);
-
-            // Update view counter if exists
-            if (isset($record['view'])) {
-                $nrec = array();
-                $nrec['view'] = $record[$Table->xmltable->primarykey];
-                $nrec[$Table->xmltable->primarykey] = $record[$Table->xmltable->primarykey];
-                $record = $Table->xmltable->UpdateRecord($nrec);
-            }
-
-            // Update associated users table
-            $users = FN_XMDBTable("fieldusers");
-            $r = array();
-            $r['tablename'] = $tablename;
-            $r['username'] = $username;
-            $r['table_unirecid'] = $record[$Table->xmltable->primarykey];
-            $users->InsertRecord($r);
-
-            // Callback function on insert
-            if (isset($_FN['modparams'][$_FN['mod']]['editorparams']['table']['function_on_insert'])) {
-                $function = $_FN['modparams'][$_FN['mod']]['editorparams']['table']['function_on_insert'];
-                if (function_exists($function)) {
-                    $function($record);
-                }
-            }
-
-            FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $username . "||Table $tablename record added.");
-            $html .= FN_HtmlAlert(FN_Translate("the data were successfully inserted"));
-
-            // Send notification email
-            if (!empty($config['mailalert'])) {
-                $this->sendInsertNotification($record, $Table, $config, $r['username']);
-            }
-
-            $html .= $this->EditRecordForm($record[$Table->xmltable->primarykey], $Table, $errors, true);
-        } else {
-            $html .= $this->NewRecordForm($Table, $errors);
         }
-        return $html;
+
+        $record = $Table->xmltable->InsertRecord($newvalues);
+        $this->InvalidateCache($tablename);
+        $pk = $Table->xmltable->primarykey;
+
+        // Update view counter if exists
+        if (isset($record['view'])) {
+            $record = $Table->xmltable->UpdateRecord(array("view" => $record[$pk], $pk => $record[$pk]));
+        }
+
+        // Update associated users table
+        FN_XMDBTable("fieldusers")->InsertRecord(array("tablename" => $tablename, "username" => $username, "table_unirecid" => $record[$pk]));
+
+        // Callback function on insert
+        if (isset($_FN['modparams'][$_FN['mod']]['editorparams']['table']['function_on_insert'])) {
+            $function = $_FN['modparams'][$_FN['mod']]['editorparams']['table']['function_on_insert'];
+            if (function_exists($function)) {
+                $function($record);
+            }
+        }
+
+        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $username . "||Table $tablename record added.");
+
+        // Send notification email
+        if (!empty($config['mailalert'])) {
+            $this->sendInsertNotification($record, $Table, $config, $username);
+        }
+        return array($record, array());
     }
 
     /**

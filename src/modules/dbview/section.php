@@ -196,14 +196,21 @@ else
                     $shownavigatebar = false;
                 $html .= $dbview->ViewRecordPage($id, false, $shownavigatebar); // visualizza la pagina col record
                 break;
-            case "propose" : // change proposed by a user who cannot edit the record
-                if (isset($_POST['xmetadbsave']))
+            case "propose" : // change (or new record, without id) proposed by a user who cannot edit
+                if ($id == "")
+                    $html .= isset($_POST['xmetadbsave']) ? $dbview->SaveNewRecordProposal($Table) : $dbview->NewRecordProposalForm($Table);
+                elseif (isset($_POST['xmetadbsave']))
                     $html .= $dbview->SaveProposal($Table);
                 else
                     $html .= $dbview->EditRecordForm($id, $Table, array(), false, true);
                 break;
-            case "proposal" : // accept or discard a proposed change
-                $html .= $dbview->ReviewProposal($id, $Table);
+            case "proposal" : // accept or discard a proposed change; without id the proposed new records
+                if ($id != "")
+                    $html .= $dbview->ReviewProposal($id, $Table);
+                elseif (count($_POST) > 0)
+                    $html .= $dbview->ReviewNewRecordProposal($Table);
+                else
+                    $html .= $dbview->NewRecordProposalsPage();
                 break;
             case "request" :
                 $html .= $dbview->Request($id);
@@ -268,6 +275,7 @@ else
                     $dbview->GenerateRSS();
                 }
                 $html .= FN_HtmlContent("{$_FN['src_application']}/sections/{$_FN['mod']}");
+                $html .= $dbview->NewRecordProposalsNotice();
                 $html .= $dbview->ViewGrid(); //griglia con tutti i records
                 ob_start();
                 if (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/bottom.php"))

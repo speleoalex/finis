@@ -1,0 +1,42 @@
+<section class="dbview-newproposals" aria-label="{i18n:proposed new records}">
+    <h2>{i18n:proposed new records}</h2>
+    <p>
+        <a class="btn btn-outline-secondary" href="{listlink}">{i18n:view list}</a>
+        <!-- if {newlink} --><a class="btn btn-primary" href="{newlink}">{i18n:propose a new record}</a><!-- end if {newlink} -->
+    </p>
+    <!-- if {empty} --><p>{i18n:no proposals waiting for review}</p><!-- end if {empty} -->
+    <!-- foreach {proposals} -->
+    <form method="post" action="{action}" class="dbview-proposal alert alert-warning mb-3">
+        <input type="hidden" name="proposal" value="{id}" />
+        <input type="hidden" name="fn_csrf" value="{token}" />
+        <h3 class="h5">{recordtitle}</h3>
+        <p class="mb-2">{i18n:new record proposed by} {user} - {date}</p>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">{i18n:field}</th>
+                        <th scope="col">{i18n:proposed value}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- foreach {fields} -->
+                    <tr>
+                        <td>{title}</td>
+                        <td>{proposed}</td>
+                    </tr>
+                    <!-- end foreach {fields} -->
+                </tbody>
+            </table>
+        </div>
+        <!-- if {reviewer} -->
+        <button type="submit" name="action" value="accept" class="btn btn-primary">{i18n:accept and create the record}</button>
+        <button type="submit" name="action" value="reject" class="btn btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:discard the whole proposal?}">{i18n:discard all}</button>
+        <!-- end if {reviewer} -->
+        <!-- if not {reviewer} -->
+        <a class="btn btn-primary" href="{editlink}">{i18n:modify the proposal}</a>
+        <button type="submit" name="action" value="withdraw" class="btn btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:withdraw the proposal?}">{i18n:withdraw the proposal}</button>
+        <!-- end if not {reviewer} -->
+    </form>
+    <!-- end foreach {proposals} -->
+</section>
