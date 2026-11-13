@@ -103,6 +103,11 @@ function FNCC_UI_PublishAsset($file)
     if (!file_exists($destination) || filemtime($source) > filemtime($destination))
     {
         FN_Copy($source, $destination, true);
+        // PHP keeps the result of stat() in a cache: without this the date
+        // below would still be the one of the file just replaced, the address
+        // would not change, and browsers would keep serving the old file from
+        // their own cache - exactly what ?v= is there to prevent.
+        clearstatcache(true, $destination);
     }
     $version = @filemtime($destination);
     return $_FN['siteurl'] . $file . ($version ? "?v=$version" : "");

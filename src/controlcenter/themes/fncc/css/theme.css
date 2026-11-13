@@ -43,7 +43,9 @@ h1, h2, h3 { line-height: 1.25; }
 .fncc-skip:focus { left: 0; }
 
 /* ----------------------------------------------------------------- shell */
-.fncc-shell { display: flex; min-height: 100vh; }
+/* 100dvh, not 100vh: on a phone the address bar eats part of the viewport and
+   100vh would leave the page a strip taller than the screen. */
+.fncc-shell { display: flex; min-height: 100vh; min-height: 100dvh; }
 
 .fncc-sidebar {
     position: fixed;
@@ -158,6 +160,10 @@ h1, h2, h3 { line-height: 1.25; }
     min-width: 0;
     display: flex;
     flex-direction: column;
+    /* As tall as the window even with little in it, so the page does not end
+       in a band of a different colour halfway down. */
+    min-height: 100vh;
+    min-height: 100dvh;
 }
 
 .fncc-topbar {
@@ -181,11 +187,14 @@ h1, h2, h3 { line-height: 1.25; }
 }
 .fncc-topbar__spacer { margin-left: auto; }
 
+/* The contents take all the room that is left, across and down: a table or a
+   list of records is what this panel is mostly made of, and a width limit
+   would leave a wide screen half empty. */
 .fncc-content {
     flex: 1 1 auto;
     width: 100%;
-    max-width: 1400px;
-    padding: var(--fncc-gap);
+    min-width: 0;
+    padding: .75rem;
 }
 
 .fncc-footer {
@@ -211,7 +220,7 @@ h1, h2, h3 { line-height: 1.25; }
     .fncc-main { margin-left: 17rem; }
     .fncc-backdrop { display: none !important; }
     .fncc-sidebar-toggle { display: none; }
-    .fncc-content { padding: 1.5rem; }
+    .fncc-content { padding: 1rem 1.25rem; }
 }
 
 /* ------------------------------------------------------------ breadcrumb */

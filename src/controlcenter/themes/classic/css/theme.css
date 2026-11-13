@@ -10,6 +10,13 @@
 
 .fncl {
     margin: 0;
+    /* As tall as the window even with little in it, with the contents taking
+       whatever the bar above leaves: 100dvh and not 100vh because on a phone
+       the address bar eats part of the viewport. */
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
     background: var(--fncc-bg);
     color: var(--fncc-text);
     font-family: var(--fncc-font);
@@ -187,10 +194,13 @@
 
 /* ----------------------------------------------------------- the contents */
 
+/* The contents take all the room that is left, across and down: a table or a
+   list of records is what this panel is mostly made of, and a width limit
+   would leave a wide screen half empty. */
 .fncl-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 1rem .75rem 3rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: .75rem 1rem 1.5rem;
 }
 
 .fncl-title {
@@ -287,7 +297,7 @@
     .fncl-brand { min-height: var(--fncc-touch); }
     .fncl-top__actions { gap: .25rem; }
     .fncl-top__actions .fncc-btn { font-size: .75rem; }
-    .fncl-content { padding: .75rem .75rem 3rem; }
+    .fncl-content { padding: .75rem .75rem 1.5rem; }
     .fncl-title { font-size: 1.1rem; }
 }
 
@@ -322,5 +332,5 @@
 
 @media print {
     .fncl-top, .fncl-backdrop, .fncc-skip { display: none !important; }
-    .fncl-content { max-width: none; padding: 0; }
+    .fncl-content { padding: 0; }
 }

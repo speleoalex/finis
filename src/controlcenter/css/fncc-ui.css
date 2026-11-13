@@ -346,6 +346,10 @@
 .fncc-section input[type="email"], .fncc-section input[type="number"],
 .fncc-section input[type="date"], .fncc-section input[type="search"],
 .fncc-section input[type="url"], .fncc-section select, .fncc-section textarea {
+    /* Sections written years ago give a field width:100% in the markup: with
+       the default box-sizing the border and the padding are added to that and
+       the page grows a horizontal scrollbar. */
+    box-sizing: border-box;
     max-width: 100%;
     min-height: var(--fncc-touch);
     padding: .45rem .6rem;
