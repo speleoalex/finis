@@ -525,12 +525,15 @@ var movedown = function (node)
             $htmlitem = "";
             $item_field['id'] = "conf_$varname";
 
+            // The hint below goes into a title attribute: a default value may
+            // hold quotes and HTML (the footer license text does), which would
+            // close the attribute and spill the rest of the tag onto the page.
             if ($type == "{color}")
             {
                 $item_field['is_color'] = true;
                 $item_field['onchange'] = "try{document.getElementById(\"cc_conf_$i\").style.backgroundColor=\"#\"+this.value}catch(e){}' class=\"color {hash:true,caps:false,adjust:false,styleElement:'cc_conf_$i'}";
                 $item_field['id'] = "cc_conf_$i";
-                $htmlitem .= "<input {$inputattributes['text']} onchange='try{document.getElementById(\"cc_conf_$i\").style.backgroundColor=\"#\"+this.value}catch(e){}' title=\"$varname (" . FN_i18n("default value") . ": $defaultvalue)\" type=\"text\" name=\"conf_$varkey\" size=\"15\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" style=\"display:inline-block;width:auto;vertical-align:middle\" />";
+                $htmlitem .= "<input {$inputattributes['text']} onchange='try{document.getElementById(\"cc_conf_$i\").style.backgroundColor=\"#\"+this.value}catch(e){}' title=\"$varname (" . FN_i18n("default value") . ": " . htmlentities($defaultvalue) . ")\" type=\"text\" name=\"conf_$varkey\" size=\"15\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" style=\"display:inline-block;width:auto;vertical-align:middle\" />";
                 $htmlitem .= " <span id=\"cc_conf_$i\" style=\"display:inline-block;vertical-align:middle;width:2em;height:2em;border:#000000 1px solid;background-color:#$varvalue\"></span>";
                 $html .= $htmlitem;
                 $item_field['htmlinput'] = $htmlitem;
@@ -538,7 +541,7 @@ var movedown = function (node)
             elseif ($type == "{password}")
             {
                 $item_field['is_password'] = true;
-                $htmlitem .= "<input id=\"{$item_field['id']}\" {$inputattributes['text']} title=\"$varname (" . FN_Translate("default value") . ": $defaultvalue)\" $onchange type=\"password\" name=\"conf_$varkey\" size=\"30\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" />";
+                $htmlitem .= "<input id=\"{$item_field['id']}\" {$inputattributes['text']} title=\"$varname (" . FN_Translate("default value") . ": " . htmlentities($defaultvalue) . ")\" $onchange type=\"password\" name=\"conf_$varkey\" size=\"30\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" />";
                 $html .= $htmlitem;
                 $item_field['htmlinput'] = $htmlitem;
             }
@@ -549,14 +552,14 @@ var movedown = function (node)
                 $st = "";
                 if (count($_POST) && $varvalue == "")
                     $st = "style=\"border:1px solid red\"";
-                $htmlitem .= "<input id=\"{$item_field['id']}\" {$inputattributes['text']} $st title=\"$varname (" . FN_Translate("default value") . ": $defaultvalue)\" $onchange type=\"text\" name=\"conf_$varkey\" size=\"40\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" placeholder=\"" . htmlentities($defaultvalue) . "\" />";
+                $htmlitem .= "<input id=\"{$item_field['id']}\" {$inputattributes['text']} $st title=\"$varname (" . FN_Translate("default value") . ": " . htmlentities($defaultvalue) . ")\" $onchange type=\"text\" name=\"conf_$varkey\" size=\"40\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" placeholder=\"" . htmlentities($defaultvalue) . "\" />";
                 $html .= $htmlitem;
                 $item_field['htmlinput'] = $htmlitem;
             }
             elseif (!$options)
             {
                 $item_field['is_text'] = true;
-                $htmlitem .= "<input id=\"{$item_field['id']}\" {$inputattributes['text']} title=\"$varname (" . FN_Translate("default value") . ": $defaultvalue)\" $onchange type=\"text\" name=\"conf_$varkey\" size=\"40\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" placeholder=\"" . htmlentities($defaultvalue) . "\" />";
+                $htmlitem .= "<input id=\"{$item_field['id']}\" {$inputattributes['text']} title=\"$varname (" . FN_Translate("default value") . ": " . htmlentities($defaultvalue) . ")\" $onchange type=\"text\" name=\"conf_$varkey\" size=\"40\" maxlength=\"1200\" value=\"" . htmlentities($varvalue) . "\" placeholder=\"" . htmlentities($defaultvalue) . "\" />";
                 $html .= $htmlitem;
                 $item_field['htmlinput'] = $htmlitem;
             }

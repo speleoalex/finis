@@ -537,6 +537,10 @@ function FNCC_HtmlSitemapRow($section,$level,$opt)
         ."<span class=\"fncc-visually-hidden\">".FNCC_UI_Escape($moveLabel)."</span></button>";
 
     //-----title and preview------------------------------------------------->
+    // Name and badges share one box: when they do not fit, the badges wrap
+    // under the name and the buttons stay where they are, lined up down the
+    // right edge of the tree.
+    $html.="<span class=\"fncc-tree__main\">";
     $html.="<span class=\"fncc-tree__title\">";
     $html.="<a class=\"fncc-tree__name\" target=\"_blank\" rel=\"noopener\" title=\""
         .FNCC_UI_Escape(FN_Translate("preview"))."\" href=\""
@@ -584,6 +588,7 @@ function FNCC_HtmlSitemapRow($section,$level,$opt)
                 .FNCC_UI_Escape(FN_FormatDate($section[$field]))."</span>";
         }
     }
+    $html.="</span>";
     $html.="</span>";
 
     //-----the files of the page--------------------------------------------->

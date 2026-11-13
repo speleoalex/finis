@@ -396,8 +396,10 @@
 .fncc-tree__item {
     --fncc-indent: 1.5rem;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: .5rem;
+    row-gap: .25rem;
     padding: .35rem .5rem;
     padding-left: calc(.5rem + var(--fncc-level, 0) * var(--fncc-indent));
     border-bottom: 1px solid var(--fncc-border);
@@ -447,6 +449,20 @@
 .fncc-tree__handle:hover { background: var(--fncc-surface-2); border-color: var(--fncc-border); }
 .fncc-tree__handle:active { cursor: grabbing; }
 
+/* Name and badges share this box, which takes the space left by the buttons:
+   when they do not fit on one line the badges wrap under the name instead of
+   squeezing it to an ellipsis, and the buttons stay lined up on the right. */
+.fncc-tree__main {
+    /* A small basis on purpose: with "auto" the box would claim the width of
+       its content, pushing the buttons onto a line of their own before the
+       badges ever wrapped. It grows back into the space the buttons leave. */
+    flex: 1 1 10rem;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .25rem .5rem;
+}
 .fncc-tree__title {
     flex: 1 1 auto;
     min-width: 0;
@@ -472,7 +488,14 @@
     align-items: center;
     gap: .15rem;
 }
-.fncc-tree__meta { gap: .25rem; }
+/* The badges are the part that gives way: they wrap among themselves and, when
+   even that is not enough, the whole group drops below the name. */
+.fncc-tree__meta {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
+    gap: .25rem;
+}
 
 /* Language/PHP shortcuts: a file that exists is filled, a missing one is only
    outlined, so "which translations exist" is readable at a glance. */
@@ -515,11 +538,16 @@
        the controls onto a third line. */
     .fncc-tree__item { flex-wrap: wrap; row-gap: .25rem; --fncc-indent: .75rem; }
     .fncc-tree__handle { order: 0; }
-    /* Name and the narrow file shortcuts share the first line, the rest of
-       the controls go underneath: two lines per page instead of three. */
-    .fncc-tree__title { order: 1; flex: 1 1 auto; min-width: 0; }
+    /* Handle, name and the narrow file shortcuts share the first line, with
+       the badges tucked under the name inside the same box; the rest of the
+       controls go underneath. A small basis keeps the three side by side. */
+    .fncc-tree__main { order: 1; flex: 1 1 6rem; min-width: 0; }
+    .fncc-tree__title { flex: 1 1 100%; min-width: 0; }
+    /* On a narrow screen a long name is worth two lines: cutting it with an
+       ellipsis there would hide what tells the pages apart. */
+    .fncc-tree__name { white-space: normal; overflow: visible; text-overflow: clip; }
+    .fncc-tree__meta { flex: 1 1 100%; }
     .fncc-tree__files { order: 2; }
-    .fncc-tree__meta { order: 3; flex: 1 1 100%; padding-left: calc(var(--fncc-touch) + .5rem); }
     .fncc-tree__actions {
         order: 4;
         flex: 1 1 100%;
