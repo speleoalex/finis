@@ -970,12 +970,6 @@ function FN_GetMenuTree($parent = "")
         $lev++;
 
         $menuitem['childs'] = FN_GetMenuTree($section['id']);
-        // a menu container whose entries are all hidden is hidden too
-        if ($section['type'] == "block_menu" && empty($menuitem['childs']) && count(FN_GetSections($section['id'])) > 0)
-        {
-            $lev--;
-            continue;
-        }
         $menuitem['class'] = "";
         $count = is_array($menuitem['childs']) ? count($menuitem['childs']) : "";
         $menuitem['havechilds'] = "$count";
@@ -987,36 +981,29 @@ function FN_GetMenuTree($parent = "")
 
 /**
  * Whether a menu entry leads to content the user may see. FN_GetSections()
- * checks the permissions of the section; some modules have their own: a
- * dbview section shows its records only to its groups (groupview,
- * groupadmin, groupinsert of the module config, as
- * FNDBVIEW::CanViewRecords()) and the table editor only to the
- * administrators (XMLDBEDITOR_IsAdmin()). Without this the menu listed
- * sections that answer "you don't have permission".
+ * checks the permissions of the section; a module with rules of its own adds
+ * them with a function <type>_MenuSectionIsVisible($section) in the file
+ * menu.php of its folder. Without it the menu would list sections that
+ * answer "you don't have permission".
  *
- * @global array $_FN
  * @param array $section values of the section (FN_GetSections())
  * @return bool
  */
 function FN_MenuSectionIsVisible($section)
 {
-    global $_FN;
     if (FN_IsAdmin())
         return true;
     $type = isset($section['type']) ? $section['type'] : "";
-    if ($type == "dbview")
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $type))
+        return true;
+    $function = "{$type}_MenuSectionIsVisible";
+    if (!function_exists($function))
     {
-        $config = FN_LoadConfig("modules/dbview/config.php", $section['id']);
-        foreach (array("groupadmin", "groupview", "groupinsert") as $group)
-        {
-            if ($_FN['user'] != "" && !empty($config[$group]) && FN_UserInGroup($_FN['user'], $config[$group]))
-                return true;
-        }
-        return empty($config['groupview']);
+        $path = FN_GetModulePath($type);
+        if ($path && file_exists("$path/menu.php"))
+            include_once "$path/menu.php";
     }
-    if ($type == "table_editor")
-        return false;
-    return true;
+    return !function_exists($function) || $function($section);
 }
 
 /**
