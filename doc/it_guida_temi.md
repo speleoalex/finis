@@ -607,6 +607,24 @@ Per `editconf.tp.html` valgono anche queste regole: il template viene usato solo
 anche `{formaction}` e `{linkcancel}`, e viene letto dalla cartella del tema in FINIS
 (`src/controlcenter/themes/<nome>/`).
 
+Dal tema `fncc` in poi vale anche questa convenzione:
+
+- `{cc_assets}` nel `<head>` del template: FINIS ci mette il foglio di stile e lo script comuni
+  del pannello (`controlcenter/css/fncc-ui.css` e `controlcenter/js/fncc-ui.js`) e, subito dopo,
+  `css/theme.css` e `js/theme.js` del tema, se esistono. I file vengono copiati nella cartella del
+  sito e ricopiati quando il sorgente in FINIS e' piu' recente, cosi' un aggiornamento del
+  framework arriva anche ai siti gia' installati. Un tema che non usa `{cc_assets}` riceve
+  comunque i file comuni, aggiunti prima di `</head>`.
+- Il tema non deve quindi richiamare il proprio CSS con un `<link href="css/...">`: i file
+  referenziati dentro un template vengono copiati nel sito una volta sola e la copia resterebbe
+  indietro.
+
+Il foglio `fncc-ui.css` definisce i colori come variabili CSS (`--fncc-surface`, `--fncc-text`,
+`--fncc-primary`, ...) con la versione scura sotto `@media (prefers-color-scheme: dark)` e sotto
+`:root[data-fncc-theme="dark"]`. Per cambiare l'aspetto del pannello basta ridefinire quelle
+variabili in `css/theme.css`: i componenti delle sezioni (pulsanti, schede, tabelle, albero della
+mappa del sito) seguono senza modifiche al PHP.
+
 Il file manager disegna le sue icone con caratteri Unicode (`FN_GetIconCharByFilename()`): un tema
 non deve fornire immagini per le icone dei file.
 

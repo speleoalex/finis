@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="{lang}">
+    <head>
+        <!-- include FN_HtmlHeader -->
+        <title></title>
+        <!-- end include FN_HtmlHeader -->
+        <meta charset="{charset_page}" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="noindex, nofollow" />
+        {cc_assets}
+        <script>
+            (function () {
+                try {
+                    var mode = window.localStorage.getItem("fncc-theme");
+                    if (mode === "light" || mode === "dark") {
+                        document.documentElement.setAttribute("data-fncc-theme", mode);
+                    }
+                } catch (e) { /* storage blocked: keep the system palette */ }
+            }());
+        </script>
+    </head>
+    <body>
+        <a class="fncc-skip" href="#fncc-content">{i18n:Skip to content}</a>
+        <div class="fncc-shell">
+
+            <nav id="fncc-sidebar" class="fncc-sidebar" aria-label="{i18n:Control center}">
+                <a class="fncc-sidebar__brand" href="{siteurl}index.php?fnapp=controlcenter">
+                    <!-- if {url_logo} -->
+                    <img src="{url_logo}" alt="" />
+                    <!-- end if {url_logo} -->
+                    <span>
+                        <strong>{sitename}</strong>
+                        <span>{i18n:Control center}</span>
+                    </span>
+                </a>
+
+                <div class="fncc-nav">
+                    <!-- foreach {menuitems} -->
+                    <button type="button" class="fncc-nav__grouptitle" data-fncc-group-toggle aria-expanded="true" aria-controls="fnccgroup_{id}">
+                        <span>{title}</span>
+                        <span class="fncc-nav__caret" aria-hidden="true">&#x25B8;</span>
+                    </button>
+                    <ul class="fncc-nav__items" id="fnccgroup_{id}">
+                        <!-- foreach {sections} -->
+                        <li><a class="fncc-nav__link" href="{link}"><!-- if {image} --><img src="{image}" alt="" /><!-- end if {image} -->{title}</a></li>
+                        <!-- end foreach {sections} -->
+                    </ul>
+                    <!-- end foreach {menuitems} -->
+                </div>
+
+                <div class="fncc-sidebar__footer">
+                    <a href="{siteurl}">&#x2197; {i18n:Go to}: {sitename}</a>
+                </div>
+            </nav>
+
+            <button type="button" id="fncc-backdrop" class="fncc-backdrop" hidden="hidden" tabindex="-1" aria-label="{i18n:Close}"></button>
+
+            <div class="fncc-main">
+                <header class="fncc-topbar">
+                    <button type="button" class="fncc-btn fncc-btn--quiet fncc-btn--icon fncc-sidebar-toggle" data-fncc-sidebar-toggle aria-expanded="false" aria-controls="fncc-sidebar">
+                        <span aria-hidden="true">&#x2630;</span>
+                        <span class="fncc-visually-hidden">{i18n:Menu}</span>
+                    </button>
+                    <h1 class="fncc-topbar__title">{i18n:Control center}</h1>
+
+                    <span class="fncc-topbar__spacer"></span>
+
+                    <button type="button" class="fncc-btn fncc-btn--quiet fncc-btn--sm" data-fncc-theme-toggle
+                            data-label-auto="{i18n:Automatic theme}" data-label-light="{i18n:Light theme}" data-label-dark="{i18n:Dark theme}">
+                        <span data-fncc-theme-label>{i18n:Automatic theme}</span>
+                    </button>
+
+                    <div class="fncc-dropdown">
+                        <button type="button" class="fncc-btn fncc-btn--quiet fncc-btn--sm" data-fncc-dropdown-toggle aria-expanded="false" aria-controls="fncc-usermenu">
+                            <span aria-hidden="true">&#x1F464;</span>
+                            <span>{user}</span>
+                        </button>
+                        <ul class="fncc-dropdown__menu" id="fncc-usermenu" hidden="hidden">
+                            <!-- if {users_and_groups__profile} -->
+                            <li><a href="{siteurl}index.php?fnapp=controlcenter&amp;opt=users_and_groups/profile">{i18n:Profile settings}</a></li>
+                            <!-- end if {users_and_groups__profile} -->
+                            <li><a href="{siteurl}index.php?fnapp=controlcenter&amp;fnlogin=logout">{i18n:Logout}</a></li>
+                        </ul>
+                    </div>
+                </header>
+
+                <main class="fncc-content fncc-section" id="fncc-content">
+                    <div class="fncc-grid">
+                        <!-- include dashboard -->
+                        <section class="fncc-card">
+                            <header class="fncc-card__header">{dashboard_title}</header>
+                            <div class="fncc-card__body">{dashboard_contents}</div>
+                        </section>
+                        <!-- end include dashboard -->
+                    </div>
+                </main>
+
+                <footer class="fncc-footer">
+                    <a href="{siteurl}">{credits}</a> &middot; {version}
+                </footer>
+            </div>
+        </div>
+    </body>
+</html>

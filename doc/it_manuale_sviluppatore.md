@@ -472,6 +472,55 @@ echo FNCC_HtmlEditConfFile("modules/mymodule/config.php");
 `FNCC_HtmlEditConfFile()` corrisponde a `FN_HtmlEditConfFile($file, $formaction, $exit, $allow, $write_to_file, $mod, $block, $htmltemplate)`
 con il template del tema del pannello di controllo.
 
+### Interfaccia delle pagine del pannello
+
+Una pagina del pannello non deve decidere come appare: descrive quello che mostra e gli helper
+`FNCC_UI_*` (`src/include/controlcenter_ui.php`) producono il markup, con le sole classi
+`.fncc-*`. L'aspetto arriva da `controlcenter/css/fncc-ui.css` e dalle variabili che il tema
+ridefinisce, per cui la stessa pagina funziona su qualunque tema del pannello, nella versione
+chiara e in quella scura, e resta usabile sul telefono.
+
+Regole: niente `style=""` e niente colori fissi, niente `onclick` in linea (si usano gli
+attributi `data-fncc-*` letti da `fncc-ui.js`), ogni testo passa da `FN_Translate()`/`FN_i18n()`.
+
+```php
+echo FNCC_UI_Toolbar(array(
+    FNCC_UI_Button(FN_i18n("create a new page"), array(
+        "href" => "{$_FN['controlcenter']}opt=$opt&newsection=1",
+        "variant" => "primary",
+    )),
+    FNCC_UI_Button(FN_Translate("delete"), array(
+        "href" => $linkdelete,
+        "variant" => "quiet icon danger",
+        "icon" => "\xE2\x9C\x95\xEF\xB8\x8E",
+        "confirm" => FN_i18n("you want to permanently delete this page?"),
+    )),
+));
+
+echo FNCC_UI_Alert(FN_Translate("the data were successfully updated"), "success");
+echo FNCC_UI_Card(FN_Translate("old versions"), FNCC_UI_Table($intestazioni, $righe));
+```
+
+| Funzione | Cosa produce |
+|---|---|
+| `FNCC_UI_Button($label, $options)` | un link o un pulsante; `variant` (`primary`, `danger`, `quiet`, `icon`, `sm`), `icon`, `confirm`, `title`, `attributes` |
+| `FNCC_UI_Toolbar($items)` | una riga di pulsanti; la voce `"spacer"` spinge a destra quelle che seguono |
+| `FNCC_UI_Alert($text, $type, $isHtml)` | un messaggio (`info`, `success`, `warning`, `danger`) |
+| `FNCC_UI_Card($title, $bodyHtml, $headerExtraHtml)` | un riquadro con intestazione |
+| `FNCC_UI_Table($headers, $rows, $emptyText)` | una tabella che sul telefono diventa un elenco di schede |
+| `FNCC_UI_Escape($text)` / `FNCC_UI_PlainText($text)` | escape per l'HTML; `PlainText` prima decodifica le entita' gia' presenti nei dati (i titoli delle sezioni sono salvati come `Cavit&agrave;`) |
+
+L'output di `section.php` viene avvolto da `FNCC_UI_Section()`, che aggiunge il contenitore
+`.fncc-section` e, se la pagina ha una cartella `help/`, le istruzioni d'uso.
+
+### Istruzioni d'uso di una pagina
+
+`help/section.<lingua>.html` dentro la cartella della pagina viene mostrato in cima, in un
+riquadro `<details>` richiudibile intitolato "Come funziona questa pagina". Il file viene cercato
+nella lingua corrente, poi in quella predefinita, poi in inglese, prima nell'applicazione e poi in
+FINIS: un sito puo' sostituire il testo di una pagina che ha personalizzato. E' il posto giusto
+per spiegare le parti meno ovvie, invece di riempire la pagina di note.
+
 ## Lavorare con il Database
 
 ### Creazione Tabelle

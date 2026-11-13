@@ -86,6 +86,7 @@ ini_set("display_errors", "on");
 error_reporting(E_ALL);
 ob_start();
 global $_FN;
+require_once("{$_FN['src_finis']}/include/controlcenter_ui.php");
 $_FN['controlcenter'] = basename($_FN['self'])."?fnapp=controlcenter&";
 
 if (empty($_FN['controlcenter_theme']) || !file_exists("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}"))
@@ -206,13 +207,16 @@ if ($opt != "" && $can_view == false && !FN_IsAdmin())
 {
     //------------------------------------------------------login form----->
     $vars = array();
-    $vars['formaction'] = $_FN['controlcenter'] . "?fnapp=controlcenter&fnlogin=login";
+    $vars['formaction'] = $_FN['controlcenter'] . "fnlogin=login";
+    $vars['cc_assets'] = FNCC_UI_AssetsHtml();
     $_FN['login_error'] = isset($_FN['login_error']) ? $_FN['login_error'] : "";
-    $html = FN_TPL_include_tpl(FN_TPL_ApplyTplFile("{$_FN['src_applications']}/controlcenter/themes/{$_FN['controlcenter_theme']}/controlcenter.login.tp.html", $vars), $vars);
+    // src_applications does not exist: the template was never found here and
+    // the page came out empty for a user without rights on the section.
+    $html = FN_TPL_include_tpl(FN_TPL_ApplyTplFile(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/controlcenter.login.tp.html"), $vars), $vars);
 
     echo $html;
     die();
-    //------------------------------------------------------login form-----<    
+    //------------------------------------------------------login form-----<
 }
 
 
@@ -227,7 +231,8 @@ if (($modcont != "" && !FN_CanModifyFile($_FN['user'], $modcont)) || !FN_IsAdmin
 
     //------------------------------------------------------login form----->
     $vars = array();
-    $vars['formaction'] = $_FN['controlcenter'] . "?fnapp=controlcenter&fnlogin=login";
+    $vars['formaction'] = $_FN['controlcenter'] . "fnlogin=login";
+    $vars['cc_assets'] = FNCC_UI_AssetsHtml();
     $_FN['login_error'] = isset($_FN['login_error']) ? $_FN['login_error'] : "";
     $html = FN_TPL_include_tpl(FN_TPL_ApplyTplFile(FN_pathsite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/controlcenter.login.tp.html"), $vars), $vars);
     //FN_TPL_CopyFilesFromSrcToApplication($html, "controlcenter/themes/{$_FN['controlcenter_theme']}/");
@@ -242,6 +247,18 @@ else
 
     $tplcontents = file_get_contents(FN_PathSite("{$_FN['src_finis']}/controlcenter/themes/{$_FN['controlcenter_theme']}/controlcenter.tp.html"));
     FN_TPL_CopyFilesFromSrcToApplication($tplcontents, "./controlcenter/themes/{$_FN['controlcenter_theme']}/");
+
+    // A theme places the shared stylesheet and script itself with {cc_assets}.
+    // For the themes that do not know about it they are injected before
+    // </head> below. Doing both would load them twice.
+    if (strpos($tplcontents, "{cc_assets}") !== false)
+    {
+        $vars['cc_assets'] = FNCC_UI_AssetsHtml();
+    }
+    else
+    {
+        FNCC_UI_IncludeAssets();
+    }
 
     if (!empty($opt) && UserCanAdmin($opt))
     {
@@ -266,6 +283,13 @@ else
         }
     }
     $html = str_replace("</head>", "{$_FN['section_header_footer']}</head>", $html);
+    // Themes without {cc_assets}: the stylesheet and the script of the panel
+    // are added here, so that a section written with the FNCC_UI_* helpers
+    // looks right on them too.
+    if (!empty($_FN['cc_assets_pending']))
+    {
+        $html = str_replace("</head>", "{$_FN['cc_assets_pending']}</head>", $html);
+    }
 }
 //-----------------------------MAIN PAGE---------------------------------------<
 
@@ -282,6 +306,20 @@ function FN_TPL_tp_create_loginform()
  * @return string
  */
 function FN_TPL_tp_create_ccsection()
+{
+    $opt = FN_GetParam("opt", $_GET);
+    // One container and one help box for every section, whatever theme is in
+    // use: a section never has to care about the chrome around it.
+    return FNCC_UI_Section(FNCC_RenderSection(), $opt);
+}
+
+/**
+ * Run the section named by the "opt" parameter and return its output.
+ *
+ * @global type $_FN
+ * @return string
+ */
+function FNCC_RenderSection()
 {
     global $_FN;
     $opt = FN_GetParam("opt", $_GET);

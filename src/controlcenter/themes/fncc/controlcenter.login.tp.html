@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="{lang}">
+    <head>
+        <meta charset="{charset_page}" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="noindex, nofollow" />
+        <title>{sitename} - {i18n:Control center}</title>
+        {cc_assets}
+        <script>
+            (function () {
+                try {
+                    var mode = window.localStorage.getItem("fncc-theme");
+                    if (mode === "light" || mode === "dark") {
+                        document.documentElement.setAttribute("data-fncc-theme", mode);
+                    }
+                } catch (e) { /* storage blocked: keep the system palette */ }
+            }());
+        </script>
+    </head>
+    <body>
+        <main class="fncc-login">
+            <div class="fncc-login__box">
+                <div class="fncc-login__head">
+                    <h1>{sitename}</h1>
+                    <p>{i18n:Control center}</p>
+                </div>
+
+                <section class="fncc-card">
+                    <div class="fncc-card__body">
+                        <!-- if {login_error} -->
+                        <div class="fncc-alert fncc-alert--danger" role="alert">{login_error}</div>
+                        <!-- end if {login_error} -->
+                        <form method="post" action="{formaction}">
+                            <div class="fncc-field">
+                                <label for="fncc-username">{i18n:Username}</label>
+                                <input id="fncc-username" type="text" name="username" autocomplete="username" autocapitalize="none" required="required" />
+                            </div>
+                            <div class="fncc-field">
+                                <label for="fncc-password">{i18n:Password}</label>
+                                <input id="fncc-password" type="password" name="password" autocomplete="current-password" required="required" />
+                            </div>
+                            <div class="fncc-login__actions">
+                                <button class="fncc-btn fncc-btn--primary" type="submit">{i18n:Sign in}</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <p class="fncc-login__foot"><a href="{siteurl}">&#x2190; {sitename}</a></p>
+            </div>
+        </main>
+    </body>
+</html>

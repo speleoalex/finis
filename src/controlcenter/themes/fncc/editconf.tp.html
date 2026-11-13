@@ -1,0 +1,22 @@
+<!-- inputattributes button:class="fncc-btn fncc-btn--sm" -->
+<section class="fncc-card">
+    <div class="fncc-card__body">
+        <!-- if {message_saved} -->
+        <div class="fncc-alert fncc-alert--success">{message_saved}</div>
+        <!-- end if {message_saved} -->
+        <form method="post" action="{formaction}">
+            <!-- foreach {items} -->
+            <div class="fncc-field">
+                <label for="{id}">{title}</label>
+                {htmlinput}
+            </div>
+            <!-- end foreach {items} -->
+            <div class="fncc-toolbar">
+                <button type="submit" class="fncc-btn fncc-btn--primary">{i18n:Save}</button>
+                <!-- if {linkcancel} -->
+                <a href="{linkcancel}" class="fncc-btn">{i18n:Cancel}</a>
+                <!-- end if {linkcancel} -->
+            </div>
+        </form>
+    </div>
+</section>

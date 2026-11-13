@@ -1,0 +1,558 @@
+/**
+ * Control center UI components.
+ *
+ * Loaded by FNCC_UI_IncludeAssets() for every control center theme, so a
+ * section written with the FNCC_UI_* helpers looks the same (and stays usable
+ * on a phone) whatever theme is selected. Themes restyle the panel by
+ * redefining the tokens below; they never have to know the component markup.
+ *
+ * Rules for sections: emit .fncc-* classes, never inline styles and never a
+ * fixed colour, so that the dark palette keeps working.
+ */
+
+/* ------------------------------------------------------------------ tokens */
+.fncc-section,
+.fncc-shell,
+.fncc-login {
+    --fncc-radius: 8px;
+    --fncc-radius-sm: 5px;
+    --fncc-gap: 1rem;
+    --fncc-touch: 44px;
+}
+
+:root {
+    color-scheme: light dark;
+
+    --fncc-bg: #f1f3f6;
+    --fncc-surface: #ffffff;
+    --fncc-surface-2: #f7f8fa;
+    --fncc-text: #1d2430;
+    --fncc-muted: #5f6b7c;
+    --fncc-border: #d8dee7;
+    --fncc-border-strong: #b6c0ce;
+
+    --fncc-primary: #0b6bb3;
+    --fncc-primary-text: #ffffff;
+    --fncc-primary-soft: #e3f0fa;
+
+    --fncc-danger: #b3261e;
+    --fncc-danger-soft: #fdecea;
+    --fncc-success: #1b6b3a;
+    --fncc-success-soft: #e6f4ea;
+    --fncc-warning: #8a5300;
+    --fncc-warning-soft: #fdf3e2;
+
+    --fncc-radius: 8px;
+    --fncc-radius-sm: 5px;
+    --fncc-gap: 1rem;
+    --fncc-touch: 44px;
+    --fncc-shadow: 0 1px 2px rgba(16, 24, 40, .08), 0 1px 3px rgba(16, 24, 40, .06);
+    --fncc-shadow-lg: 0 10px 30px rgba(16, 24, 40, .18);
+    --fncc-focus: 0 0 0 3px rgba(11, 107, 179, .45);
+
+    --fncc-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --fncc-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Dark palette: follows the operating system unless the user forced a theme
+   from the panel (data-fncc-theme on <html>). */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-fncc-theme="light"]) {
+        --fncc-bg: #11161d;
+        --fncc-surface: #1a212b;
+        --fncc-surface-2: #212a36;
+        --fncc-text: #e6ebf2;
+        --fncc-muted: #9fadbf;
+        --fncc-border: #2e3a49;
+        --fncc-border-strong: #44556a;
+
+        --fncc-primary: #4ea3e8;
+        --fncc-primary-text: #0a1220;
+        --fncc-primary-soft: #16304a;
+
+        --fncc-danger: #f28d85;
+        --fncc-danger-soft: #3a1d1b;
+        --fncc-success: #7fc79b;
+        --fncc-success-soft: #16301f;
+        --fncc-warning: #e8b669;
+        --fncc-warning-soft: #342614;
+
+        --fncc-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+        --fncc-shadow-lg: 0 10px 30px rgba(0, 0, 0, .6);
+        --fncc-focus: 0 0 0 3px rgba(78, 163, 232, .5);
+    }
+}
+
+:root[data-fncc-theme="dark"] {
+    --fncc-bg: #11161d;
+    --fncc-surface: #1a212b;
+    --fncc-surface-2: #212a36;
+    --fncc-text: #e6ebf2;
+    --fncc-muted: #9fadbf;
+    --fncc-border: #2e3a49;
+    --fncc-border-strong: #44556a;
+
+    --fncc-primary: #4ea3e8;
+    --fncc-primary-text: #0a1220;
+    --fncc-primary-soft: #16304a;
+
+    --fncc-danger: #f28d85;
+    --fncc-danger-soft: #3a1d1b;
+    --fncc-success: #7fc79b;
+    --fncc-success-soft: #16301f;
+    --fncc-warning: #e8b669;
+    --fncc-warning-soft: #342614;
+
+    --fncc-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+    --fncc-shadow-lg: 0 10px 30px rgba(0, 0, 0, .6);
+    --fncc-focus: 0 0 0 3px rgba(78, 163, 232, .5);
+}
+
+/* A display rule of ours would otherwise win over the hidden attribute. */
+.fncc-btn[hidden],
+.fncc-badge[hidden],
+.fncc-toolbar[hidden] { display: none !important; }
+
+.fncc-visually-hidden {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ------------------------------------------------------- section container */
+.fncc-section { color: var(--fncc-text); }
+.fncc-section :focus-visible {
+    outline: none;
+    box-shadow: var(--fncc-focus);
+    border-radius: var(--fncc-radius-sm);
+}
+.fncc-section img { max-width: 100%; height: auto; }
+.fncc-section pre {
+    background: var(--fncc-surface-2);
+    border: 1px solid var(--fncc-border);
+    border-radius: var(--fncc-radius-sm);
+    padding: .75rem;
+    overflow: auto;
+    font-family: var(--fncc-font-mono);
+}
+.fncc-section hr {
+    border: 0;
+    border-top: 1px solid var(--fncc-border);
+    margin: 1.5rem 0;
+}
+
+/* ---------------------------------------------------------------- buttons */
+.fncc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    min-height: var(--fncc-touch);
+    padding: .45rem .9rem;
+    border: 1px solid var(--fncc-border-strong);
+    border-radius: var(--fncc-radius-sm);
+    background: var(--fncc-surface);
+    color: var(--fncc-text);
+    font: inherit;
+    font-weight: 500;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+}
+.fncc-btn:hover { background: var(--fncc-surface-2); color: var(--fncc-text); }
+.fncc-btn:disabled, .fncc-btn[aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+
+.fncc-btn--primary {
+    background: var(--fncc-primary);
+    border-color: var(--fncc-primary);
+    color: var(--fncc-primary-text);
+}
+.fncc-btn--primary:hover { background: var(--fncc-primary); color: var(--fncc-primary-text); filter: brightness(1.08); }
+
+.fncc-btn--danger { color: var(--fncc-danger); border-color: var(--fncc-danger); }
+.fncc-btn--danger:hover { background: var(--fncc-danger-soft); color: var(--fncc-danger); }
+
+.fncc-btn--quiet { border-color: transparent; background: transparent; }
+.fncc-btn--quiet:hover { background: var(--fncc-surface-2); border-color: var(--fncc-border); }
+
+/* Icon-only control: no visible box, but still a 44px touch target. */
+.fncc-btn--icon {
+    min-width: var(--fncc-touch);
+    padding: .35rem;
+    font-size: 1.05rem;
+}
+
+.fncc-btn--sm { min-height: 34px; padding: .25rem .6rem; font-size: .85rem; }
+
+.fncc-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: var(--fncc-gap);
+}
+.fncc-toolbar__spacer { margin-left: auto; }
+
+/* ------------------------------------------------------------------ cards */
+.fncc-card {
+    background: var(--fncc-surface);
+    border: 1px solid var(--fncc-border);
+    border-radius: var(--fncc-radius);
+    box-shadow: var(--fncc-shadow);
+    margin-bottom: var(--fncc-gap);
+}
+.fncc-card__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+    padding: .75rem 1rem;
+    border-bottom: 1px solid var(--fncc-border);
+    font-weight: 600;
+}
+.fncc-card__body { padding: 1rem; }
+.fncc-card__body > :first-child { margin-top: 0; }
+.fncc-card__body > :last-child { margin-bottom: 0; }
+
+/* ----------------------------------------------------------------- alerts */
+.fncc-alert {
+    display: block;
+    padding: .75rem 1rem;
+    border: 1px solid var(--fncc-border);
+    border-left-width: 4px;
+    border-radius: var(--fncc-radius-sm);
+    background: var(--fncc-surface);
+    margin-bottom: var(--fncc-gap);
+}
+.fncc-alert--info { border-left-color: var(--fncc-primary); background: var(--fncc-primary-soft); }
+.fncc-alert--success { border-left-color: var(--fncc-success); background: var(--fncc-success-soft); }
+.fncc-alert--warning { border-left-color: var(--fncc-warning); background: var(--fncc-warning-soft); }
+.fncc-alert--danger { border-left-color: var(--fncc-danger); background: var(--fncc-danger-soft); }
+
+/* ------------------------------------------------------------------- help */
+.fncc-help { margin-bottom: var(--fncc-gap); }
+.fncc-help > summary {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: var(--fncc-touch);
+    padding: .5rem .75rem;
+    border: 1px solid var(--fncc-border);
+    border-radius: var(--fncc-radius-sm);
+    background: var(--fncc-surface);
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--fncc-text);
+}
+.fncc-help[open] > summary { border-radius: var(--fncc-radius-sm) var(--fncc-radius-sm) 0 0; }
+.fncc-help__body {
+    border: 1px solid var(--fncc-border);
+    border-top: 0;
+    border-radius: 0 0 var(--fncc-radius-sm) var(--fncc-radius-sm);
+    background: var(--fncc-surface);
+    padding: 1rem;
+}
+.fncc-help__body > :first-child { margin-top: 0; }
+.fncc-help__body > :last-child { margin-bottom: 0; }
+.fncc-help__body ul { padding-left: 1.2rem; }
+.fncc-help__body li { margin-bottom: .35rem; }
+.fncc-help__body dt { font-weight: 600; margin-top: .5rem; }
+.fncc-help__body dd { margin: 0 0 .35rem; color: var(--fncc-muted); }
+
+/* ----------------------------------------------------------------- badges */
+.fncc-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    padding: .1rem .5rem;
+    border-radius: 999px;
+    background: var(--fncc-surface-2);
+    border: 1px solid var(--fncc-border);
+    font-size: .78rem;
+    color: var(--fncc-muted);
+    white-space: nowrap;
+}
+.fncc-badge--danger { background: var(--fncc-danger-soft); color: var(--fncc-danger); border-color: var(--fncc-danger); }
+.fncc-badge--success { background: var(--fncc-success-soft); color: var(--fncc-success); border-color: var(--fncc-success); }
+.fncc-badge--warning { background: var(--fncc-warning-soft); color: var(--fncc-warning); border-color: var(--fncc-warning); }
+
+/* ----------------------------------------------------------------- tables */
+/* relative: the screen reader labels inside are positioned absolutely, and
+   without a positioned ancestor they land outside a wide table and make the
+   whole page scroll sideways. */
+.fncc-tablewrap { position: relative; overflow-x: auto; margin-bottom: var(--fncc-gap); }
+
+.fncc-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--fncc-surface);
+}
+.fncc-table th,
+.fncc-table td {
+    padding: .55rem .6rem;
+    border-bottom: 1px solid var(--fncc-border);
+    text-align: left;
+    vertical-align: middle;
+}
+.fncc-table thead th {
+    background: var(--fncc-surface-2);
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--fncc-muted);
+    white-space: nowrap;
+}
+.fncc-table tbody tr:hover { background: var(--fncc-surface-2); }
+
+/* Below this width the table would need horizontal scrolling: every row
+   becomes a card and each cell shows its own label (data-label). */
+@media (max-width: 767px) {
+    .fncc-table--stack thead { display: none; }
+    .fncc-table--stack,
+    .fncc-table--stack tbody,
+    .fncc-table--stack tr,
+    .fncc-table--stack td { display: block; width: 100%; }
+    .fncc-table--stack tr {
+        border: 1px solid var(--fncc-border);
+        border-radius: var(--fncc-radius-sm);
+        margin-bottom: .6rem;
+        padding: .25rem 0;
+    }
+    .fncc-table--stack td { border-bottom: 0; padding: .35rem .75rem; }
+    .fncc-table--stack td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: var(--fncc-muted);
+    }
+}
+
+/* ----------------------------------------------------------------- fields */
+.fncc-field { margin-bottom: var(--fncc-gap); }
+.fncc-field > label { display: block; font-weight: 500; margin-bottom: .25rem; }
+.fncc-field__hint { color: var(--fncc-muted); font-size: .85rem; }
+.fncc-field__error { color: var(--fncc-danger); font-size: .85rem; }
+
+.fncc-section input[type="text"], .fncc-section input[type="password"],
+.fncc-section input[type="email"], .fncc-section input[type="number"],
+.fncc-section input[type="date"], .fncc-section input[type="search"],
+.fncc-section input[type="url"], .fncc-section select, .fncc-section textarea {
+    max-width: 100%;
+    min-height: var(--fncc-touch);
+    padding: .45rem .6rem;
+    border: 1px solid var(--fncc-border-strong);
+    border-radius: var(--fncc-radius-sm);
+    background: var(--fncc-surface);
+    color: var(--fncc-text);
+    font: inherit;
+}
+.fncc-section textarea { min-height: 8rem; width: 100%; }
+.fncc-section input[type="checkbox"], .fncc-section input[type="radio"] { width: 1.15rem; height: 1.15rem; }
+
+/* Sections not migrated yet still print bare <button>, <table> and <fieldset>:
+   give them the panel look instead of the browser defaults. */
+.fncc-section button:not([class]),
+.fncc-section input[type="submit"]:not([class]),
+.fncc-section input[type="button"]:not([class]) {
+    min-height: var(--fncc-touch);
+    padding: .45rem .9rem;
+    border: 1px solid var(--fncc-border-strong);
+    border-radius: var(--fncc-radius-sm);
+    background: var(--fncc-surface);
+    color: var(--fncc-text);
+    font: inherit;
+    cursor: pointer;
+}
+.fncc-section button:not([class]):hover { background: var(--fncc-surface-2); }
+
+.fncc-section fieldset {
+    border: 1px solid var(--fncc-border);
+    border-radius: var(--fncc-radius);
+    padding: 1rem;
+    margin: 0 0 var(--fncc-gap);
+}
+.fncc-section legend { padding: 0 .4rem; font-weight: 600; }
+
+/* ------------------------------------------------------------------- tree */
+/* Sitemap: one row per page. The nesting level is a CSS variable, so the
+   markup stays semantic (no spacer cells, no padding written into the HTML)
+   and the level can be read back by the script. */
+.fncc-tree {
+    list-style: none;
+    margin: 0 0 var(--fncc-gap);
+    padding: 0;
+    border: 1px solid var(--fncc-border);
+    border-radius: var(--fncc-radius);
+    overflow: hidden;
+    background: var(--fncc-surface);
+}
+
+.fncc-tree__item {
+    --fncc-indent: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .35rem .5rem;
+    padding-left: calc(.5rem + var(--fncc-level, 0) * var(--fncc-indent));
+    border-bottom: 1px solid var(--fncc-border);
+    background: var(--fncc-surface);
+}
+.fncc-tree__item:last-child { border-bottom: 0; }
+
+/* Nesting depth: the level is data, so it travels in an attribute and the
+   indentation is decided here, not written into the markup. */
+.fncc-tree__item[data-level="1"] { --fncc-level: 1; }
+.fncc-tree__item[data-level="2"] { --fncc-level: 2; }
+.fncc-tree__item[data-level="3"] { --fncc-level: 3; }
+.fncc-tree__item[data-level="4"] { --fncc-level: 4; }
+.fncc-tree__item[data-level="5"] { --fncc-level: 5; }
+.fncc-tree__item[data-level="6"] { --fncc-level: 6; }
+.fncc-tree__item[data-level="7"] { --fncc-level: 7; }
+.fncc-tree__item[data-level="8"] { --fncc-level: 8; }
+.fncc-tree__item[data-level="9"] { --fncc-level: 9; }
+.fncc-tree__item:not([data-level="0"]) .fncc-tree__title::before {
+    content: "\2514";
+    color: var(--fncc-muted);
+    flex: 0 0 auto;
+}
+.fncc-tree__item:hover { background: var(--fncc-surface-2); }
+.fncc-tree__item.is-dragging { opacity: .4; }
+.fncc-tree__item.is-dropbefore { box-shadow: inset 0 3px 0 var(--fncc-primary); }
+.fncc-tree__item.is-dropafter { box-shadow: inset 0 -3px 0 var(--fncc-primary); }
+.fncc-tree__item.is-hidden .fncc-tree__title { opacity: .6; font-style: italic; }
+.fncc-tree__item.is-disabled .fncc-tree__name { text-decoration: line-through; }
+.fncc-tree__item.is-moved { background: var(--fncc-warning-soft); }
+
+.fncc-tree__handle {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--fncc-touch);
+    min-height: var(--fncc-touch);
+    border: 1px solid transparent;
+    border-radius: var(--fncc-radius-sm);
+    background: none;
+    color: var(--fncc-muted);
+    font: inherit;
+    cursor: grab;
+    touch-action: none;
+}
+.fncc-tree__handle:hover { background: var(--fncc-surface-2); border-color: var(--fncc-border); }
+.fncc-tree__handle:active { cursor: grabbing; }
+
+.fncc-tree__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+.fncc-tree__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--fncc-text);
+    text-decoration: none;
+}
+.fncc-tree__name:hover { text-decoration: underline; }
+.fncc-tree__type { color: var(--fncc-muted); font-size: .8rem; white-space: nowrap; }
+
+.fncc-tree__meta,
+.fncc-tree__files,
+.fncc-tree__actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: .15rem;
+}
+.fncc-tree__meta { gap: .25rem; }
+
+/* Language/PHP shortcuts: a file that exists is filled, a missing one is only
+   outlined, so "which translations exist" is readable at a glance. */
+.fncc-filelink {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.2rem;
+    min-height: 1.6rem;
+    padding: 0 .35rem;
+    border: 1px dashed var(--fncc-border-strong);
+    border-radius: var(--fncc-radius-sm);
+    color: var(--fncc-muted);
+    font-size: .75rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+.fncc-filelink:hover { border-color: var(--fncc-primary); color: var(--fncc-primary); }
+.fncc-filelink.is-present {
+    border-style: solid;
+    border-color: var(--fncc-success);
+    background: var(--fncc-success-soft);
+    color: var(--fncc-success);
+}
+
+.fncc-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    color: var(--fncc-muted);
+    font-size: .85rem;
+    margin: 0 0 var(--fncc-gap);
+    padding: 0;
+    list-style: none;
+}
+
+/* On a phone the row wraps: name on its own line, controls underneath. */
+@media (max-width: 640px) {
+    /* Narrower steps: on a phone the width lost to the indentation would push
+       the controls onto a third line. */
+    .fncc-tree__item { flex-wrap: wrap; row-gap: .25rem; --fncc-indent: .75rem; }
+    .fncc-tree__handle { order: 0; }
+    /* Name and the narrow file shortcuts share the first line, the rest of
+       the controls go underneath: two lines per page instead of three. */
+    .fncc-tree__title { order: 1; flex: 1 1 auto; min-width: 0; }
+    .fncc-tree__files { order: 2; }
+    .fncc-tree__meta { order: 3; flex: 1 1 100%; padding-left: calc(var(--fncc-touch) + .5rem); }
+    .fncc-tree__actions {
+        order: 4;
+        flex: 1 1 100%;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        row-gap: .25rem;
+    }
+    .fncc-tree__moves { margin-left: auto; }
+}
+
+/* Sticky save bar: changes stay in the page until they are saved. */
+.fncc-savebar {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem;
+    margin-top: var(--fncc-gap);
+    padding: .75rem 1rem;
+    background: var(--fncc-surface);
+    border: 1px solid var(--fncc-border);
+    border-radius: var(--fncc-radius);
+    box-shadow: var(--fncc-shadow-lg);
+}
+.fncc-savebar__status { color: var(--fncc-muted); font-size: .9rem; }
+.fncc-savebar.is-dirty { border-color: var(--fncc-warning); }
+.fncc-savebar.is-dirty .fncc-savebar__status { color: var(--fncc-warning); font-weight: 600; }
+
+/* ------------------------------------------------------------------- grid */
+.fncc-grid {
+    display: grid;
+    gap: var(--fncc-gap);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}

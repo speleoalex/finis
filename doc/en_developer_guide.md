@@ -466,6 +466,55 @@ echo FNCC_HtmlEditConfFile("modules/mymodule/config.php");
 `FNCC_HtmlEditConfFile()` is `FN_HtmlEditConfFile($file, $formaction, $exit, $allow, $write_to_file, $mod, $block, $htmltemplate)`
 with the template of the control center theme.
 
+### The interface of a control center page
+
+A control center page does not decide how it looks: it describes what it shows, and the
+`FNCC_UI_*` helpers (`src/include/controlcenter_ui.php`) emit the markup, with `.fncc-*` classes
+only. The look comes from `controlcenter/css/fncc-ui.css` and from the tokens a theme redefines,
+so the same page works on every control center theme, in the light and in the dark palette, and
+stays usable on a phone.
+
+Rules: no `style=""` and no hard coded colour, no inline `onclick` (use the `data-fncc-*`
+attributes read by `fncc-ui.js`), every text goes through `FN_Translate()`/`FN_i18n()`.
+
+```php
+echo FNCC_UI_Toolbar(array(
+    FNCC_UI_Button(FN_i18n("create a new page"), array(
+        "href" => "{$_FN['controlcenter']}opt=$opt&newsection=1",
+        "variant" => "primary",
+    )),
+    FNCC_UI_Button(FN_Translate("delete"), array(
+        "href" => $linkdelete,
+        "variant" => "quiet icon danger",
+        "icon" => "\xE2\x9C\x95\xEF\xB8\x8E",
+        "confirm" => FN_i18n("you want to permanently delete this page?"),
+    )),
+));
+
+echo FNCC_UI_Alert(FN_Translate("the data were successfully updated"), "success");
+echo FNCC_UI_Card(FN_Translate("old versions"), FNCC_UI_Table($headers, $rows));
+```
+
+| Function | What it emits |
+|---|---|
+| `FNCC_UI_Button($label, $options)` | a link or a button; `variant` (`primary`, `danger`, `quiet`, `icon`, `sm`), `icon`, `confirm`, `title`, `attributes` |
+| `FNCC_UI_Toolbar($items)` | a row of buttons; the item `"spacer"` pushes what follows to the right |
+| `FNCC_UI_Alert($text, $type, $isHtml)` | a message (`info`, `success`, `warning`, `danger`) |
+| `FNCC_UI_Card($title, $bodyHtml, $headerExtraHtml)` | a titled panel |
+| `FNCC_UI_Table($headers, $rows, $emptyText)` | a table that becomes a list of cards on a phone |
+| `FNCC_UI_Escape($text)` / `FNCC_UI_PlainText($text)` | escaping for HTML; `PlainText` first decodes the entities already in the data (section titles are stored as `Cavit&agrave;`) |
+
+The output of `section.php` is wrapped by `FNCC_UI_Section()`, which adds the `.fncc-section`
+container and, when the page has a `help/` folder, its instructions.
+
+### Instructions of a page
+
+`help/section.<lang>.html` inside the folder of the page is shown on top, in a collapsible
+`<details>` box titled "How this page works". The file is looked up in the current language, then
+in the default one, then in english, in the application first and then in FINIS, so a site can
+replace the text of a page it customised. This is where the less obvious parts belong, instead of
+filling the page with notes.
+
 ## Working with the Database
 
 ### Creating Tables

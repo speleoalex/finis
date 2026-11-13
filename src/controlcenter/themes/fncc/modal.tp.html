@@ -1,0 +1,25 @@
+<dialog class="fncc-modal" id="_startvar_idmodal_endvar_">
+    <div class="fncc-card">
+        <header class="fncc-card__header">{title}</header>
+        <div class="fncc-card__body">
+            <p>{body}</p>
+            <div class="fncc-toolbar">
+                <button type="button" class="fncc-btn fncc-btn--primary" onclick="document.getElementById('_startvar_idmodal_endvar_').close();">{textbutton}</button>
+            </div>
+        </div>
+    </div>
+</dialog>
+<style>
+    .fncc-modal { border: 0; padding: 0; background: none; max-width: min(34rem, 92vw); }
+    .fncc-modal::backdrop { background: rgba(8, 12, 18, .5); }
+    .fncc-modal .fncc-card { margin: 0; }
+</style>
+<script>
+    (function () {
+        var modal = document.getElementById("_startvar_idmodal_endvar_");
+        if (!modal) { return; }
+        // <dialog> is not supported everywhere: without showModal the box is
+        // still in the page, so make it visible the plain way.
+        if (typeof modal.showModal === "function") { modal.showModal(); } else { modal.setAttribute("open", "open"); }
+    }());
+</script>

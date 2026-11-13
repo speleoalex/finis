@@ -276,6 +276,23 @@ The themes of the control center live in `controlcenter/themes/<name>/` (`classi
   (for example `users_and_groups/profile/form.tp.html`), found with `FNCC_FromTheme()`. A
   customized copy in `controlcenter/themes/<name>/` of the site wins over the one of FINIS.
 
+From the `fncc` theme on, this convention also applies:
+
+- `{cc_assets}` in the `<head>` of the template: FINIS puts there the shared stylesheet and
+  script of the panel (`controlcenter/css/fncc-ui.css` and `controlcenter/js/fncc-ui.js`) and,
+  right after them, the `css/theme.css` and `js/theme.js` of the theme, when they exist. The
+  files are copied into the site folder, and copied again when the source in FINIS is newer, so
+  an upgrade of the framework also reaches the sites already installed. A theme without
+  `{cc_assets}` still gets the shared files, added before `</head>`.
+- A theme should therefore not link its own CSS with `<link href="css/...">`: a file referenced
+  inside a template is copied into the site only once, and the copy would stay behind.
+
+`fncc-ui.css` defines the colours as CSS variables (`--fncc-surface`, `--fncc-text`,
+`--fncc-primary`, ...), with the dark set under `@media (prefers-color-scheme: dark)` and under
+`:root[data-fncc-theme="dark"]`. Restyling the panel is a matter of redefining those variables in
+`css/theme.css`: the components of the sections (buttons, cards, tables, the sitemap tree) follow
+with no change to the PHP.
+
 The file manager draws its icons with Unicode characters (`FN_GetIconCharByFilename()`), so a
 theme does not need to provide icon images for it.
 

@@ -1,0 +1,303 @@
+/**
+ * Layout of the "fncc" control center theme: shell, sidebar, top bar, login
+ * and dashboard. The components (buttons, cards, tables, help, tree) live in
+ * controlcenter/css/fncc-ui.css, which every theme gets, and the colours come
+ * from the tokens defined there.
+ *
+ * No external resource: no CDN, no web font, so the panel also works offline.
+ */
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+    margin: 0;
+    background: var(--fncc-bg);
+    color: var(--fncc-text);
+    font-family: var(--fncc-font);
+    font-size: 15px;
+    line-height: 1.5;
+    overflow-wrap: break-word;
+}
+
+a { color: var(--fncc-primary); }
+
+:focus-visible {
+    outline: none;
+    box-shadow: var(--fncc-focus);
+    border-radius: var(--fncc-radius-sm);
+}
+
+h1, h2, h3 { line-height: 1.25; }
+
+.fncc-skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+    background: var(--fncc-surface);
+    color: var(--fncc-text);
+    padding: .75rem 1rem;
+}
+.fncc-skip:focus { left: 0; }
+
+/* ----------------------------------------------------------------- shell */
+.fncc-shell { display: flex; min-height: 100vh; }
+
+.fncc-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 17rem;
+    background: #16202e;
+    color: #dbe3ee;
+    display: flex;
+    flex-direction: column;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform .18s ease-out;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+:root[data-fncc-theme="dark"] .fncc-sidebar { background: #0d131b; }
+@media (prefers-color-scheme: dark) {
+    :root:not([data-fncc-theme="light"]) .fncc-sidebar { background: #0d131b; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .fncc-sidebar { transition: none; }
+}
+
+.fncc-sidebar.is-open { transform: translateX(0); }
+
+.fncc-sidebar__brand {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    padding: 1rem;
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.fncc-sidebar__brand img { max-height: 40px; width: auto; }
+.fncc-sidebar__brand strong { display: block; font-size: .95rem; }
+.fncc-sidebar__brand span { color: #8e9cb0; font-size: .78rem; }
+
+.fncc-nav { padding: .5rem 0 1rem; }
+
+.fncc-nav__grouptitle {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    width: 100%;
+    min-height: var(--fncc-touch);
+    padding: .6rem 1rem;
+    background: none;
+    border: 0;
+    color: #8e9cb0;
+    font: inherit;
+    font-size: .76rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    text-align: left;
+    cursor: pointer;
+}
+.fncc-nav__grouptitle:hover { color: #dbe3ee; }
+.fncc-nav__caret { margin-left: auto; transition: transform .15s; }
+.fncc-nav__grouptitle[aria-expanded="true"] .fncc-nav__caret { transform: rotate(90deg); }
+
+.fncc-nav__items { list-style: none; margin: 0 0 .4rem; padding: 0; }
+.fncc-nav__items[hidden] { display: none; }
+
+.fncc-nav__link {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    min-height: var(--fncc-touch);
+    padding: .5rem 1rem .5rem 1.5rem;
+    color: #dbe3ee;
+    text-decoration: none;
+    border-left: 3px solid transparent;
+}
+.fncc-nav__link:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+.fncc-nav__link[aria-current="page"] {
+    background: rgba(255, 255, 255, .1);
+    border-left-color: var(--fncc-primary);
+    font-weight: 600;
+    color: #fff;
+}
+.fncc-nav__link img { width: 18px; height: 18px; object-fit: contain; flex: 0 0 auto; }
+
+.fncc-sidebar__footer {
+    margin-top: auto;
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    font-size: .85rem;
+}
+.fncc-sidebar__footer a { color: #dbe3ee; }
+
+.fncc-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.fncc-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .4rem .6rem;
+    background: var(--fncc-surface);
+    border-bottom: 1px solid var(--fncc-border);
+}
+.fncc-topbar__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.fncc-topbar__spacer { margin-left: auto; }
+
+.fncc-content {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 1400px;
+    padding: var(--fncc-gap);
+}
+
+.fncc-footer {
+    padding: 1rem;
+    color: var(--fncc-muted);
+    font-size: .85rem;
+    border-top: 1px solid var(--fncc-border);
+}
+
+.fncc-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 12, 18, .5);
+    border: 0;
+    padding: 0;
+    z-index: 35;
+    cursor: pointer;
+}
+.fncc-backdrop[hidden] { display: none; }
+
+@media (min-width: 992px) {
+    .fncc-sidebar { transform: translateX(0); }
+    .fncc-main { margin-left: 17rem; }
+    .fncc-backdrop { display: none !important; }
+    .fncc-sidebar-toggle { display: none; }
+    .fncc-content { padding: 1.5rem; }
+}
+
+/* ------------------------------------------------------------ breadcrumb */
+.fncc-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    list-style: none;
+    margin: 0 0 1rem;
+    padding: 0;
+    font-size: .85rem;
+    color: var(--fncc-muted);
+}
+.fncc-breadcrumb li + li::before { content: "/"; margin-right: .35rem; opacity: .6; }
+.fncc-breadcrumb a { color: var(--fncc-muted); }
+
+/* -------------------------------------------------------------- dropdown */
+.fncc-dropdown { position: relative; }
+.fncc-dropdown__menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + .35rem);
+    min-width: 14rem;
+    max-width: min(22rem, calc(100vw - 1rem));
+    background: var(--fncc-surface);
+    border: 1px solid var(--fncc-border);
+    border-radius: var(--fncc-radius);
+    box-shadow: var(--fncc-shadow-lg);
+    padding: .35rem;
+    margin: 0;
+    z-index: 50;
+    list-style: none;
+}
+.fncc-dropdown__menu[hidden] { display: none; }
+.fncc-dropdown__menu a,
+.fncc-dropdown__menu button {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    width: 100%;
+    min-height: var(--fncc-touch);
+    padding: .4rem .6rem;
+    border: 0;
+    border-radius: var(--fncc-radius-sm);
+    background: none;
+    color: var(--fncc-text);
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+.fncc-dropdown__menu a:hover,
+.fncc-dropdown__menu button:hover { background: var(--fncc-surface-2); }
+.fncc-dropdown__divider { border-top: 1px solid var(--fncc-border); margin: .3rem 0; }
+.fncc-dropdown__empty { padding: .6rem; color: var(--fncc-muted); }
+
+.fncc-indicator {
+    position: absolute;
+    top: .1rem;
+    right: .1rem;
+    min-width: 17px;
+    padding: 0 .25rem;
+    border-radius: 999px;
+    background: var(--fncc-danger);
+    color: #fff;
+    font-size: .68rem;
+    line-height: 17px;
+    text-align: center;
+}
+.fncc-hasindicator { position: relative; }
+
+/* ----------------------------------------------------------------- login */
+.fncc-login {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+}
+.fncc-login__box { width: 100%; max-width: 23rem; }
+.fncc-login__head { text-align: center; margin-bottom: 1rem; }
+.fncc-login__head h1 { font-size: 1.2rem; margin: 0 0 .25rem; }
+.fncc-login__head p { color: var(--fncc-muted); margin: 0; }
+.fncc-login label { display: block; font-weight: 500; margin-bottom: .25rem; }
+.fncc-login input[type="text"],
+.fncc-login input[type="password"] {
+    width: 100%;
+    min-height: var(--fncc-touch);
+    padding: .45rem .6rem;
+    border: 1px solid var(--fncc-border-strong);
+    border-radius: var(--fncc-radius-sm);
+    background: var(--fncc-surface);
+    color: var(--fncc-text);
+    font: inherit;
+}
+.fncc-login .fncc-field { margin-bottom: .9rem; }
+.fncc-login__actions { display: flex; flex-direction: column; gap: .6rem; margin-top: 1rem; }
+.fncc-login__foot { text-align: center; margin-top: 1rem; font-size: .9rem; }
+
+/* ------------------------------------------------------------- dashboard */
+.fncc-dash__title { margin: 0 0 .5rem; font-size: 1rem; }
+
+@media print {
+    .fncc-sidebar, .fncc-topbar, .fncc-savebar, .fncc-tree__actions { display: none !important; }
+    .fncc-main { margin-left: 0; }
+}
