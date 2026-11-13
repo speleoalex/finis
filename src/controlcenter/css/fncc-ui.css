@@ -108,6 +108,46 @@
     --fncc-focus: 0 0 0 3px rgba(78, 163, 232, .5);
 }
 
+/* A palette chosen from the button in the bar has to reach the colours the
+   browser paints on its own - the canvas behind the page, the text of an
+   element nobody styled, the scrollbars, the calendar of a date field - or they
+   keep following the system: on a light system the dark palette used to leave
+   the login box with black text on a dark card. */
+:root[data-fncc-theme="dark"] { color-scheme: dark; }
+:root[data-fncc-theme="light"] { color-scheme: light; }
+
+/* --------------------------------------------------------------- document */
+
+/* What every page of the panel needs whatever theme is in use. It lives here
+   and not in a theme because the login page has a plain <body>, with no class
+   for a theme to hook on, and because a theme that forgets these rules gets a
+   page painted half with its own palette and half with the one of the browser. */
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+    margin: 0;
+    background: var(--fncc-bg);
+    color: var(--fncc-text);
+    font-family: var(--fncc-font);
+    font-size: 15px;
+    line-height: 1.5;
+    overflow-wrap: break-word;
+}
+
+a { color: var(--fncc-primary); }
+
+/* The ring of the keyboard focus: drawn here so that it is the same, and
+   visible on both palettes, in every theme. */
+:focus-visible {
+    outline: none;
+    box-shadow: var(--fncc-focus);
+    border-radius: var(--fncc-radius-sm);
+}
+
+h1, h2, h3 { line-height: 1.25; }
+
 /* A display rule of ours would otherwise win over the hidden attribute. */
 .fncc-btn[hidden],
 .fncc-badge[hidden],
@@ -125,11 +165,6 @@
 
 /* ------------------------------------------------------- section container */
 .fncc-section { color: var(--fncc-text); }
-.fncc-section :focus-visible {
-    outline: none;
-    box-shadow: var(--fncc-focus);
-    border-radius: var(--fncc-radius-sm);
-}
 .fncc-section img { max-width: 100%; height: auto; }
 .fncc-section pre {
     background: var(--fncc-surface-2);
@@ -591,3 +626,37 @@
     gap: var(--fncc-gap);
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
 }
+
+/* ------------------------------------------------------------------ login */
+
+/* The page of the way in: one box in the middle of the window, the same under
+   every theme. */
+.fncc-login {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: var(--fncc-bg);
+    color: var(--fncc-text);
+}
+.fncc-login__box { width: 100%; max-width: 23rem; }
+.fncc-login__head { text-align: center; margin-bottom: 1rem; }
+.fncc-login__head h1 { font-size: 1.2rem; margin: 0 0 .25rem; }
+.fncc-login__head p { color: var(--fncc-muted); margin: 0; }
+.fncc-login label { display: block; font-weight: 500; margin-bottom: .25rem; }
+.fncc-login input[type="text"],
+.fncc-login input[type="password"] {
+    width: 100%;
+    min-height: var(--fncc-touch);
+    padding: .45rem .6rem;
+    border: 1px solid var(--fncc-border-strong);
+    border-radius: var(--fncc-radius-sm);
+    background: var(--fncc-surface);
+    color: var(--fncc-text);
+    font: inherit;
+}
+.fncc-login .fncc-field { margin-bottom: .9rem; }
+.fncc-login__actions { display: flex; flex-direction: column; gap: .6rem; margin-top: 1rem; }
+.fncc-login__foot { text-align: center; margin-top: 1rem; font-size: .9rem; }

@@ -1,35 +1,11 @@
 /**
- * Layout of the "fncc" control center theme: shell, sidebar, top bar, login
- * and dashboard. The components (buttons, cards, tables, help, tree) live in
+ * Layout of the "fncc" control center theme: shell, sidebar, top bar and
+ * dashboard. The components (buttons, cards, tables, help, tree) live in
  * controlcenter/css/fncc-ui.css, which every theme gets, and the colours come
  * from the tokens defined there.
  *
  * No external resource: no CDN, no web font, so the panel also works offline.
  */
-
-* { box-sizing: border-box; }
-
-html { -webkit-text-size-adjust: 100%; }
-
-body {
-    margin: 0;
-    background: var(--fncc-bg);
-    color: var(--fncc-text);
-    font-family: var(--fncc-font);
-    font-size: 15px;
-    line-height: 1.5;
-    overflow-wrap: break-word;
-}
-
-a { color: var(--fncc-primary); }
-
-:focus-visible {
-    outline: none;
-    box-shadow: var(--fncc-focus);
-    border-radius: var(--fncc-radius-sm);
-}
-
-h1, h2, h3 { line-height: 1.25; }
 
 .fncc-skip {
     position: absolute;
@@ -291,34 +267,6 @@ h1, h2, h3 { line-height: 1.25; }
     text-align: center;
 }
 .fncc-hasindicator { position: relative; }
-
-/* ----------------------------------------------------------------- login */
-.fncc-login {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-}
-.fncc-login__box { width: 100%; max-width: 23rem; }
-.fncc-login__head { text-align: center; margin-bottom: 1rem; }
-.fncc-login__head h1 { font-size: 1.2rem; margin: 0 0 .25rem; }
-.fncc-login__head p { color: var(--fncc-muted); margin: 0; }
-.fncc-login label { display: block; font-weight: 500; margin-bottom: .25rem; }
-.fncc-login input[type="text"],
-.fncc-login input[type="password"] {
-    width: 100%;
-    min-height: var(--fncc-touch);
-    padding: .45rem .6rem;
-    border: 1px solid var(--fncc-border-strong);
-    border-radius: var(--fncc-radius-sm);
-    background: var(--fncc-surface);
-    color: var(--fncc-text);
-    font: inherit;
-}
-.fncc-login .fncc-field { margin-bottom: .9rem; }
-.fncc-login__actions { display: flex; flex-direction: column; gap: .6rem; margin-top: 1rem; }
-.fncc-login__foot { text-align: center; margin-top: 1rem; font-size: .9rem; }
 
 /* ------------------------------------------------------------- dashboard */
 .fncc-dash__title { margin: 0 0 .5rem; font-size: 1rem; }
