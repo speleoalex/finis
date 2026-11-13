@@ -54,10 +54,10 @@
 
                             <!-- foreach {sections} -->
                             <!-- if {active} -->
-                            <li><a class="fncc-nav__link" aria-current="page" href="{link}"><!-- if {image} --><img src="{image}" alt="" /><!-- end if {image} -->{title}</a></li>
+                            <li><a class="fncc-nav__link" aria-current="page" href="{link}"><!-- if {icon_mask} --><span class="fncc-nav__icon" style="{icon_style}" aria-hidden="true"></span><!-- end if {icon_mask} --><!-- if not {icon_mask} --><img class="fncc-nav__icon fncc-nav__icon--raster" src="{image}" alt="" /><!-- end if not {icon_mask} -->{title}</a></li>
                             <!-- end if {active} -->
                             <!-- if not {active} -->
-                            <li><a class="fncc-nav__link" href="{link}"><!-- if {image} --><img src="{image}" alt="" /><!-- end if {image} -->{title}</a></li>
+                            <li><a class="fncc-nav__link" href="{link}"><!-- if {icon_mask} --><span class="fncc-nav__icon" style="{icon_style}" aria-hidden="true"></span><!-- end if {icon_mask} --><!-- if not {icon_mask} --><img class="fncc-nav__icon fncc-nav__icon--raster" src="{image}" alt="" /><!-- end if not {icon_mask} -->{title}</a></li>
                             <!-- end if not {active} -->
                             <!-- end foreach {sections} -->
                         </ul>

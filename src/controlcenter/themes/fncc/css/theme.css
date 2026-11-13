@@ -126,7 +126,24 @@ h1, h2, h3 { line-height: 1.25; }
     font-weight: 600;
     color: #fff;
 }
-.fncc-nav__link img { width: 18px; height: 18px; object-fit: contain; flex: 0 0 auto; }
+/* A drawing of the panel is painted as a mask, so it takes the colour of the
+   text and follows the light and the dark palette; a bitmap coming from a
+   section or a module keeps its own colours. */
+.fncc-nav__icon {
+    flex: 0 0 auto;
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-color: currentColor;
+    -webkit-mask: var(--fncc-icon) center / contain no-repeat;
+    mask: var(--fncc-icon) center / contain no-repeat;
+}
+.fncc-nav__icon--raster {
+    background: none;
+    -webkit-mask: none;
+    mask: none;
+    object-fit: contain;
+}
 
 .fncc-sidebar__footer {
     margin-top: auto;

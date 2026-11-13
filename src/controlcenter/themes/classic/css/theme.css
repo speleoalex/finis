@@ -1,0 +1,326 @@
+/**
+ * Control center theme "classic": the groups of the panel sit in a bar across
+ * the top, the way this theme always had them, instead of in a column.
+ *
+ * Only the layout lives here. Colours, buttons, cards, tables and the light
+ * and dark palette come from controlcenter/css/fncc-ui.css, which every theme
+ * loads through {cc_assets}: a page of the panel looks the same whichever
+ * theme is in use, and a new section needs no work here.
+ */
+
+.fncl {
+    margin: 0;
+    background: var(--fncc-bg);
+    color: var(--fncc-text);
+    font-family: var(--fncc-font);
+}
+
+.fncc-skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 60;
+    padding: .6rem 1rem;
+    background: var(--fncc-surface);
+    color: var(--fncc-text);
+    border-radius: 0 0 var(--fncc-radius) 0;
+}
+.fncc-skip:focus { left: 0; }
+
+/* ------------------------------------------------------------ the top bar */
+
+.fncl-top {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--fncc-surface);
+    border-bottom: 1px solid var(--fncc-border);
+    box-shadow: var(--fncc-shadow);
+}
+
+.fncl-top__bar {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .4rem .75rem;
+}
+
+.fncl-brand {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+.fncl-brand img { width: 28px; height: 28px; object-fit: contain; }
+.fncl-brand > span { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.fncl-brand strong {
+    font-size: .95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.fncl-brand > span > span { font-size: .75rem; color: var(--fncc-muted); }
+
+.fncl-top__actions {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.fncl-langs { display: flex; gap: .15rem; }
+.fncl-langs a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    min-height: 1.9rem;
+    padding: 0 .3rem;
+    border: 1px solid var(--fncc-border);
+    border-radius: var(--fncc-radius-sm);
+    color: var(--fncc-muted);
+    font-size: .7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+.fncl-langs a:hover { color: var(--fncc-text); border-color: var(--fncc-border-strong); }
+
+/* The hamburger only has a job on a narrow screen. */
+.fncl-burger { display: none; }
+
+/* --------------------------------------------------------------- the menu */
+
+.fncl-menu {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .15rem;
+    padding: 0 .75rem .35rem;
+}
+
+.fncl-menu__group { position: relative; }
+
+.fncl-menu__title {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    min-height: 2.2rem;
+    padding: .25rem .6rem;
+    border: 1px solid transparent;
+    border-radius: var(--fncc-radius-sm);
+    background: none;
+    color: var(--fncc-text);
+    font: inherit;
+    font-size: .9rem;
+    cursor: pointer;
+}
+.fncl-menu__title:hover { background: var(--fncc-surface-2); }
+.fncl-menu__title.is-active { color: var(--fncc-primary); font-weight: 600; }
+.fncl-menu__title[aria-expanded="true"] {
+    background: var(--fncc-surface-2);
+    border-color: var(--fncc-border);
+}
+.fncl-menu__caret { font-size: .7rem; color: var(--fncc-muted); }
+
+/* The list of a group: a panel hanging under its button. */
+.fncl-menu__items {
+    position: absolute;
+    top: calc(100% + .2rem);
+    left: 0;
+    z-index: 40;
+    min-width: 15rem;
+    max-height: 70vh;
+    overflow-y: auto;
+    margin: 0;
+    padding: .3rem;
+    list-style: none;
+    background: var(--fncc-surface);
+    border: 1px solid var(--fncc-border);
+    border-radius: var(--fncc-radius);
+    box-shadow: var(--fncc-shadow-lg);
+}
+.fncl-menu__items[hidden] { display: none; }
+
+.fncl-menu__link {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-height: var(--fncc-touch);
+    padding: .3rem .5rem;
+    border-radius: var(--fncc-radius-sm);
+    color: var(--fncc-text);
+    font-size: .9rem;
+    text-decoration: none;
+}
+.fncl-menu__link:hover { background: var(--fncc-surface-2); }
+.fncl-menu__link.is-current {
+    background: var(--fncc-primary-soft);
+    color: var(--fncc-primary);
+    font-weight: 600;
+}
+
+/* ------------------------------------------------------------- the icons */
+
+/* A drawing of the theme is painted as a mask, so it takes the colour of the
+   text and works on the light and on the dark palette alike. A bitmap coming
+   from a section or a module keeps its own colours (.fncl-ico--raster). */
+.fncl-ico {
+    flex: 0 0 auto;
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+    background-color: currentColor;
+    -webkit-mask: var(--fncc-icon) center / contain no-repeat;
+    mask: var(--fncc-icon) center / contain no-repeat;
+}
+.fncl-ico--raster {
+    background: none;
+    -webkit-mask: none;
+    mask: none;
+    object-fit: contain;
+}
+.fncl-ico--big { width: 1.75rem; height: 1.75rem; }
+
+/* ----------------------------------------------------------- the contents */
+
+.fncl-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem .75rem 3rem;
+}
+
+.fncl-title {
+    margin: 0 0 .75rem;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+/* --------------------------------------------------- the home of the panel */
+
+.fncl-home__group { margin-bottom: var(--fncc-gap); }
+
+.fncl-home__items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: .5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.fncl-home__item {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    min-height: var(--fncc-touch);
+    height: 100%;
+    padding: .6rem .7rem;
+    border: 1px solid var(--fncc-border);
+    border-radius: var(--fncc-radius);
+    background: var(--fncc-surface);
+    color: var(--fncc-text);
+    font-size: .9rem;
+    text-decoration: none;
+}
+.fncl-home__item:hover {
+    border-color: var(--fncc-primary);
+    color: var(--fncc-primary);
+}
+
+/* --------------------------------------------------------------- backdrop */
+
+.fncl-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    border: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, .45);
+}
+.fncl-backdrop[hidden] { display: none; }
+
+/* ----------------------------------------------------------------- phone */
+
+@media (max-width: 860px) {
+    .fncl-burger { display: inline-flex; }
+
+    /* The row of menus becomes a drawer: on a narrow screen a bar of groups
+       would wrap into three lines and leave no room for the page itself. */
+    .fncl-menu {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 35;
+        width: min(20rem, 85vw);
+        height: 100%;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        gap: 0;
+        overflow-y: auto;
+        padding: .75rem;
+        background: var(--fncc-surface);
+        border-right: 1px solid var(--fncc-border);
+        box-shadow: var(--fncc-shadow-lg);
+        transform: translateX(-102%);
+        transition: transform .18s ease-out;
+    }
+    .fncl-menu.is-open { transform: none; }
+
+    .fncl-menu__group { position: static; }
+    .fncl-menu__title { width: 100%; justify-content: space-between; }
+    .fncl-menu__items {
+        position: static;
+        max-height: none;
+        min-width: 0;
+        padding: 0 0 .35rem .5rem;
+        border: 0;
+        box-shadow: none;
+        background: none;
+    }
+
+    /* The name of the site is a link back to the home of the panel: it keeps
+       a finger sized height even once the subtitle is gone. */
+    .fncl-brand { min-height: var(--fncc-touch); }
+    .fncl-top__actions { gap: .25rem; }
+    .fncl-top__actions .fncc-btn { font-size: .75rem; }
+    .fncl-content { padding: .75rem .75rem 3rem; }
+    .fncl-title { font-size: 1.1rem; }
+}
+
+@media (max-width: 480px) {
+    /* Below this width the four buttons do not fit next to the name of the
+       site: the site link goes, it is one tap away from the home anyway, and
+       the theme button keeps the drawing alone. Its name stays in the title
+       attribute, which is what a screen reader reads out. */
+    .fncl-top__actions > a[target="_blank"] { display: none; }
+    .fncl-brand > span > span { display: none; }
+
+    .fncl-top__actions [data-fncc-theme-toggle] {
+        width: 2.2rem;
+        padding: 0;
+        justify-content: center;
+    }
+    .fncl-top__actions [data-fncc-theme-toggle] [data-fncc-theme-label] {
+        display: block;
+        width: 1.1rem;
+        height: 1.1rem;
+        overflow: hidden;
+        text-indent: -999px;
+        background-color: currentColor;
+        -webkit-mask: url("../../../img/icons/theme.svg") center / contain no-repeat;
+        mask: url("../../../img/icons/theme.svg") center / contain no-repeat;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fncl-menu { transition: none; }
+}
+
+@media print {
+    .fncl-top, .fncl-backdrop, .fncc-skip { display: none !important; }
+    .fncl-content { max-width: none; padding: 0; }
+}

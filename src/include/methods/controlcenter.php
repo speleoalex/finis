@@ -846,7 +846,9 @@ function FNCC_GetMenuItems()
                 $icon = FN_FromTheme("{$_FN['src_application']}/controlcenter/images/configure.png");
                 if ($section_path && file_exists("$section_path/icon.png"))
                     $icon = FN_PathSite("$section_path/icon.png");
-                $item['image'] = $icon;
+                // A theme with its own drawings answers first; the bitmap of the
+                // folder stays for the themes that have none.
+                FNCC_UI_SetMenuIcon($item, $icon);
                 if ($opt == $item['opt'])
                 {
                     $item['active'] = true;
@@ -872,7 +874,7 @@ function FNCC_GetMenuItems()
                 }
                 $item['link'] = "?fnapp=controlcenter&opt={$item['opt']}";
                 $item['title'] = $_section['title'];
-                $item['image'] = $_section['cc_icon'];
+                FNCC_UI_SetMenuIcon($item, $_section['cc_icon'], isset($_section['type']) ? $_section['type'] : "");
                 $item['description'] = $item['title'];
                 if ($opt == $item['opt'])
                 {
@@ -898,7 +900,7 @@ function FNCC_GetMenuItems()
                 }
                 $item['link'] = "?fnapp=controlcenter&opt={$item['opt']}";
                 $item['title'] = $_section['title'];
-                $item['image'] = $_section['cc_icon'];
+                FNCC_UI_SetMenuIcon($item, $_section['cc_icon'], isset($_section['type']) ? $_section['type'] : "");
                 $item['description'] = $item['title'];
                 if ($opt == $item['opt'])
                 {
@@ -934,7 +936,7 @@ function FNCC_GetMenuItems()
                     $ttype = ucfirst(FN_GetFolderTitle($_FN['src_finis'] . "/modules/{$section['type']}") . " ");
                 }
                 $item['title'] = $section['title'];
-                $item['image'] = $section['cc_icon'];
+                FNCC_UI_SetMenuIcon($item, $section['cc_icon'], isset($section['type']) ? $section['type'] : "");
                 $item['description'] = $section['title'];
                 $sectionsIngroup[] = $item;
             }
@@ -991,7 +993,7 @@ function FNCC_GetMenuItems()
         }
         $item['link'] = "?fnapp=controlcenter&opt={$item['opt']}";
         $item['title'] = $section['title'];
-        $item['image'] = $section['cc_icon'];
+        FNCC_UI_SetMenuIcon($item, $section['cc_icon'], isset($section['type']) ? $section['type'] : "");
         $sectionsIngroup[] = $item;
     }
 //---------------get settings.php in plugins and sections ---------------------<		

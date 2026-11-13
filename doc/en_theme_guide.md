@@ -252,7 +252,7 @@ The `form.tp.html` file defines how forms are rendered in the system:
 
 ### Control Center Themes
 
-The themes of the control center live in `controlcenter/themes/<name>/` (`classic`, `sidebar`,
+The themes of the control center live in `controlcenter/themes/<name>/` (`classic`, `fncc`, `sidebar`,
 `adminkit`) and are chosen with the setting `controlcenter_theme`. Besides `controlcenter.tp.html`,
 `form.tp.html`, `grid.tp.html` and `view.tp.html`, a theme can provide:
 
@@ -292,6 +292,49 @@ From the `fncc` theme on, this convention also applies:
 `:root[data-fncc-theme="dark"]`. Restyling the panel is a matter of redefining those variables in
 `css/theme.css`: the components of the sections (buttons, cards, tables, the sitemap tree) follow
 with no change to the PHP.
+
+#### Menu icons
+
+A menu entry of the panel carries an SVG drawing, no longer one PNG per section. The files live in
+`controlcenter/img/icons/` and a theme replaces any of them by using the same name in
+`controlcenter/themes/<name>/img/icons/`. For every entry FINIS looks, in this order, for:
+
+1. `<group>-<section>.svg` (for instance `contents-sitemap.svg`);
+2. `<group>.svg`, the family (`contents.svg`);
+3. `module-<type>.svg` for the settings of a page, where the type is the one of the module
+   (`module-dbview.svg`, `module-block-menu.svg`, `module-table-editor.svg`);
+4. `generic.svg`;
+5. the old `icon.png` of the section or of the module, for whatever has not been drawn yet.
+
+File names come from the address of the entry, with a dash in place of every character that is
+not a letter or a digit: `users_and_groups/users` becomes `users-and-groups-users.svg`.
+
+The template is given three variables per entry:
+
+- `{image}`: the address of the drawing;
+- `{icon_mask}`: true when it is an SVG of the panel, false when it is a PNG of a section;
+- `{icon_style}`: the `style` attribute, ready made (`--fncc-icon:url('...')`).
+
+An SVG is drawn as a **mask**, not as an image: that way it takes the colour of the text and
+follows the light and the dark theme. A PNG is left as it is, or the mask would flatten it to a
+silhouette:
+
+```html
+<!-- if {icon_mask} --><span class="fncl-ico" style="{icon_style}" aria-hidden="true"></span><!-- end if {icon_mask} -->
+<!-- if not {icon_mask} --><img class="fncl-ico fncl-ico--raster" src="{image}" alt="" /><!-- end if not {icon_mask} -->
+```
+
+```css
+.fncl-ico { width: 1.25rem; height: 1.25rem; background-color: currentColor;
+            mask: var(--fncc-icon) center / contain no-repeat; }
+.fncl-ico--raster { background: none; mask: none; }
+```
+
+FINIS builds that `style` attribute, not the template, because the template engine rewrites every
+`url()` it meets and would put the path of the theme in front of an address that is already
+complete. An SVG a theme reaches for from its stylesheet (rather than through the menu) is written
+as a path relative to that stylesheet, such as `url("../../../img/icons/theme.svg")`: every SVG of
+`controlcenter/img/icons/` and of the theme folder is copied into the site along with the assets.
 
 The file manager draws its icons with Unicode characters (`FN_GetIconCharByFilename()`), so a
 theme does not need to provide icon images for it.

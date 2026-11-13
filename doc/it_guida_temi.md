@@ -582,8 +582,8 @@ footer .container {
 
 ### Temi del Pannello di Controllo
 
-I temi del pannello di controllo stanno in `controlcenter/themes/<nome>/` (`classic`, `sidebar`,
-`adminkit`) e si scelgono con l'impostazione `controlcenter_theme`. Oltre a `controlcenter.tp.html`,
+I temi del pannello di controllo stanno in `controlcenter/themes/<nome>/` (`classic`, `fncc`,
+`sidebar`, `adminkit`) e si scelgono con l'impostazione `controlcenter_theme`. Oltre a `controlcenter.tp.html`,
 `form.tp.html`, `grid.tp.html` e `view.tp.html`, un tema può fornire:
 
 - `editconf.tp.html`: l'editor dei file `config.php` (impostazioni del sito, opzioni dei moduli e
@@ -624,6 +624,50 @@ Il foglio `fncc-ui.css` definisce i colori come variabili CSS (`--fncc-surface`,
 `:root[data-fncc-theme="dark"]`. Per cambiare l'aspetto del pannello basta ridefinire quelle
 variabili in `css/theme.css`: i componenti delle sezioni (pulsanti, schede, tabelle, albero della
 mappa del sito) seguono senza modifiche al PHP.
+
+#### Icone del menu
+
+Le voci del menu del pannello hanno un disegno SVG, non piu' una PNG per sezione. I file stanno in
+`controlcenter/img/icons/` e un tema puo' sostituirne qualcuno mettendo lo stesso nome in
+`controlcenter/themes/<nome>/img/icons/`. Per ogni voce FINIS cerca, in quest'ordine:
+
+1. `<gruppo>-<sezione>.svg` (per esempio `contents-sitemap.svg`);
+2. `<gruppo>.svg`, cioe' la famiglia (`contents.svg`);
+3. `module-<tipo>.svg` per le impostazioni di una pagina, dove il tipo e' quello del modulo
+   (`module-dbview.svg`, `module-block-menu.svg`, `module-table-editor.svg`);
+4. `generic.svg`;
+5. la vecchia `icon.png` della sezione o del modulo, per quello che non e' ancora stato disegnato.
+
+I nomi dei file si ricavano dall'indirizzo della voce mettendo un trattino al posto di ogni
+carattere che non sia una lettera o una cifra: `users_and_groups/users` diventa
+`users-and-groups-users.svg`.
+
+Il template riceve tre variabili per voce:
+
+- `{image}`: l'indirizzo del disegno;
+- `{icon_mask}`: vero quando e' un SVG del pannello, falso quando e' una PNG di una sezione;
+- `{icon_style}`: l'attributo `style` gia' pronto (`--fncc-icon:url('...')`).
+
+Un SVG va disegnato come **maschera**, non come immagine: cosi' prende il colore del testo e
+segue il tema chiaro e scuro. Una PNG va lasciata com'e', altrimenti la maschera la ridurrebbe a
+una sagoma:
+
+```html
+<!-- if {icon_mask} --><span class="fncl-ico" style="{icon_style}" aria-hidden="true"></span><!-- end if {icon_mask} -->
+<!-- if not {icon_mask} --><img class="fncl-ico fncl-ico--raster" src="{image}" alt="" /><!-- end if not {icon_mask} -->
+```
+
+```css
+.fncl-ico { width: 1.25rem; height: 1.25rem; background-color: currentColor;
+            mask: var(--fncc-icon) center / contain no-repeat; }
+.fncl-ico--raster { background: none; mask: none; }
+```
+
+L'attributo `style` lo costruisce FINIS e non il template, perche' il motore dei template riscrive
+ogni `url()` che incontra e metterebbe il percorso del tema davanti a un indirizzo gia' completo.
+Un SVG richiamato dal CSS del tema (e non dal menu) va indicato con un percorso relativo al foglio
+di stile, per esempio `url("../../../img/icons/theme.svg")`: tutti gli SVG di
+`controlcenter/img/icons/` e della cartella del tema vengono copiati nel sito insieme agli asset.
 
 Il file manager disegna le sue icone con caratteri Unicode (`FN_GetIconCharByFilename()`): un tema
 non deve fornire immagini per le icone dei file.

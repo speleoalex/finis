@@ -146,6 +146,7 @@ function FNCC_UI_AssetsHtml()
         "css" => array("controlcenter/css/fncc-ui.css", "controlcenter/themes/$theme/css/theme.css"),
         "js" => array("controlcenter/js/fncc-ui.js", "controlcenter/themes/$theme/js/theme.js"),
     );
+    FNCC_UI_PublishThemeIcons($theme);
     $html = "";
     foreach ($files['css'] as $file)
     {
@@ -182,6 +183,146 @@ function FNCC_UI_IncludeAssets()
         return;
     }
     $_FN['cc_assets_pending'] = FNCC_UI_AssetsHtml();
+}
+
+/**
+ * Copies into the site the drawings of a theme that nothing else asks for.
+ *
+ * The icons a menu entry uses are published as they are needed, but the ones
+ * a stylesheet reaches for (url(../img/icons/...)) are never asked for by
+ * name, and would answer 404 on a site that keeps its own copy of the panel.
+ *
+ * @param string $theme
+ */
+function FNCC_UI_PublishThemeIcons($theme)
+{
+    global $_FN;
+    $dirs = array("controlcenter/img/icons",
+                  "controlcenter/themes/$theme/img/icons");
+    foreach ($dirs as $dir)
+    {
+        if (!is_dir("{$_FN['src_finis']}/$dir"))
+        {
+            continue;
+        }
+        foreach (glob("{$_FN['src_finis']}/$dir/*.svg") as $icon)
+        {
+            FNCC_UI_PublishAsset("$dir/" . basename($icon));
+        }
+    }
+}
+
+/**
+ * The icon of a control center menu entry, taken from the theme in use.
+ *
+ * A theme keeps its icons in img/icons/, named after the entry with the
+ * slash turned into a dash (contents/sitemap -> contents-sitemap.svg). The
+ * name of the group (contents.svg) answers for every entry of that group,
+ * and generic.svg for everything else, so a theme can ship four drawings
+ * instead of twenty. A theme without an icons folder keeps the bitmap the
+ * caller passes, which is how the older themes carry on working.
+ *
+ * @param string $opt the entry, as it appears in the address (group/section)
+ * @param string $fallback image to keep when the theme has no drawing
+ * @return string
+ */
+function FNCC_UI_MenuIcon($opt, $fallback = "")
+{
+    global $_FN;
+    $theme = $_FN['controlcenter_theme'];
+    if ($theme === "")
+    {
+        return $fallback;
+    }
+    $parts = explode("/", (string)$opt);
+    $names = array();
+    if ($opt !== "")
+    {
+        $names[] = FNCC_UI_IconSlug($opt);
+        if (count($parts) > 1)
+        {
+            $names[] = FNCC_UI_IconSlug($parts[0]);
+        }
+    }
+    else
+    {
+        // Asked for the last resort only: the group of a page type is not a
+        // family of its own, generic.svg answers for it.
+        $names[] = "generic";
+    }
+    foreach ($names as $name)
+    {
+        if ($name === "")
+        {
+            continue;
+        }
+        // The drawings of the theme come first, the shared set answers for
+        // the themes that do not carry their own.
+        $files = array("controlcenter/themes/$theme/img/icons/$name.svg",
+                       "controlcenter/img/icons/$name.svg");
+        foreach ($files as $file)
+        {
+            if (file_exists("{$_FN['src_finis']}/$file"))
+            {
+                $url = FNCC_UI_PublishAsset($file);
+                if ($url !== "")
+                {
+                    return $url;
+                }
+            }
+            // Living in the site only: nothing to publish, it is already there.
+            if (file_exists(FN_NormalizePath("{$_FN['src_application']}/$file")))
+            {
+                return $_FN['siteurl'] . $file;
+            }
+        }
+    }
+    return $fallback;
+}
+
+/**
+ * Puts into a menu entry the icon of the theme and how it has to be drawn.
+ *
+ * A drawing of the theme is painted as a mask, so it takes the colour of the
+ * text and follows the light and the dark palette; a bitmap coming from a
+ * section or a module is printed as it is, because a mask would flatten it to
+ * a silhouette.
+ *
+ * @param array $item the menu entry, changed in place
+ * @param string $fallback image to keep when the theme has no drawing
+ * @param string $type page type of the entry (dbview, block_menu...), for the
+ *                     settings of a page, whose address says nothing about it
+ */
+function FNCC_UI_SetMenuIcon(&$item, $fallback = "", $type = "")
+{
+    $opt = isset($item['opt']) ? $item['opt'] : "";
+    $image = FNCC_UI_MenuIcon($opt, "");
+    if ($image === "" && $type !== "")
+    {
+        $image = FNCC_UI_MenuIcon("module/$type", "");
+    }
+    $item['image'] = ($image !== "") ? $image : FNCC_UI_MenuIcon("", $fallback);
+    // The address carries the date of the file as ?v=..., so the extension is
+    // read from the path alone.
+    $path = preg_replace('/[?#].*$/s', "", (string)$item['image']);
+    $item['icon_mask'] = (strtolower(substr($path, -4)) === ".svg");
+    // The whole style attribute is built here, not in the template: the
+    // template engine rewrites every url() it meets, and would put the base
+    // path of the theme in front of an address that is already complete.
+    $item['icon_style'] = $item['icon_mask']
+        ? "--fncc-icon:url('" . FNCC_UI_Escape($item['image']) . "')"
+        : "";
+}
+
+/**
+ * The name of an icon file: lowercase, one dash between words.
+ *
+ * @param string $text
+ * @return string
+ */
+function FNCC_UI_IconSlug($text)
+{
+    return trim(strtolower(preg_replace('/[^A-Za-z0-9]+/', "-", (string)$text)), "-");
 }
 
 /**

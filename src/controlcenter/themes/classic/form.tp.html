@@ -1,15 +1,57 @@
-<table style="width:100%">
-    <!-- contents -->
-    <!-- group -->
-    <tr><td style="color:#ffffff;background-color:#808080;padding:1em" colspan="2" style=text-align:center"><b>{groupname}</b></td></tr>
-    <!-- end_group -->
-    <!-- item -->
-    <tr >
-        <td  valign="top" style="text-align:right;background-color:#c6d3ef;padding:.5em"><b>{title}</b><!-- error --><span style="color:red"><br />{error}</span><!-- end_error --><br /></td>
-        <td  valign="top" style="background-color:#ffffff;padding:.5em">{input}<div><em>{help}</em></div></td>
-    </tr>
-    <!-- end_item -->
-    <!-- endgroup -->
-    <!-- end_endgroup -->
-    <!-- end_contents -->
-</table>
+<section class="fncc-card">
+    <div class="fncc-card__body">
+        <!-- if {text_on_update_ok} -->
+        <div class="fncc-alert fncc-alert--success">{text_on_update_ok}</div>
+        <!-- end if {text_on_update_ok} -->
+        <!-- if {text_on_update_fail} -->
+        <div class="fncc-alert fncc-alert--danger" role="alert">{text_on_update_fail}</div>
+        <!-- end if {text_on_update_fail} -->
+        <!-- if {text_on_insert_ok} -->
+        <div class="fncc-alert fncc-alert--success">{text_on_insert_ok}</div>
+        <!-- end if {text_on_insert_ok} -->
+
+        <form method="post" action="{action}" enctype="multipart/form-data" onchange="set_changed();">
+            <!-- contents -->
+            <!-- group -->
+            <fieldset><legend>{groupname}</legend>
+                <!-- end_group -->
+                <!-- item -->
+                <div class="fncc-field">
+                    <label for="{fieldname}">{title}</label>
+                    <!-- error --><span class="fncc-field__error">{error}</span><!-- end_error -->
+                    {input}
+                    <!-- if {help} --><span class="fncc-field__hint">{help}</span><!-- end if {help} -->
+                </div>
+                <!-- end_item -->
+                <!-- item_type_check -->
+                <div class="fncc-field">
+                    <label for="{fieldname}">{title}</label>
+                    <!-- error --><span class="fncc-field__error">{error}</span><!-- end_error -->
+                    {input}
+                    <!-- if {help} --><span class="fncc-field__hint">{help}</span><!-- end if {help} -->
+                </div>
+                <!-- end_item_type_check -->
+                <!-- item_type_radio -->
+                <div class="fncc-field">
+                    <label for="{fieldname}">{title}</label>
+                    <!-- error --><span class="fncc-field__error">{error}</span><!-- end_error -->
+                    {input}
+                    <!-- if {help} --><span class="fncc-field__hint">{help}</span><!-- end if {help} -->
+                </div>
+                <!-- end_item_type_radio -->
+                <!-- endgroup -->
+            </fieldset>
+            <!-- end_endgroup -->
+            <!-- end_contents -->
+
+            <div>{html_on_insert}</div>
+
+            <div class="fncc-toolbar">
+                <button class="fncc-btn fncc-btn--primary" type="submit">{textsave}</button>
+                <!-- if {textcancel} -->
+                <a class="fncc-btn" href="{url_cancel}">{textviewlist}</a>
+                <!-- end if {textcancel} -->
+            </div>
+        </form>
+    </div>
+</section>

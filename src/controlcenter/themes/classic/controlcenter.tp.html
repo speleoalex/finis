@@ -1,62 +1,107 @@
 <!DOCTYPE html>
-<html>
-<head>
-    <!-- include FN_HtmlHeader -->
-    <title></title>
-    <!-- end include FN_HtmlHeader -->
-    <link rel="stylesheet" href="css/style.css">
-    <style>
-        #fncc_menutop {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 25px;
-            border: 0;
-        }
-    </style>
-</head>
-<body>
-    <header id="fncc_top">
-        <nav>
-            <a id="fncc_controlcenter" href="{controlcenter}"><img alt="home" src="../../../images/configure.png">&nbsp;{i18n:Control panel}</a>
-            <a id="fncc_logout" href="{siteurl}?fnapp=controlcenter&&fnlogin=logout"><img alt="home" src="../../../images/user.png">&nbsp;{i18n:Exit}</a>
-            <a id="fncc_gohome" href="{siteurl}index.php?theme=__default__"><img alt="home" src="../../../images/home.png">&nbsp;{i18n:Go to} {sitename}</a>
-            <span id="fncc_languages"><!-- include languages --><!-- langitem --><a href="?fnapp=controlcenter&lang={langname}">{langflag}</a>&nbsp;<!-- endlangitem --><!-- end include languages --></span>
-        </nav>
-    </header>
+<html lang="{lang}">
+    <head>
+        <!-- include FN_HtmlHeader -->
+        <title></title>
+        <!-- end include FN_HtmlHeader -->
+        <meta charset="{charset_page}" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="noindex, nofollow" />
+        {cc_assets}
+        <script>
+            /* Applied before the first paint, so a dark panel does not flash white. */
+            (function () {
+                try {
+                    var mode = window.localStorage.getItem("fncc-theme");
+                    if (mode === "light" || mode === "dark") {
+                        document.documentElement.setAttribute("data-fncc-theme", mode);
+                    }
+                } catch (e) { /* storage blocked: keep the system palette */ }
+            }());
+        </script>
+    </head>
+    <body class="fncl">
+        <a class="fncc-skip" href="#fncc-content">{i18n:Skip to content}</a>
 
-    <div id="fncc_menutop"><div id="myMenuID"></div></div>
+        <header class="fncl-top">
+            <div class="fncl-top__bar">
+                <button type="button" class="fncc-btn fncc-btn--quiet fncc-btn--icon fncl-burger" data-fncl-menu-toggle aria-expanded="false" aria-controls="fncl-menu">
+                    <span aria-hidden="true">&#x2630;</span>
+                    <span class="fncc-visually-hidden">{i18n:Menu}</span>
+                </button>
 
-    <aside id="fncc_leftmenu">
-        <!-- include ccmenu -->
-        <!-- menitems -->
-        <!-- menuitemdropdown -->
-        <div class="fncc_leftmenu">
-            <div class="fncc_leftmenutitle">{title}</div>
-            <!-- submenu -->
-            <!-- submenuitems -->
-            <!-- submenuitem -->
-            <a href="?opt=contents/blocks" title="{description}">
-                <img alt="" src="{image}"><span>{title}</span></a>
-            <!-- endsubmenuitem -->
-            <!-- submenuitemactive -->
-            <a href="?opt=contents/blocks" class="current" title="{description}">
-                <img alt="" src="{image}"><span>{title}</span></a>
-            <!-- endsubmenuitemactive -->
-            <!-- endsubmenuitems -->
-            <!-- endsubmenu -->
-        </div>
-        <!-- endmenitems -->
-        <!-- endmenuitemdropdown -->
-        <!-- end include ccmenu -->
-    </aside>
+                <a class="fncl-brand" href="{siteurl}index.php?fnapp=controlcenter">
+                    <!-- if {url_logo} -->
+                    <img src="{url_logo}" alt="" />
+                    <!-- end if {url_logo} -->
+                    <span>
+                        <strong>{sitename}</strong>
+                        <span>{i18n:Control center}</span>
+                    </span>
+                </a>
 
-    <main id="fncc_contents">
-        <div class="fncc_sectiontitle">{section_title}</div>
-        <!-- include ccsection -->
-        <h2>{sidebar_title}</h2>
-        <div>{sidebar_contents}</div>
-        <!-- end include ccsection -->
-    </main>
-</body>
+                <div class="fncl-top__actions">
+                    <button type="button" class="fncc-btn fncc-btn--quiet fncc-btn--sm" data-fncc-theme-toggle
+                            data-label-auto="{i18n:Automatic theme}" data-label-light="{i18n:Light theme}" data-label-dark="{i18n:Dark theme}">
+                        <span data-fncc-theme-label>{i18n:Automatic theme}</span>
+                    </button>
+                    <span class="fncl-langs"><!-- include languages --><!-- langitem --><a href="?fnapp=controlcenter&amp;lang={langname}">{langname}</a><!-- endlangitem --><!-- end include languages --></span>
+                    <a class="fncc-btn fncc-btn--sm" href="{siteurl}" target="_blank" rel="noopener">&#x2197; {i18n:Go to} {sitename}</a>
+                    <a class="fncc-btn fncc-btn--sm" href="{siteurl}?fnapp=controlcenter&amp;fnlogin=logout">{i18n:Exit}</a>
+                </div>
+            </div>
+
+            <!-- The groups of the panel: a row of menus on a screen with room for
+                 them, a list inside the drawer on a narrow one. -->
+            <nav id="fncl-menu" class="fncl-menu" aria-label="{i18n:Control center}">
+                <!-- foreach {menuitems} -->
+                <div class="fncl-menu__group">
+                    <!-- if {active} -->
+                    <button type="button" class="fncl-menu__title is-active" data-fncl-group-toggle aria-expanded="false" aria-controls="fnclgroup_{id}">
+                        <span>{title}</span><span class="fncl-menu__caret" aria-hidden="true">&#x25BE;</span>
+                    </button>
+                    <!-- end if {active} -->
+                    <!-- if not {active} -->
+                    <button type="button" class="fncl-menu__title" data-fncl-group-toggle aria-expanded="false" aria-controls="fnclgroup_{id}">
+                        <span>{title}</span><span class="fncl-menu__caret" aria-hidden="true">&#x25BE;</span>
+                    </button>
+                    <!-- end if not {active} -->
+
+                    <ul class="fncl-menu__items" id="fnclgroup_{id}">
+                        <!-- foreach {sections} -->
+                        <!-- if {active} -->
+                        <li>
+                            <a class="fncl-menu__link is-current" aria-current="page" href="{link}" title="{description}">
+                                <!-- if {icon_mask} --><span class="fncl-ico" style="{icon_style}" aria-hidden="true"></span><!-- end if {icon_mask} -->
+                                <!-- if not {icon_mask} --><img class="fncl-ico fncl-ico--raster" src="{image}" alt="" /><!-- end if not {icon_mask} -->
+                                <span>{title}</span>
+                            </a>
+                        </li>
+                        <!-- end if {active} -->
+                        <!-- if not {active} -->
+                        <li>
+                            <a class="fncl-menu__link" href="{link}" title="{description}">
+                                <!-- if {icon_mask} --><span class="fncl-ico" style="{icon_style}" aria-hidden="true"></span><!-- end if {icon_mask} -->
+                                <!-- if not {icon_mask} --><img class="fncl-ico fncl-ico--raster" src="{image}" alt="" /><!-- end if not {icon_mask} -->
+                                <span>{title}</span>
+                            </a>
+                        </li>
+                        <!-- end if not {active} -->
+                        <!-- end foreach {sections} -->
+                    </ul>
+                </div>
+                <!-- end foreach {menuitems} -->
+            </nav>
+        </header>
+
+        <button type="button" id="fncl-backdrop" class="fncl-backdrop" hidden="hidden" tabindex="-1" aria-label="{i18n:Close}"></button>
+
+        <main id="fncc-content" class="fncl-content">
+            <h1 class="fncl-title">{cc_section_title}</h1>
+            <!-- include ccsection -->
+            <h2>{sidebar_title}</h2>
+            <div>{sidebar_contents}</div>
+            <!-- end include ccsection -->
+        </main>
+    </body>
 </html>
