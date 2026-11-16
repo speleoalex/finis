@@ -9,10 +9,11 @@
  * A user who can view the records but not add them may propose a new record too
  * (op=propose without id, row with an empty table_unirecid): the users who can add
  * records accept it on the page op=proposal, which creates the record as the insert form does.
- * Only the data fields of the record, without files. A proposed new record may also carry
- * rows of the linked tables listed in proposals_innertables (op=proposerow, added after the
- * proposal is saved): they are kept under the "_tables_" key of the JSON, their files in
- * dbview_proposals_files until the review, and they are inserted when the record is created.
+ * Only the data fields of the record, without files. A proposal (new record or change) may
+ * also carry new rows of the linked tables listed in proposals_innertables (op=proposerow, one
+ * at a time; on an existing record the first row creates the proposal when there is none):
+ * they are kept under the "_tables_" key of the JSON, their files in dbview_proposals_files
+ * until the review, and the accepted ones are inserted linked to the record.
  *
  * @package Finis_module_dbview
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -179,6 +180,103 @@ trait FNDBVIEWProposals
     }
 
     /**
+     * @param array $proposal
+     * @return int number of rows of the linked tables carried by the proposal
+     */
+    protected function ProposalRowCount($proposal)
+    {
+        $count = 0;
+        foreach ($this->ProposalRows($proposal) as $rows)
+            $count += count($rows);
+        return $count;
+    }
+
+    /**
+     * Pending proposal of the section by id, new record or change
+     * @param string $proposalid
+     * @return array|null
+     */
+    protected function PendingProposalById($proposalid)
+    {
+        global $_FN;
+        if ((string) $proposalid === "" || !file_exists("{$_FN['datadir']}/{$_FN['database']}/dbview_proposals.php"))
+            return null;
+        $p = FN_XMDBTable("dbview_proposals")->GetRecordByPrimaryKey($proposalid);
+        // the driver may match without case or type: check again
+        if (!is_array($p) || (string) $p['id'] !== (string) $proposalid || $p['tablename'] !== $this->ProposalsTableName() || $p['status'] !== "pending")
+            return null;
+        return $p;
+    }
+
+    /**
+     * True for the reviewers of a pending proposal and for its author
+     * @param array $proposal
+     * @return bool
+     */
+    protected function CanSeeProposal($proposal)
+    {
+        global $_FN;
+        $mine = $_FN['user'] != "" && $proposal['username'] === $_FN['user'];
+        if ((string) $proposal['table_unirecid'] === "")
+            return $this->CanAddRecord() || ($mine && $this->CanProposeNewRecord());
+        $row = FN_XMDBTable($this->ProposalsTableName())->GetRecordByPrimaryKey($proposal['table_unirecid']);
+        return is_array($row) && ($this->CanUpdateRecord($row) || ($mine && $this->CanProposeRecord($row)));
+    }
+
+    /**
+     * Page the row actions go back to: the record of a change, the list of the proposed new records
+     * @param array $proposal
+     * @return string HTML
+     */
+    protected function ProposalPage($proposal)
+    {
+        $id_record = (string) $proposal['table_unirecid'];
+        return $id_record === "" ? $this->NewRecordProposalsPage() : $this->ViewRecordPage($id_record);
+    }
+
+    /**
+     * Address of op=proposerow for a proposal: a change is reached by its record
+     * (the proposal may not exist yet), a new record by the proposal id
+     * @param array $proposal
+     * @param string $table linked table
+     * @param string $key row to remove
+     * @return string
+     */
+    protected function ProposalRowLink($proposal, $table, $key = null)
+    {
+        $id_record = (string) $proposal['table_unirecid'];
+        return $this->MakeLink(array("op" => "proposerow", "id" => $id_record === "" ? null : $id_record,
+                "proposal" => $id_record === "" ? $proposal['id'] : null, "table" => $table, "row" => $key), "&amp;");
+    }
+
+    /**
+     * CSRF token of the row actions of a proposal: for a new record the same as the
+     * buttons of the proposal page
+     * @param array $proposal
+     * @return string
+     */
+    protected function ProposalRowToken($proposal)
+    {
+        $tablename = $this->ProposalsTableName();
+        $id_record = (string) $proposal['table_unirecid'];
+        return $this->CsrfToken($id_record === "" ? "proposal|$tablename|" . $proposal['id'] : "proposerow|$tablename|$id_record");
+    }
+
+    /**
+     * Buttons to add the rows of the linked tables to a proposal
+     * @param array $proposal
+     * @param array $nested see ProposalNestedTables
+     * @return array title, link
+     */
+    protected function ProposalAddRowItems($proposal, $nested)
+    {
+        $items = array();
+        foreach ($nested as $inner)
+            $items[] = array("title" => $this->ProposalNestedTitle($inner), "link" => $this->ProposalRowLink($proposal, $inner['tablename']));
+        return $items;
+    }
+
+    /**
      * JSON of the changes column: fields and, when there are any, the rows of the linked tables
      * @param array $changes field => array(old, new)
      * @param array $rows see ProposalRows
@@ -251,12 +349,20 @@ trait FNDBVIEWProposals
 
         $proposals = FN_XMDBTable("dbview_proposals");
         $pending = $this->PendingProposals($tablename, $id_record, $_FN['user']);
+        // the rows of the linked tables are added on their own page: keep them
+        $rows = count($pending) > 0 ? $this->ProposalRows($pending[0]) : array();
         if (count($changes) == 0) {
-            foreach ($pending as $p)
-                $proposals->UpdateRecord(array("id" => $p['id'], "status" => "withdrawn"));
+            foreach ($pending as $p) {
+                if (count($rows) > 0 && $p['id'] === $pending[0]['id']) {
+                    $proposals->UpdateRecord(array("id" => $p['id'], "changes" => $this->ProposalChangesJson(array(), $rows)));
+                } else {
+                    $proposals->UpdateRecord(array("id" => $p['id'], "status" => "withdrawn"));
+                    $this->RemoveProposalFiles($p['id']);
+                }
+            }
             return FN_HtmlAlert(FN_Translate("no changes compared to the record")) . $this->ViewRecordPage($id_record);
         }
-        $json = $this->ProposalChangesJson($changes);
+        $json = $this->ProposalChangesJson($changes, $rows);
         if ($json === false)
             return FN_HtmlAlert(FN_Translate("the proposal is too long")) . $this->EditRecordForm($id_record, $Table, array(), false, true);
         $values = array(
@@ -334,15 +440,26 @@ trait FNDBVIEWProposals
             $newvalues = $this->saveRecordChanges($Table, $tablename, $row, $newvalues, $id_record);
             $this->runUpdateHook(array_merge($row, $newvalues));
         }
-        $status = count($accepted) == 0 ? "rejected" : (count($accepted) == count($changes) ? "accepted" : "partial");
+        // after the fields: the rows are linked to the value the record has now
+        $rows = array();
+        if (FN_GetParam("action", $_POST) === "accept" && isset($_POST['acceptrows']) && is_array($_POST['acceptrows']))
+            $rows = $this->InsertProposalRows($Table, $proposal, $row, array_map("strval", $_POST['acceptrows']));
+        $done = count($accepted) + count($rows);
+        $status = $done == 0 ? "rejected" : ($done == count($changes) + $this->ProposalRowCount($proposal) ? "accepted" : "partial");
         FN_XMDBTable("dbview_proposals")->UpdateRecord(array(
             "id" => $proposal['id'],
             "status" => $status,
-            "acceptedfields" => implode(",", array_keys($accepted)),
+            // rows of the linked tables as table:key, their ids in the log below
+            "acceptedfields" => implode(",", array_merge(array_keys($accepted), array_keys($rows))),
             "userreview" => $_FN['user'],
             "recordreview" => XMETATable::now(),
         ));
-        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename proposal {$proposal['id']} $status.");
+        // the names of the files stay in the proposal, the files are in the records or discarded
+        $this->RemoveProposalFiles($proposal['id']);
+        $inserted = "";
+        foreach ($rows as $key => $id)
+            $inserted .= " $key=$id";
+        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename proposal {$proposal['id']} $status.$inserted");
 
         $messages = array(
             "accepted" => "your proposed change has been accepted",
@@ -356,15 +473,20 @@ trait FNDBVIEWProposals
         $rejected = array_diff(array_keys($changes), array_keys($accepted));
         if (count($rejected) > 0)
             $body .= "\n" . FN_Translate("discarded fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, $rejected));
+        if (count($rows) > 0)
+            $body .= "\n" . FN_Translate("linked records added") . ": " . count($rows);
         $body .= "\n" . FN_Translate("reviewed by") . " {$_FN['user']}";
         $this->ProposalNotify(array($proposal['username']), $text, $body, $this->ProposalRecordLink($id_record), false);
 
-        $done = array(
+        $messages = array(
             "accepted" => "proposal accepted",
             "partial" => "proposal partially accepted",
             "rejected" => "proposal discarded",
         );
-        return FN_HtmlAlert(FN_Translate($done[$status])) . $this->ViewRecordPage($id_record);
+        $msg = FN_Translate($messages[$status]);
+        if (count($rows) > 0)
+            $msg .= "<br />" . FN_Translate("linked records added") . ": " . count($rows);
+        return FN_HtmlAlert($msg) . $this->ViewRecordPage($id_record);
     }
 
     /**
@@ -534,10 +656,7 @@ trait FNDBVIEWProposals
             $rows = $this->InsertProposalRows($Table, $proposal, $record, $accepted);
         }
         $status = $record ? "accepted" : "rejected";
-        $proposedrows = 0;
-        foreach ($this->ProposalRows($proposal) as $tablerows)
-            $proposedrows += count($tablerows);
-        if ($record && count($rows) < $proposedrows)
+        if ($record && count($rows) < $this->ProposalRowCount($proposal))
             $status = "partial";
         FN_XMDBTable("dbview_proposals")->UpdateRecord(array(
             "id" => $proposal['id'],
@@ -599,13 +718,7 @@ trait FNDBVIEWProposals
         $nested = $this->ProposalNestedTables($Table);
         $items = array();
         foreach ($this->PendingProposals($tablename, "", $reviewer ? "" : $_FN['user']) as $proposal) {
-            $addrows = array();
-            foreach ($reviewer ? array() : $nested as $inner) {
-                $addrows[] = array(
-                    "title" => $this->ProposalNestedTitle($inner),
-                    "link" => $this->MakeLink(array("op" => "proposerow", "id" => null, "proposal" => $proposal['id'], "table" => $inner['tablename']), "&amp;"),
-                );
-            }
+            $addrows = $reviewer ? array() : $this->ProposalAddRowItems($proposal, $nested);
             $rows = $this->ProposalRowItems($proposal, $nested, $reviewer);
             $fields = array();
             foreach ($this->ProposalChanges($proposal) as $field => $change) {
@@ -641,7 +754,7 @@ trait FNDBVIEWProposals
     }
 
     /**
-     * Linked tables whose rows a proposed new record may carry: the innertables of the
+     * Linked tables whose new rows a proposal may carry: the innertables of the
      * main table listed in proposals_innertables
      * @param object $Table xmetadb_frm of the main table
      * @return array tablename => innertable (tablename, linkfield "recordfield,rowfield", titles)
@@ -650,9 +763,12 @@ trait FNDBVIEWProposals
     {
         $enabled = array_filter(array_map("trim", explode(",", isset($this->config['proposals_innertables']) ? $this->config['proposals_innertables'] : "")));
         $ret = array();
-        if (count($enabled) == 0 || !is_array($Table->innertables))
+        // from the descriptor: the page may have dropped some from $Table->innertables
+        // (the openkis cave sheet renders the surveys itself)
+        $innertables = count($enabled) > 0 ? xmetadb_xml2array($Table->xmltable->xmldescriptor, "innertable", false) : false;
+        if (!is_array($innertables))
             return $ret;
-        foreach ($Table->innertables as $inner) {
+        foreach ($innertables as $inner) {
             $link = explode(",", isset($inner['linkfield']) ? $inner['linkfield'] : "");
             if (isset($inner['tablename']) && in_array($inner['tablename'], $enabled, true) && count($link) == 2 && $link[0] !== "" && $link[1] !== "")
                 $ret[$inner['tablename']] = $inner;
@@ -755,7 +871,7 @@ trait FNDBVIEWProposals
                     "rowid" => htmlspecialchars($id),
                     "inputid" => "proposalrow_" . intval($proposal['id']) . "_" . preg_replace('/[^A-Za-z0-9_]/', '_', $id),
                     "reviewer" => $reviewer ? "1" : "",
-                    "removeaction" => $reviewer ? "" : $this->MakeLink(array("op" => "proposerow", "id" => null, "proposal" => $proposal['id'], "table" => $tablename, "row" => $key), "&amp;"),
+                    "removeaction" => $reviewer ? "" : $this->ProposalRowLink($proposal, $tablename, $key),
                     "values" => $list,
                 );
             }
@@ -764,28 +880,38 @@ trait FNDBVIEWProposals
     }
 
     /**
-     * op=proposerow: the author of a pending proposed new record adds a row of a linked
-     * table (form, then POST xmetadbsave) or removes one (POST removerow)
+     * op=proposerow: the author of a pending proposal adds a row of a linked table (form,
+     * then POST xmetadbsave) or removes one (POST removerow). A proposed new record is
+     * reached by the proposal parameter, a change by the id of the record: there the first
+     * row creates the proposal when the user has none.
      * @return string HTML
      */
     function ProposalRowPage()
     {
-        if (!$this->CanProposeNewRecord())
-            return FN_Translate("you may not do that");
+        global $_FN;
         $tablename = $this->ProposalsTableName();
         $nested = $this->ProposalNestedTables(FN_XMDBForm($tablename));
         $rowtable = FN_GetParam("table", $_GET);
-        $proposal = $this->PendingNewRecordProposal(FN_GetParam("proposal", $_GET), true);
-        if (!isset($nested[$rowtable]))
-            return FN_Translate("you may not do that");
-        if (!$proposal)
-            return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->NewRecordProposalsPage();
+        $id_record = FN_GetParam("id", $_GET, "html");
+        if ($id_record === "") {
+            if (!$this->CanProposeNewRecord() || !isset($nested[$rowtable]))
+                return FN_Translate("you may not do that");
+            $proposal = $this->PendingNewRecordProposal(FN_GetParam("proposal", $_GET), true);
+            if (!$proposal)
+                return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->NewRecordProposalsPage();
+        } else {
+            if (!$this->CanProposeRecord(FN_XMDBTable($tablename)->GetRecordByPrimaryKey($id_record)) || !isset($nested[$rowtable]))
+                return FN_Translate("you may not do that");
+            $pending = $this->PendingProposals($tablename, $id_record, $_FN['user']);
+            // id "": SaveProposalRow creates it
+            $proposal = count($pending) > 0 ? $pending[0] : array("id" => "", "table_unirecid" => $id_record, "username" => $_FN['user'], "changes" => "");
+        }
         $inner = $nested[$rowtable];
         if (isset($_SERVER['REQUEST_METHOD']) && strtoupper($_SERVER['REQUEST_METHOD']) === 'POST') {
             // over post_max_size PHP drops the whole body: the form would come back without a word
             if (count($_POST) == 0)
                 return FN_HtmlAlert(FN_Translate("the files sent are too large")) . $this->ProposalRowForm($proposal, $inner);
-            if (!isset($_POST['fn_csrf']) || !hash_equals($this->CsrfToken("proposal|$tablename|" . $proposal['id']), (string) $_POST['fn_csrf']))
+            if (!isset($_POST['fn_csrf']) || !hash_equals($this->ProposalRowToken($proposal), (string) $_POST['fn_csrf']))
                 return FN_Translate("you may not do that");
             return isset($_POST['removerow']) ? $this->RemoveProposalRow($proposal, $inner) : $this->SaveProposalRow($proposal, $inner);
         }
@@ -793,7 +919,7 @@ trait FNDBVIEWProposals
     }
 
     /**
-     * Insert form of the linked table for a row of a proposed new record
+     * Insert form of the linked table for a row of a proposal
      * @param array $proposal
      * @param array $inner innertable
      * @param array $errors
@@ -804,17 +930,20 @@ trait FNDBVIEWProposals
         global $_FN;
         $Form = FN_XMDBForm($inner['tablename']);
         $link = explode(",", $inner['linkfield']);
+        $id_record = (string) $proposal['table_unirecid'];
         $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/form.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/form.tp.html" : FN_FromTheme("{$this->moddir}/form.tp.html", false);
         $template = FN_TPL_ApplyTplString(file_get_contents($tplfile), array(
-            "formaction" => $this->MakeLink(array("op" => "proposerow", "id" => null, "proposal" => $proposal['id'], "table" => $inner['tablename']), "&amp;"),
-            "urlcancel" => $this->MakeLink(array("op" => "proposal", "id" => null), "&"),
+            "formaction" => $this->ProposalRowLink($proposal, $inner['tablename']),
+            "urlcancel" => $this->MakeLink($id_record === "" ? array("op" => "proposal", "id" => null) : array("op" => "view", "id" => $id_record), "&"),
         ));
-        // same token as the buttons of the proposal page
-        $token = "<input type=\"hidden\" name=\"fn_csrf\" value=\"" . $this->CsrfToken("proposal|" . $this->ProposalsTableName() . "|" . $proposal['id']) . "\" />";
+        $token = "<input type=\"hidden\" name=\"fn_csrf\" value=\"" . $this->ProposalRowToken($proposal) . "\" />";
         $template = preg_replace('/(<form\b[^>]*>)/i', '$1' . $token, $template, 1);
         $Form->SetlayoutTemplate($this->FormTemplateWithoutAutofill($template));
         $html = "<h2>" . FN_Translate("add to the proposal") . ": " . $this->ProposalNestedTitle($inner) . "</h2>";
-        $html .= "<p>" . FN_Translate("proposed new record") . ": " . htmlspecialchars($this->ProposalRecordTitle($this->ProposalValues($proposal))) . "</p>";
+        if ($id_record === "")
+            $html .= "<p>" . FN_Translate("proposed new record") . ": " . htmlspecialchars($this->ProposalRecordTitle($this->ProposalValues($proposal))) . "</p>";
+        else
+            $html .= "<p>" . FN_Translate("propose a change") . ": " . htmlspecialchars($this->ProposalRecordTitle(FN_XMDBTable($this->ProposalsTableName())->GetRecordByPrimaryKey($id_record))) . "</p>";
         // the form object is shared in the request: hide the fields only for this form
         $formvals = $Form->formvals;
         $this->HideNonProposalFields($Form, $link[1]);
@@ -824,9 +953,9 @@ trait FNDBVIEWProposals
     }
 
     /**
-     * Adds to a proposed new record the row of a linked table sent with ProposalRowForm.
+     * Adds to a proposal the row of a linked table sent with ProposalRowForm.
      * The files go to the folder of the proposal under the name they will have in the table.
-     * @param array $proposal
+     * @param array $proposal id "" for a change not proposed yet: created here
      * @param array $inner innertable
      * @return string HTML
      */
@@ -869,6 +998,21 @@ trait FNDBVIEWProposals
         $json = $this->ProposalChangesJson($this->ProposalChanges($proposal), $rows);
         if ($json === false)
             return FN_HtmlAlert(FN_Translate("the proposal is too long")) . $this->ProposalRowForm($proposal, $inner);
+        $proposals = FN_XMDBTable("dbview_proposals");
+        $created = (string) $proposal['id'] === "";
+        if ($created) {
+            // the folder of the files is named after the proposal: it must exist first
+            $proposal = $proposals->InsertRecord(array(
+                "tablename" => $this->ProposalsTableName(),
+                "table_unirecid" => $proposal['table_unirecid'],
+                "username" => $_FN['user'],
+                "status" => "pending",
+                "changes" => "{}",
+                "recordinsert" => XMETATable::now(),
+            ));
+            if (!is_array($proposal) || empty($proposal['id']))
+                return FN_Translate("you may not do that");
+        }
         // a folder left by a removed row with the same key
         $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
         $dir = $this->ProposalFilesDir($proposal['id']) . "/$tablename/$key";
@@ -876,16 +1020,28 @@ trait FNDBVIEWProposals
             FN_MkDir("$dir/$field");
             if (!move_uploaded_file($tmpname, "$dir/$field/{$row[$field]}")) {
                 $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
+                if ($created) {
+                    $proposals->UpdateRecord(array("id" => $proposal['id'], "status" => "withdrawn"));
+                    $proposal['id'] = "";
+                }
                 return FN_HtmlAlert(FN_Translate("the file could not be saved")) . $this->ProposalRowForm($proposal, $inner);
             }
         }
-        FN_XMDBTable("dbview_proposals")->UpdateRecord(array("id" => $proposal['id'], "changes" => $json));
+        $proposals->UpdateRecord(array("id" => $proposal['id'], "changes" => $json));
         FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename row $key added to proposal {$proposal['id']}.");
-        return FN_HtmlAlert(FN_Translate("added to the proposal")) . $this->NewRecordProposalsPage();
+        if ($created) {
+            // a proposed change made only of rows: the reviewers learn of it now
+            $record = FN_XMDBTable($this->ProposalsTableName())->GetRecordByPrimaryKey($proposal['table_unirecid']);
+            $text = FN_Translate("change proposed by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($record);
+            $body = $text . "\n" . FN_Translate("add to the proposal") . ": " . strip_tags($this->ProposalNestedTitle($inner));
+            $this->ProposalNotify($this->ProposalReviewers($record), $text, $body, $this->ProposalRecordLink($proposal['table_unirecid']), true);
+        }
+        return FN_HtmlAlert(FN_Translate("added to the proposal")) . $this->ProposalPage($proposal);
     }
 
     /**
-     * Removes a row (the row parameter) and its files from a proposed new record
+     * Removes a row (the row parameter) and its files from a proposal; a change left
+     * with no field and no row is withdrawn
      * @param array $proposal
      * @param array $inner innertable
      * @return string HTML
@@ -896,36 +1052,44 @@ trait FNDBVIEWProposals
         $tablename = $inner['tablename'];
         $key = FN_GetParam("row", $_GET);
         $rows = $this->ProposalRows($proposal);
-        if (isset($rows[$tablename][$key])) {
+        if ((string) $proposal['id'] !== "" && isset($rows[$tablename][$key])) {
             unset($rows[$tablename][$key]);
             if (count($rows[$tablename]) == 0)
                 unset($rows[$tablename]);
-            // shorter than before: it fits
-            FN_XMDBTable("dbview_proposals")->UpdateRecord(array("id" => $proposal['id'], "changes" => $this->ProposalChangesJson($this->ProposalChanges($proposal), $rows)));
+            $changes = $this->ProposalChanges($proposal);
+            $values = array("id" => $proposal['id']);
+            if (count($changes) == 0 && count($rows) == 0)
+                $values['status'] = "withdrawn";
+            else // shorter than before: it fits
+                $values['changes'] = $this->ProposalChangesJson($changes, $rows);
+            FN_XMDBTable("dbview_proposals")->UpdateRecord($values);
             $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
             FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename row $key removed from proposal {$proposal['id']}.");
+            if (isset($values['status'])) {
+                $this->RemoveProposalFiles($proposal['id']);
+                return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->ProposalPage($proposal);
+            }
         }
-        return FN_HtmlAlert(FN_Translate("removed from the proposal")) . $this->NewRecordProposalsPage();
+        return FN_HtmlAlert(FN_Translate("removed from the proposal")) . $this->ProposalPage($proposal);
     }
 
     /**
-     * op=proposalfile: sends the file of a row of a pending proposed new record to its
-     * author or to the users who can add records. Always as a download: nobody has
-     * reviewed it yet and an SVG or HTML file opened in the browser could run scripts.
+     * op=proposalfile: sends the file of a row of a pending proposal to its author or to
+     * its reviewers. Always as a download: nobody has reviewed it yet and an SVG or HTML
+     * file opened in the browser could run scripts.
      * @return string HTML when the file cannot be sent
      */
     function ProposalFile()
     {
         global $_FN;
-        $reviewer = $this->CanAddRecord();
-        if (empty($this->config['enable_proposals']) || $_FN['user'] == "" || (!$reviewer && !$this->CanProposeNewRecord()))
+        if (empty($this->config['enable_proposals']) || $_FN['user'] == "")
             return FN_Translate("you may not do that");
         $nested = $this->ProposalNestedTables(FN_XMDBForm($this->ProposalsTableName()));
-        $proposal = $this->PendingNewRecordProposal(FN_GetParam("proposal", $_GET), !$reviewer);
+        $proposal = $this->PendingProposalById(FN_GetParam("proposal", $_GET));
         $tablename = FN_GetParam("table", $_GET);
         $key = FN_GetParam("row", $_GET);
         $field = FN_GetParam("field", $_GET);
-        $rows = $proposal ? $this->ProposalRows($proposal) : array();
+        $rows = ($proposal && $this->CanSeeProposal($proposal)) ? $this->ProposalRows($proposal) : array();
         $file = false;
         if (isset($nested[$tablename]) && isset($rows[$tablename][$key][$field])) {
             $Form = FN_XMDBForm($tablename);
@@ -933,7 +1097,7 @@ trait FNDBVIEWProposals
                 $file = $this->ProposalRowFile($proposal['id'], $tablename, $key, $field, $rows[$tablename][$key][$field]);
         }
         if (!$file)
-            return FN_HtmlAlert(FN_Translate("file not found")) . $this->NewRecordProposalsPage();
+            return FN_HtmlAlert(FN_Translate("file not found"));
         while (@ob_end_clean());
         $name = basename($file);
         header("Content-Type: application/octet-stream");
@@ -945,11 +1109,11 @@ trait FNDBVIEWProposals
     }
 
     /**
-     * Inserts the accepted rows of a proposed new record into the linked tables, with
-     * their files, linked to the record just created
+     * Inserts the accepted rows of a proposal into the linked tables, with their files,
+     * linked to the record (just created for a proposed new record)
      * @param object $Table xmetadb_frm of the main table
      * @param array $proposal
-     * @param array $record record created from the proposal
+     * @param array $record record of the proposal
      * @param array $accepted rows as table:key
      * @return array table:key => primary key of the inserted row
      */
@@ -1163,7 +1327,8 @@ trait FNDBVIEWProposals
 
     /**
      * Notice on top of the record page: the pending proposals with the review form
-     * for the users who can edit the record, one line for the author of a proposal
+     * for the users who can edit the record; for the author of a proposal its rows of
+     * the linked tables, with the buttons to remove them and to add more
      * @param array $row
      * @param object $Table
      * @return string HTML
@@ -1178,18 +1343,13 @@ trait FNDBVIEWProposals
         if ($Table->xmltable->tablename != $tablename || !isset($row[$pk]))
             return "";
         $id_record = $row[$pk];
-        if (!$this->CanUpdateRecord($row)) {
-            $mine = $this->PendingProposals($tablename, $id_record, $_FN['user']);
-            if (count($mine) == 0)
-                return "";
-            $link = $this->MakeLink(array("op" => "propose", "id" => $id_record), "&amp;");
-            return "<div class=\"alert alert-info\" role=\"status\">" . FN_Translate("your proposed change is waiting for review") . " (" . htmlspecialchars(FN_FormatDate($mine[0]['recordinsert'])) . "). <a href=\"$link\">" . FN_Translate("modify the proposal") . "</a></div>";
-        }
-        $pending = $this->PendingProposals($tablename, $id_record);
+        $reviewer = $this->CanUpdateRecord($row);
+        $pending = $this->PendingProposals($tablename, $id_record, $reviewer ? "" : $_FN['user']);
         if (count($pending) == 0)
             return "";
-        $this->ProposalNotificationsDisplayed($this->ProposalRecordLink($id_record));
-        $action = $this->MakeLink(array("op" => "proposal", "id" => $id_record), "&amp;");
+        if ($reviewer)
+            $this->ProposalNotificationsDisplayed($this->ProposalRecordLink($id_record));
+        $nested = $this->ProposalNestedTables($Table);
         $items = array();
         foreach ($pending as $proposal) {
             $fields = array();
@@ -1203,15 +1363,23 @@ trait FNDBVIEWProposals
                     "proposed" => $this->ProposalDisplayValue($Table, $field, $change['new']),
                     // the record changed after the proposal was made
                     "changed" => ($current !== (string) $change['old']) ? "1" : "",
+                    "reviewer" => $reviewer ? "1" : "",
                 );
             }
+            $rows = $this->ProposalRowItems($proposal, $nested, $reviewer);
             $items[] = array(
                 "id" => intval($proposal['id']),
                 "user" => htmlspecialchars($proposal['username']),
                 "date" => htmlspecialchars(FN_FormatDate($proposal['recordinsert'])),
-                "token" => $this->CsrfToken("proposal|$tablename|" . $proposal['id']),
-                "action" => $action,
+                "token" => $reviewer ? $this->CsrfToken("proposal|$tablename|" . $proposal['id']) : $this->ProposalRowToken($proposal),
+                "action" => $this->MakeLink(array("op" => $reviewer ? "proposal" : "view", "id" => $id_record), "&amp;"),
+                "reviewer" => $reviewer ? "1" : "",
+                "editlink" => $reviewer ? "" : $this->MakeLink(array("op" => "propose", "id" => $id_record), "&amp;"),
                 "fields" => $fields,
+                "hasfields" => count($fields) > 0 ? "1" : "",
+                "rows" => $rows,
+                "hasrows" => count($rows) > 0 ? "1" : "",
+                "addrows" => $reviewer ? array() : $this->ProposalAddRowItems($proposal, $nested),
             );
         }
         $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/proposals.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/proposals.tp.html" : FN_FromTheme("{$this->moddir}/proposals.tp.html", false);

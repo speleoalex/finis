@@ -1938,7 +1938,12 @@ select_allcke = function(el){
 
         $html = "";
         if ($proposing) {
-            $html .= "<div class=\"alert alert-info\">" . FN_Translate("your changes will be sent for review to the users who manage this record") . "</div>";
+            $html .= "<div class=\"alert alert-info\">" . FN_Translate("your changes will be sent for review to the users who manage this record");
+            // the rows of the linked tables are proposed one at a time on their own form
+            $add = $this->ProposalAddRowItems(array("id" => "", "table_unirecid" => $id_record), $this->ProposalNestedTables($Table));
+            foreach ($add as $i => $item)
+                $html .= ($i == 0 ? "<br />" : " ") . "<a class=\"btn btn-sm btn-outline-primary mt-2\" href=\"{$item['link']}\">" . FN_Translate("add to the proposal") . ": {$item['title']}</a>";
+            $html .= "</div>";
         }
         $html .= "
 <script type=\"text/javascript\">

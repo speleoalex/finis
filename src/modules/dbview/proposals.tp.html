@@ -3,12 +3,14 @@
     <form method="post" action="{action}" class="dbview-proposal mb-3">
         <input type="hidden" name="proposal" value="{id}" />
         <input type="hidden" name="fn_csrf" value="{token}" />
-        <p class="mb-2"><strong>{i18n:change proposed by} {user}</strong> - {date}</p>
+        <!-- if {reviewer} --><p class="mb-2"><strong>{i18n:change proposed by} {user}</strong> - {date}</p><!-- end if {reviewer} -->
+        <!-- if not {reviewer} --><p class="mb-2"><strong>{i18n:your proposed change is waiting for review}</strong> - {date}</p><!-- end if not {reviewer} -->
+        <!-- if {hasfields} -->
         <div class="table-responsive">
             <table class="table table-sm align-middle">
                 <thead>
                     <tr>
-                        <th scope="col">{i18n:accept the field}</th>
+                        <!-- if {reviewer} --><th scope="col">{i18n:accept the field}</th><!-- end if {reviewer} -->
                         <th scope="col">{i18n:field}</th>
                         <th scope="col">{i18n:current value}</th>
                         <th scope="col">{i18n:proposed value}</th>
@@ -17,7 +19,7 @@
                 <tbody>
                     <!-- foreach {fields} -->
                     <tr>
-                        <td><input type="checkbox" class="form-check-input" style="width:1.6em;height:1.6em" name="proposal_fields[]" value="{name}" id="{inputid}" checked="checked" /></td>
+                        <!-- if {reviewer} --><td><input type="checkbox" class="form-check-input" style="width:1.6em;height:1.6em" name="proposal_fields[]" value="{name}" id="{inputid}" checked="checked" /></td><!-- end if {reviewer} -->
                         <td><label for="{inputid}">{title}</label><!-- if {changed} --><br /><small class="text-danger">{i18n:the record changed after the proposal}</small><!-- end if {changed} --></td>
                         <td>{current}</td>
                         <td>{proposed}</td>
@@ -26,8 +28,32 @@
                 </tbody>
             </table>
         </div>
+        <!-- end if {hasfields} -->
+        <!-- if {hasrows} -->
+        <!-- foreach {rows} -->
+        <div class="dbview-proposal-row border rounded p-2 mb-2">
+            <!-- if {reviewer} -->
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="acceptrows[]" value="{rowid}" id="{inputid}" checked="checked" />
+                <label class="form-check-label" for="{inputid}">{i18n:accept} {tabletitle}</label>
+            </div>
+            <!-- end if {reviewer} -->
+            <!-- if not {reviewer} --><p class="mb-1"><strong>{tabletitle}</strong></p><!-- end if not {reviewer} -->
+            <dl class="row mb-1">
+                <!-- foreach {values} --><dt class="col-sm-3">{title}</dt><dd class="col-sm-9">{value}</dd><!-- end foreach {values} -->
+            </dl>
+            <!-- if not {reviewer} -->
+            <button type="submit" name="removerow" value="1" formaction="{removeaction}" class="btn btn-sm btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:remove from the proposal?}">{i18n:remove from the proposal}</button>
+            <!-- end if not {reviewer} -->
+        </div>
+        <!-- end foreach {rows} -->
+        <!-- end if {hasrows} -->
+        <!-- foreach {addrows} --><p class="mb-2"><a class="btn btn-outline-primary" href="{link}">{i18n:add to the proposal}: {title}</a></p><!-- end foreach {addrows} -->
+        <!-- if {reviewer} -->
         <button type="submit" name="action" value="accept" class="btn btn-primary">{i18n:accept the selected fields}</button>
         <button type="submit" name="action" value="reject" class="btn btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:discard the whole proposal?}">{i18n:discard all}</button>
+        <!-- end if {reviewer} -->
+        <!-- if not {reviewer} --><a class="btn btn-primary" href="{editlink}">{i18n:modify the proposal}</a><!-- end if not {reviewer} -->
     </form>
     <!-- end foreach {proposals} -->
 </section>
