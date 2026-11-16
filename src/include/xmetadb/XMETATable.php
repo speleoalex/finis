@@ -496,6 +496,23 @@ class XMETATable extends \stdClass
         ];
     }
 
+    /**
+     * Name under which an uploaded file is stored: without path separators, empty
+     * when the file may not be stored
+     * @param string $name name sent by the browser
+     * @return string
+     */
+    static function SafeFileName($name)
+    {
+        $name = str_replace(array("\\", "/"), "", (string) $name);
+        // Server-side execution extensions anywhere in the name (file.php.jpg too; the dot
+        // is escaped so that 'xphp' passes) and hidden files: an uploaded .htaccess or
+        // .user.ini would change how the server runs the files of its folder.
+        if ($name === "" || $name[0] === "." || preg_match('/\.(php[0-9]?|phtml|phar|shtml|pl|cgi|sh|py)(\.|$)/i', $name))
+            return "";
+        return $name;
+    }
+
     //-----driver methods (delegated)---------------->
     function GetNumRecords($restr = null)
     {
@@ -817,14 +834,8 @@ class XMETATable extends \stdClass
                 $upload = isset($this->uploadedFiles[$key]) ? $this->uploadedFiles[$key] : (isset($_FILES[$key]) ? $_FILES[$key] : null);
                 if (isset($upload['tmp_name']) && $upload['tmp_name'] != "")
                 {
-                    $name_clean = $upload['name'];
-                    $name_clean = str_replace("\\", "", $name_clean);
-                    $name_clean = str_replace("/", "", $name_clean);
-
-                    // Block server-side execution extensions anywhere in the filename
-                    // (handles double-extension attacks like file.php.jpg).
-                    // Dot is escaped to prevent false positives (e.g. 'xphp').
-                    if (preg_match('/\.(php[0-9]?|phtml|phar|shtml|pl|cgi|sh|py)(\.|$)/i', $name_clean))
+                    $name_clean = self::SafeFileName($upload['name']);
+                    if ($name_clean === "")
                     {
                         continue;
                     }

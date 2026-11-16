@@ -212,6 +212,12 @@ else
                 else
                     $html .= $dbview->NewRecordProposalsPage();
                 break;
+            case "proposerow" : // row of a linked table added to (or removed from) a proposed new record
+                $html .= $dbview->ProposalRowPage();
+                break;
+            case "proposalfile" : // file of a row of a proposed new record, only for its author and the reviewers
+                $html .= $dbview->ProposalFile();
+                break;
             case "request" :
                 $html .= $dbview->Request($id);
                 break;

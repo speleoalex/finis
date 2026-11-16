@@ -78,6 +78,8 @@ $config['enable_proposals'] = "0";
 $config['proposals_mail'] = "1";
 //[i18n]fields that a proposed change may not modify (comma separated)
 $config['proposals_exclude_fields'] = "";
+//[i18n]linked tables whose rows (with their files) a proposed new record may carry (comma separated, empty = none)
+$config['proposals_innertables'] = "";
 //[i18n]enables export {1=yes,0=no}
 $config['enable_export'] = "0";
 //$appendquery = "";

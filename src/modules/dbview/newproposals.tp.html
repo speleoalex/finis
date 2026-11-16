@@ -29,6 +29,26 @@
                 </tbody>
             </table>
         </div>
+        <!-- if {hasrows} -->
+        <!-- foreach {rows} -->
+        <div class="dbview-proposal-row border rounded p-2 mb-2">
+            <!-- if {reviewer} -->
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="acceptrows[]" value="{rowid}" id="{inputid}" checked="checked" />
+                <label class="form-check-label" for="{inputid}">{i18n:accept} {tabletitle}</label>
+            </div>
+            <!-- end if {reviewer} -->
+            <!-- if not {reviewer} --><p class="mb-1"><strong>{tabletitle}</strong></p><!-- end if not {reviewer} -->
+            <dl class="row mb-1">
+                <!-- foreach {values} --><dt class="col-sm-3">{title}</dt><dd class="col-sm-9">{value}</dd><!-- end foreach {values} -->
+            </dl>
+            <!-- if not {reviewer} -->
+            <button type="submit" name="removerow" value="1" formaction="{removeaction}" class="btn btn-sm btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:remove from the proposal?}">{i18n:remove from the proposal}</button>
+            <!-- end if not {reviewer} -->
+        </div>
+        <!-- end foreach {rows} -->
+        <!-- end if {hasrows} -->
+        <!-- foreach {addrows} --><p class="mb-2"><a class="btn btn-outline-primary" href="{link}">{i18n:add to the proposal}: {title}</a></p><!-- end foreach {addrows} -->
         <!-- if {reviewer} -->
         <button type="submit" name="action" value="accept" class="btn btn-primary">{i18n:accept and create the record}</button>
         <button type="submit" name="action" value="reject" class="btn btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:discard the whole proposal?}">{i18n:discard all}</button>

@@ -2206,8 +2206,11 @@ set_changed();
         //$template =str_replace($esc,"if {",$template);
         $Table->SetlayoutTemplate($this->FormTemplateWithoutAutofill($template));
         $html = "";
-        if ($proposing)
-            $html .= "<div class=\"alert alert-info\">" . FN_Translate("the new record will be sent for review to the users who manage this section") . "</div>";
+        if ($proposing) {
+            $titles = array_map(array($this, "ProposalNestedTitle"), $this->ProposalNestedTables($Table));
+            $html .= "<div class=\"alert alert-info\">" . FN_Translate("the new record will be sent for review to the users who manage this section")
+                . (count($titles) > 0 ? ". " . FN_Translate("after saving you can add") . ": " . implode(", ", $titles) : "") . "</div>";
+        }
         //----template---------<
         //----gestione esci senza salvare ------->
         $html .= "
