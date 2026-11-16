@@ -281,7 +281,6 @@ else
                     $dbview->GenerateRSS();
                 }
                 $html .= FN_HtmlContent("{$_FN['src_application']}/sections/{$_FN['mod']}");
-                $html .= $dbview->NewRecordProposalsNotice();
                 $html .= $dbview->ViewGrid(); //griglia con tutti i records
                 ob_start();
                 if (file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/bottom.php"))
