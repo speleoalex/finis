@@ -102,7 +102,7 @@ trait FNDBVIEWCRUD
         $this->ViewCacheInvalidate($_FN['mod'], $pkold);
         if (isset($newvalues[$Table->xmltable->primarykey]) && $newvalues[$Table->xmltable->primarykey] != $pkold)
             $this->ViewCacheInvalidate($_FN['mod'], $newvalues[$Table->xmltable->primarykey]);
-        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename modified.");
+        FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename modified.");
         return $newvalues;
     }
 
@@ -271,7 +271,7 @@ trait FNDBVIEWCRUD
             }
         }
 
-        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $username . "||Table $tablename record added.");
+        FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $username . "||Table $tablename record added.");
 
         // Send notification email
         if (!empty($config['mailalert'])) {

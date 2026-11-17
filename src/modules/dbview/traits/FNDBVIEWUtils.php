@@ -262,7 +262,7 @@ trait FNDBVIEWUtils
             $html .= "<br />" . FN_Translate("you can not send your request, please contact the administrator of the website") . "<br />";
         }
 
-        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||request " . $rname . " in table $tablename.");
+        FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||request " . $rname . " in table $tablename.");
 
         return $html;
     }

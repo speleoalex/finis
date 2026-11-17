@@ -379,7 +379,7 @@ trait FNDBVIEWProposals
             $values['status'] = "pending";
             $proposals->InsertRecord($values);
         }
-        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename change proposed for $id_record.");
+        FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename change proposed for $id_record.");
 
         $title = $this->ProposalRecordTitle($row);
         $text = FN_Translate("change proposed by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - $title";
@@ -459,7 +459,7 @@ trait FNDBVIEWProposals
         $inserted = "";
         foreach ($rows as $key => $id)
             $inserted .= " $key=$id";
-        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename proposal {$proposal['id']} $status.$inserted");
+        FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename proposal {$proposal['id']} $status.$inserted");
 
         $messages = array(
             "accepted" => "your proposed change has been accepted",
@@ -597,7 +597,7 @@ trait FNDBVIEWProposals
             $values['status'] = "pending";
             $proposals->InsertRecord($values);
         }
-        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename new record proposed.");
+        FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename new record proposed.");
 
         $text = FN_Translate("new record proposed by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($proposed);
         $body = $text . "\n" . FN_Translate("fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, array_keys($changes)));
@@ -672,7 +672,7 @@ trait FNDBVIEWProposals
         $inserted = "";
         foreach ($rows as $row => $id)
             $inserted .= " $row=$id";
-        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename proposal {$proposal['id']} $status.$inserted");
+        FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename proposal {$proposal['id']} $status.$inserted");
 
         $title = $this->ProposalRecordTitle($record ? $record : $this->ProposalValues($proposal));
         $text = FN_Translate($record ? "your proposed new record has been accepted" : "your proposed new record has been discarded") . ": {$_FN['sectionvalues']['title']} - $title";
@@ -1028,7 +1028,7 @@ trait FNDBVIEWProposals
             }
         }
         $proposals->UpdateRecord(array("id" => $proposal['id'], "changes" => $json));
-        FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename row $key added to proposal {$proposal['id']}.");
+        FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename row $key added to proposal {$proposal['id']}.");
         if ($created) {
             // a proposed change made only of rows: the reviewers learn of it now
             $record = FN_XMDBTable($this->ProposalsTableName())->GetRecordByPrimaryKey($proposal['table_unirecid']);
@@ -1064,7 +1064,7 @@ trait FNDBVIEWProposals
                 $values['changes'] = $this->ProposalChangesJson($changes, $rows);
             FN_XMDBTable("dbview_proposals")->UpdateRecord($values);
             $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
-            FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename row $key removed from proposal {$proposal['id']}.");
+            FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename row $key removed from proposal {$proposal['id']}.");
             if (isset($values['status'])) {
                 $this->RemoveProposalFiles($proposal['id']);
                 return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->ProposalPage($proposal);

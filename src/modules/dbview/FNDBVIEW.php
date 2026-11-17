@@ -2345,7 +2345,7 @@ set_changed();
                 $subject = "[{$_FN['sitename']}] " . $rname;
                 $to = FN_GetUser($usertoadd);
                 FN_SendMail($to['email'], $subject, $message, false);
-                FN_Log("{$_FN['mod']}", $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||added user $usertoadd record: " . $rname . " in table $tablename.");
+                FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||added user $usertoadd record: " . $rname . " in table $tablename.");
             }
         }
         if (!$this->IsAdminRecord($row)) {

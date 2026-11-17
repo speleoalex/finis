@@ -596,23 +596,27 @@ function FN_AddNotification($notificationvalues, $users)
 }
 
 /**
- * 
- * @global array $_FN
- * @param type $context
+ * Unread notifications of a user, newest first
+ * @param string $user
+ * @return array
  */
 function FN_GetNotificationsUndisplayed($user, $context = "")
 {
     global $_FN;
-    $table = FN_XMDBTable("fn_notifications");
-    //$user = str_replace("'", "\\'", $user);
-    $query = "SELECT * FROM fn_notifications WHERE username LIKE '$user' AND displayed <> 1";
-
-    $notifications = FN_XMETADBQuery($query);
-    //$notifications = $table->GetRecords(array("username" => $user));
     $ret_notifications = array();
+    // the table exists after the first FN_AddNotification
+    if ($user == "" || !file_exists("{$_FN['datadir']}/{$_FN['database']}/fn_notifications.php"))
+        return $ret_notifications;
+    // GetRecords of the SQL drivers uses LIKE: a "_" in the name matches other users,
+    // hence the exact comparison below
+    $notifications = FN_XMDBTable("fn_notifications")->GetRecords(array("username" => $user));
     if (is_array($notifications)) {
+        // newest first
+        usort($notifications, function ($a, $b) {
+            return strcmp((string) $b["date"], (string) $a["date"]);
+        });
         foreach ($notifications as $k => $notification) {
-            if ($notification['displayed'] != 1) {
+            if ($notification['username'] === $user && $notification['displayed'] != 1) {
                 $tmp = $notification;
                 $tmp['human_date'] = FN_FormatDate($notification['date'], true);
                 $tmp['link'] = isset($notification['link']) ? $notification['link'] : "";
