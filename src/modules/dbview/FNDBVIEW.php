@@ -2982,6 +2982,10 @@ set_changed();
                 }
             }
         }
+        // the application may add or change variables of the item for its own list templates:
+        // $_FN['dbview_item_function']($tplvars, $data, $tablename) returns the variables
+        if (!empty($_FN['dbview_item_function']) && is_callable($_FN['dbview_item_function']))
+            $tplvars = call_user_func($_FN['dbview_item_function'], $tplvars, $data, $tablename);
         //-------------------------------valori----------------------------------->
         $row = $data;
         $t = FN_XMDBForm($tablename);
