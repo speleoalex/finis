@@ -210,7 +210,7 @@ else
                 elseif (count($_POST) > 0)
                     $html .= $dbview->ReviewNewRecordProposal($Table);
                 else
-                    $html .= $dbview->NewRecordProposalsPage();
+                    $html .= $dbview->ProposalClosedNotice() . $dbview->NewRecordProposalsPage();
                 break;
             case "proposerow" : // row of a linked table added to (or removed from) a proposal
                 $html .= $dbview->ProposalRowPage();

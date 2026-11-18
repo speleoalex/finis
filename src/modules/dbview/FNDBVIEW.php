@@ -1330,7 +1330,7 @@ class FNDBVIEW
             $this->ViewCacheSet($_FN['mod'], $id_record, $htmlView);
         // after the cache: the notice depends on the user
         if (!$inner && $shownavigatebar)
-            $htmlView = $this->ProposalsNotice($row, $Table) . $htmlView;
+            $htmlView = $this->ProposalClosedNotice() . $this->ProposalsNotice($row, $Table) . $htmlView;
         return $htmlView;
 
         //------------------------------visualizzazione--------------------------------<

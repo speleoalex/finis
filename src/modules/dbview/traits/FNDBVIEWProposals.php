@@ -14,6 +14,9 @@
  * at a time; on an existing record the first row creates the proposal when there is none):
  * they are kept under the "_tables_" key of the JSON, their files in dbview_proposals_files
  * until the review, and the accepted ones are inserted linked to the record.
+ * The author may withdraw a pending proposal: the reviewers are notified of that too. The
+ * notifications open the page with &proposal=<id>, which says so when the proposal is no
+ * longer pending (withdrawn, accepted or discarded).
  *
  * @package Finis_module_dbview
  * @author Alessandro Vernassa <speleoalex@gmail.com>
@@ -348,23 +351,26 @@ trait FNDBVIEWProposals
             return $this->EditRecordForm($id_record, $Table, $errors, false, true);
 
         $proposals = FN_XMDBTable("dbview_proposals");
+        $this->LockUserProposals();
         $pending = $this->PendingProposals($tablename, $id_record, $_FN['user']);
         // the rows of the linked tables are added on their own page: keep them
         $rows = count($pending) > 0 ? $this->ProposalRows($pending[0]) : array();
         if (count($changes) == 0) {
             foreach ($pending as $p) {
-                if (count($rows) > 0 && $p['id'] === $pending[0]['id']) {
+                if (count($rows) > 0 && $p['id'] === $pending[0]['id'])
                     $proposals->UpdateRecord(array("id" => $p['id'], "changes" => $this->ProposalChangesJson(array(), $rows)));
-                } else {
-                    $proposals->UpdateRecord(array("id" => $p['id'], "status" => "withdrawn"));
-                    $this->RemoveProposalFiles($p['id']);
-                }
+                else
+                    $this->WithdrawProposal($p);
             }
             return FN_HtmlAlert(FN_Translate("no changes compared to the record")) . $this->ViewRecordPage($id_record);
         }
         $json = $this->ProposalChangesJson($changes, $rows);
         if ($json === false)
             return FN_HtmlAlert(FN_Translate("the proposal is too long")) . $this->EditRecordForm($id_record, $Table, array(), false, true);
+        $sent = FN_HtmlAlert(FN_Translate("your proposal has been sent to the users who manage this record"));
+        // the same form sent again (double click, reload): already notified
+        if (count($pending) > 0 && $pending[0]['changes'] === $json)
+            return $sent . $this->ViewRecordPage($id_record);
         $values = array(
             "changes" => $json,
             "recordinsert" => XMETATable::now(),
@@ -377,16 +383,16 @@ trait FNDBVIEWProposals
             $values['table_unirecid'] = $id_record;
             $values['username'] = $_FN['user'];
             $values['status'] = "pending";
-            $proposals->InsertRecord($values);
+            $values = $proposals->InsertRecord($values);
         }
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename change proposed for $id_record.");
 
         $title = $this->ProposalRecordTitle($row);
         $text = FN_Translate("change proposed by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - $title";
         $body = $text . "\n" . FN_Translate("fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, array_keys($changes)));
-        $this->ProposalNotify($this->ProposalReviewers($row), $text, $body, $this->ProposalRecordLink($id_record), true);
+        $this->ProposalNotify($this->ProposalReviewers($row), $text, $body, $this->ProposalRecordLink($id_record, isset($values['id']) ? $values['id'] : ""), true);
 
-        return FN_HtmlAlert(FN_Translate("your proposal has been sent to the users who manage this record")) . $this->ViewRecordPage($id_record);
+        return $sent . $this->ViewRecordPage($id_record);
     }
 
     /**
@@ -476,7 +482,7 @@ trait FNDBVIEWProposals
         if (count($rows) > 0)
             $body .= "\n" . FN_Translate("linked records added") . ": " . count($rows);
         $body .= "\n" . FN_Translate("reviewed by") . " {$_FN['user']}";
-        $this->ProposalNotify(array($proposal['username']), $text, $body, $this->ProposalRecordLink($id_record), false);
+        $this->ProposalNotify(array($proposal['username']), $text, $body, $this->ProposalRecordLink($id_record, $proposal['id']), false);
 
         $messages = array(
             "accepted" => "proposal accepted",
@@ -550,6 +556,7 @@ trait FNDBVIEWProposals
             return FN_Translate("you may not do that");
         $tablename = $this->ProposalsTableName();
         $Table = FN_XMDBForm($tablename);
+        $this->LockUserProposals();
         $proposalid = FN_GetParam("proposal", $_GET);
         $pending = null;
         if ($proposalid !== "") {
@@ -561,18 +568,20 @@ trait FNDBVIEWProposals
         $newvalues = $this->applyFieldTransformations($Table->getbypost(), $Table);
         $changes = array();
         $proposed = array();
+        // the form comes filled with the defaults (frm_default): those alone are not data
+        $data = 0;
         foreach ($this->ProposalFields($Table) as $field) {
             if (isset($newvalues[$field]) && trim((string) $newvalues[$field]) !== "") {
                 $changes[$field] = array("old" => "", "new" => (string) $newvalues[$field]);
                 $proposed[$field] = (string) $newvalues[$field];
+                if (!isset($Table->formvals[$field]['frm_default']) || (string) $Table->formvals[$field]['frm_default'] !== $proposed[$field])
+                    $data++;
             }
         }
-        $proposals = FN_XMDBTable("dbview_proposals");
-        if (count($changes) == 0) {
+        if ($data == 0) {
             if (!$pending)
                 return FN_HtmlAlert(FN_Translate("the proposal contains no data")) . $this->NewRecordForm($Table, array(), true);
-            $proposals->UpdateRecord(array("id" => $pending['id'], "status" => "withdrawn"));
-            $this->RemoveProposalFiles($pending['id']);
+            $this->WithdrawProposal($pending);
             return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->NewRecordProposalsPage();
         }
         $errors = $Table->VerifyInsert($proposed);
@@ -583,6 +592,13 @@ trait FNDBVIEWProposals
         $json = $this->ProposalChangesJson($changes, $pending ? $this->ProposalRows($pending) : array());
         if ($json === false)
             return FN_HtmlAlert(FN_Translate("the proposal is too long")) . $this->NewRecordForm($Table, array(), true, $pending);
+        $sent = FN_HtmlAlert(FN_Translate("your proposal has been sent to the users who manage this record"));
+        // the same form sent again (double click, reload): already notified
+        foreach ($pending ? array($pending) : $this->PendingProposals($tablename, "", $_FN['user']) as $p) {
+            if ($p['changes'] === $json)
+                return $sent . $this->NewRecordProposalsPage();
+        }
+        $proposals = FN_XMDBTable("dbview_proposals");
         $values = array(
             "changes" => $json,
             "recordinsert" => XMETATable::now(),
@@ -595,15 +611,15 @@ trait FNDBVIEWProposals
             $values['table_unirecid'] = "";
             $values['username'] = $_FN['user'];
             $values['status'] = "pending";
-            $proposals->InsertRecord($values);
+            $values = $proposals->InsertRecord($values);
         }
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename new record proposed.");
 
         $text = FN_Translate("new record proposed by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($proposed);
         $body = $text . "\n" . FN_Translate("fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, array_keys($changes)));
-        $this->ProposalNotify($this->ProposalReviewers(array()), $text, $body, $this->ProposalRecordLink(""), true);
+        $this->ProposalNotify($this->ProposalReviewers(array()), $text, $body, $this->ProposalRecordLink("", isset($values['id']) ? $values['id'] : ""), true);
 
-        return FN_HtmlAlert(FN_Translate("your proposal has been sent to the users who manage this record")) . $this->NewRecordProposalsPage();
+        return $sent . $this->NewRecordProposalsPage();
     }
 
     /**
@@ -630,8 +646,7 @@ trait FNDBVIEWProposals
         if (!$proposal)
             return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->NewRecordProposalsPage();
         if (!$reviewer) {
-            FN_XMDBTable("dbview_proposals")->UpdateRecord(array("id" => $proposal['id'], "status" => "withdrawn"));
-            $this->RemoveProposalFiles($proposal['id']);
+            $this->WithdrawProposal($proposal);
             return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->NewRecordProposalsPage();
         }
 
@@ -677,7 +692,7 @@ trait FNDBVIEWProposals
         $title = $this->ProposalRecordTitle($record ? $record : $this->ProposalValues($proposal));
         $text = FN_Translate($record ? "your proposed new record has been accepted" : "your proposed new record has been discarded") . ": {$_FN['sectionvalues']['title']} - $title";
         $body = $text . "\n" . FN_Translate("reviewed by") . " {$_FN['user']}";
-        $this->ProposalNotify(array($proposal['username']), $text, $body, $this->ProposalRecordLink($record ? $record[$pk] : ""), false);
+        $this->ProposalNotify(array($proposal['username']), $text, $body, $this->ProposalRecordLink($record ? $record[$pk] : "", $proposal['id']), false);
 
         if (!$record)
             return FN_HtmlAlert(FN_Translate("proposal discarded")) . $this->NewRecordProposalsPage();
@@ -723,7 +738,7 @@ trait FNDBVIEWProposals
             $fields = array();
             foreach ($this->ProposalChanges($proposal) as $field => $change) {
                 $fields[] = array(
-                    "title" => htmlspecialchars(isset($Table->formvals[$field]['title']) ? $Table->formvals[$field]['title'] : $field),
+                    "title" => htmlspecialchars($this->ProposalFieldTitle($Table, $field)),
                     "proposed" => $this->ProposalDisplayValue($Table, $field, $change['new']),
                 );
             }
@@ -861,7 +876,7 @@ trait FNDBVIEWProposals
                         $shown = $this->ProposalDisplayValue($Form, $field, $value);
                     }
                     $list[] = array(
-                        "title" => htmlspecialchars(isset($Form->formvals[$field]['title']) ? $Form->formvals[$field]['title'] : $field),
+                        "title" => htmlspecialchars($this->ProposalFieldTitle($Form, $field)),
                         "value" => $shown,
                     );
                 }
@@ -1021,7 +1036,8 @@ trait FNDBVIEWProposals
             if (!move_uploaded_file($tmpname, "$dir/$field/{$row[$field]}")) {
                 $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
                 if ($created) {
-                    $proposals->UpdateRecord(array("id" => $proposal['id'], "status" => "withdrawn"));
+                    // nobody has been told of it yet
+                    $this->WithdrawProposal($proposal, false);
                     $proposal['id'] = "";
                 }
                 return FN_HtmlAlert(FN_Translate("the file could not be saved")) . $this->ProposalRowForm($proposal, $inner);
@@ -1034,7 +1050,7 @@ trait FNDBVIEWProposals
             $record = FN_XMDBTable($this->ProposalsTableName())->GetRecordByPrimaryKey($proposal['table_unirecid']);
             $text = FN_Translate("change proposed by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($record);
             $body = $text . "\n" . FN_Translate("add to the proposal") . ": " . strip_tags($this->ProposalNestedTitle($inner));
-            $this->ProposalNotify($this->ProposalReviewers($record), $text, $body, $this->ProposalRecordLink($proposal['table_unirecid']), true);
+            $this->ProposalNotify($this->ProposalReviewers($record), $text, $body, $this->ProposalRecordLink($proposal['table_unirecid'], $proposal['id']), true);
         }
         return FN_HtmlAlert(FN_Translate("added to the proposal")) . $this->ProposalPage($proposal);
     }
@@ -1057,18 +1073,14 @@ trait FNDBVIEWProposals
             if (count($rows[$tablename]) == 0)
                 unset($rows[$tablename]);
             $changes = $this->ProposalChanges($proposal);
-            $values = array("id" => $proposal['id']);
-            if (count($changes) == 0 && count($rows) == 0)
-                $values['status'] = "withdrawn";
-            else // shorter than before: it fits
-                $values['changes'] = $this->ProposalChangesJson($changes, $rows);
-            FN_XMDBTable("dbview_proposals")->UpdateRecord($values);
-            $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
             FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename row $key removed from proposal {$proposal['id']}.");
-            if (isset($values['status'])) {
-                $this->RemoveProposalFiles($proposal['id']);
+            if (count($changes) == 0 && count($rows) == 0) {
+                $this->WithdrawProposal($proposal);
                 return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->ProposalPage($proposal);
             }
+            // shorter than before: it fits
+            FN_XMDBTable("dbview_proposals")->UpdateRecord(array("id" => $proposal['id'], "changes" => $this->ProposalChangesJson($changes, $rows)));
+            $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
         }
         return FN_HtmlAlert(FN_Translate("removed from the proposal")) . $this->ProposalPage($proposal);
     }
@@ -1260,13 +1272,89 @@ trait FNDBVIEWProposals
      * Absolute address of the record page, used by notifications and mails;
      * with an empty $id_record the page of the proposed new records
      * @param string $id_record
+     * @param string $proposalid the page says whether the proposal is still pending (see ProposalClosedNotice)
      * @return string
      */
-    protected function ProposalRecordLink($id_record)
+    protected function ProposalRecordLink($id_record, $proposalid = "")
     {
         global $_FN;
         $link = rtrim($_FN['siteurl'], "/") . "/index.php?mod=" . urlencode($_FN['mod']);
-        return $link . ((string) $id_record === "" ? "&op=proposal" : "&op=view&id=" . urlencode($id_record));
+        $link .= (string) $id_record === "" ? "&op=proposal" : "&op=view&id=" . urlencode($id_record);
+        return $link . ((string) $proposalid === "" ? "" : "&proposal=" . intval($proposalid));
+    }
+
+    /**
+     * Notice for the address of a notification (proposal parameter, see ProposalRecordLink)
+     * when the proposal is no longer pending: who opens it learns that it was withdrawn
+     * or already reviewed instead of finding nothing
+     * @return string HTML
+     */
+    function ProposalClosedNotice()
+    {
+        global $_FN;
+        $proposalid = FN_GetParam("proposal", $_GET);
+        if (empty($this->config['enable_proposals']) || $_FN['user'] == "" || $proposalid === ""
+            || !file_exists("{$_FN['datadir']}/{$_FN['database']}/dbview_proposals.php"))
+            return "";
+        $messages = array(
+            "withdrawn" => "this proposal has been withdrawn by its author",
+            "accepted" => "this proposal has been accepted",
+            "partial" => "this proposal has been partially accepted",
+            "rejected" => "this proposal has been discarded",
+        );
+        $p = FN_XMDBTable("dbview_proposals")->GetRecordByPrimaryKey($proposalid);
+        // the driver may match without case or type: check again
+        if (!is_array($p) || (string) $p['id'] !== (string) $proposalid || $p['tablename'] !== $this->ProposalsTableName()
+            || !isset($messages[$p['status']]) || !$this->CanSeeProposal($p))
+            return "";
+        $msg = FN_Translate($messages[$p['status']]);
+        if ($p['status'] !== "withdrawn" && (string) $p['userreview'] !== "")
+            $msg .= ", " . FN_Translate("reviewed by") . " " . $p['userreview'];
+        if ((string) $p['recordreview'] !== "")
+            $msg .= " (" . FN_FormatDate($p['recordreview']) . ")";
+        return "<div class=\"alert alert-info\" role=\"status\">" . htmlspecialchars($msg) . "</div>";
+    }
+
+    /**
+     * Withdraws a pending proposal and tells the reviewers, who were notified of it and
+     * would no longer find it
+     * @param array $proposal
+     * @param bool $notify false for a proposal nobody has been told of yet
+     */
+    protected function WithdrawProposal($proposal, $notify = true)
+    {
+        global $_FN;
+        $tablename = $this->ProposalsTableName();
+        // recordreview: when it was withdrawn
+        FN_XMDBTable("dbview_proposals")->UpdateRecord(array("id" => $proposal['id'], "status" => "withdrawn", "recordreview" => XMETATable::now()));
+        $this->RemoveProposalFiles($proposal['id']);
+        FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename proposal {$proposal['id']} withdrawn.");
+        if (!$notify)
+            return;
+        $id_record = (string) $proposal['table_unirecid'];
+        $record = $id_record === "" ? array() : FN_XMDBTable($tablename)->GetRecordByPrimaryKey($id_record);
+        if (!is_array($record))
+            $record = array();
+        $title = $this->ProposalRecordTitle($id_record === "" ? $this->ProposalValues($proposal) : $record);
+        $text = FN_Translate("proposal withdrawn by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - $title";
+        $this->ProposalNotify($this->ProposalReviewers($record), $text, $text, $this->ProposalRecordLink($id_record, $proposal['id']), true);
+    }
+
+    /**
+     * Saves of the proposals of the current user one at a time, until the request ends:
+     * a double click sends the form twice at the same moment and both requests would
+     * find no pending proposal and add one each
+     */
+    protected function LockUserProposals()
+    {
+        global $_FN;
+        static $lock = null;
+        if ($lock)
+            return;
+        FN_MkDir("{$_FN['datadir']}/_cache");
+        $lock = @fopen("{$_FN['datadir']}/_cache/dbview_proposals_" . md5($_FN['user']) . ".lock", "c");
+        if ($lock)
+            flock($lock, LOCK_EX);
     }
 
     /**
@@ -1292,8 +1380,22 @@ trait FNDBVIEWProposals
     {
         $titles = array();
         foreach ($fields as $field)
-            $titles[] = isset($Table->formvals[$field]['title']) ? $Table->formvals[$field]['title'] : $field;
+            $titles[] = $this->ProposalFieldTitle($Table, $field);
         return $titles;
+    }
+
+    /**
+     * Title of a field as plain text: the titles of the table definitions may hold
+     * HTML entities (Localit&agrave;), which would be escaped twice in the pages and
+     * left as they are in the mails
+     * @param object $Table
+     * @param string $field
+     * @return string
+     */
+    protected function ProposalFieldTitle($Table, $field)
+    {
+        $title = isset($Table->formvals[$field]['title']) ? (string) $Table->formvals[$field]['title'] : $field;
+        return trim(html_entity_decode(strip_tags($title), ENT_QUOTES, "UTF-8"));
     }
 
     /**
@@ -1358,7 +1460,7 @@ trait FNDBVIEWProposals
                 $fields[] = array(
                     "name" => htmlspecialchars($field),
                     "inputid" => "proposal_" . intval($proposal['id']) . "_" . preg_replace('/[^A-Za-z0-9_]/', '_', $field),
-                    "title" => htmlspecialchars(isset($Table->formvals[$field]['title']) ? $Table->formvals[$field]['title'] : $field),
+                    "title" => htmlspecialchars($this->ProposalFieldTitle($Table, $field)),
                     "current" => $this->ProposalDisplayValue($Table, $field, $current),
                     "proposed" => $this->ProposalDisplayValue($Table, $field, $change['new']),
                     // the record changed after the proposal was made
@@ -1399,8 +1501,10 @@ trait FNDBVIEWProposals
         if (!is_array($rows))
             return;
         foreach ($rows as $n) {
-            // FN_AddNotification stores the link html-escaped
-            if ($n['username'] === $_FN['user'] && in_array($n['link'], array($link, htmlspecialchars($link)), true) && empty($n['displayed']))
+            // FN_AddNotification stores the link html-escaped; the page shows all the
+            // proposals, whatever proposal the link names
+            $nlink = preg_replace('/&(amp;)?proposal=\d+$/', '', (string) $n['link']);
+            if ($n['username'] === $_FN['user'] && in_array($nlink, array($link, htmlspecialchars($link)), true) && empty($n['displayed']))
                 FN_SetNotificationDisplayed($n['id']);
         }
     }
