@@ -128,7 +128,7 @@ trait FNDBVIEWProposals
     /**
      * Pending proposals of a record, oldest first
      * @param string $tablename
-     * @param string $id_record
+     * @param string|null $id_record "" = proposed new records, null = proposals of any record
      * @param string $username only the proposals of this user
      * @return array
      */
@@ -137,7 +137,9 @@ trait FNDBVIEWProposals
         global $_FN;
         if (!file_exists("{$_FN['datadir']}/{$_FN['database']}/dbview_proposals.php"))
             return array();
-        $restr = array("tablename" => $tablename, "table_unirecid" => $id_record, "status" => "pending");
+        $restr = array("tablename" => $tablename, "status" => "pending");
+        if ($id_record !== null)
+            $restr['table_unirecid'] = $id_record;
         if ($username != "")
             $restr['username'] = $username;
         $rows = FN_XMDBTable("dbview_proposals")->GetRecords($restr);
@@ -146,7 +148,7 @@ trait FNDBVIEWProposals
         // the driver may match without case or type: check again
         $ret = array();
         foreach ($rows as $r) {
-            if ($r['tablename'] === $tablename && (string) $r['table_unirecid'] === (string) $id_record
+            if ($r['tablename'] === $tablename && ($id_record === null || (string) $r['table_unirecid'] === (string) $id_record)
                 && $r['status'] === "pending" && ($username == "" || $r['username'] === $username))
                 $ret[] = $r;
         }
@@ -234,7 +236,34 @@ trait FNDBVIEWProposals
     protected function ProposalPage($proposal)
     {
         $id_record = (string) $proposal['table_unirecid'];
-        return $id_record === "" ? $this->NewRecordProposalsPage() : $this->ViewRecordPage($id_record);
+        return $id_record === "" ? $this->ProposalsListPage() : $this->ViewRecordPage($id_record);
+    }
+
+    /**
+     * Pending changes of existing records the current user may see: the ones of the
+     * records he can edit and his own
+     * @return array proposal rows, each with the record under "_record"
+     */
+    protected function VisibleChangeProposals()
+    {
+        $ret = array();
+        $data = FN_XMDBTable($this->ProposalsTableName());
+        foreach ($this->PendingProposals($this->ProposalsTableName(), null) as $proposal) {
+            if ((string) $proposal['table_unirecid'] === "" || !$this->CanSeeProposal($proposal))
+                continue;
+            $proposal['_record'] = $data->GetRecordByPrimaryKey($proposal['table_unirecid']);
+            $ret[] = $proposal;
+        }
+        return $ret;
+    }
+
+    /**
+     * @param string $text
+     * @return string text escaped for a template: the engine would read braces as variables
+     */
+    protected function ProposalTemplateText($text)
+    {
+        return str_replace(array("{", "}"), array("&#123;", "&#125;"), htmlspecialchars($text));
     }
 
     /**
@@ -563,7 +592,7 @@ trait FNDBVIEWProposals
         if ($proposalid !== "") {
             $pending = $this->PendingNewRecordProposal($proposalid, true);
             if (!$pending)
-                return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->NewRecordProposalsPage();
+                return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->ProposalsListPage();
         }
         return $this->NewRecordForm($Table, array(), true, $pending);
     }
@@ -588,20 +617,20 @@ trait FNDBVIEWProposals
         if ($proposalid !== "") {
             $pending = $this->PendingNewRecordProposal($proposalid, true);
             if (!$pending)
-                return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->NewRecordProposalsPage();
+                return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->ProposalsListPage();
         }
         $result = $this->ProposeNewRecordValues($Table, $Table->getbypost(), $pending);
         switch ($result['status']) {
             case "nodata":
                 return FN_HtmlAlert(FN_Translate("the proposal contains no data")) . $this->NewRecordForm($Table, array(), true);
             case "withdrawn":
-                return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->NewRecordProposalsPage();
+                return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->ProposalsListPage();
             case "invalid":
                 return $this->NewRecordForm($Table, $result['errors'], true, $pending);
             case "toolong":
                 return FN_HtmlAlert(FN_Translate("the proposal is too long")) . $this->NewRecordForm($Table, array(), true, $pending);
         }
-        return FN_HtmlAlert(FN_Translate("your proposal has been sent to the users who manage this record")) . $this->NewRecordProposalsPage();
+        return FN_HtmlAlert(FN_Translate("your proposal has been sent to the users who manage this record")) . $this->ProposalsListPage();
     }
 
     /**
@@ -698,10 +727,10 @@ trait FNDBVIEWProposals
             return FN_Translate("you may not do that");
         $proposal = $this->PendingNewRecordProposal($proposalid, !$reviewer);
         if (!$proposal)
-            return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->NewRecordProposalsPage();
+            return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->ProposalsListPage();
         if (!$reviewer) {
             $this->WithdrawProposal($proposal);
-            return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->NewRecordProposalsPage();
+            return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->ProposalsListPage();
         }
 
         $changes = $this->ProposalChanges($proposal);
@@ -719,7 +748,7 @@ trait FNDBVIEWProposals
                 $msg = FN_Translate("the proposal cannot be accepted") . ":";
                 foreach ($errors as $error)
                     $msg .= "<br />" . htmlspecialchars($error['title'] . ": " . $error['error']);
-                return FN_HtmlAlert($msg) . $this->NewRecordProposalsPage();
+                return FN_HtmlAlert($msg) . $this->ProposalsListPage();
             }
             $accepted = (isset($_POST['acceptrows']) && is_array($_POST['acceptrows'])) ? array_map("strval", $_POST['acceptrows']) : array();
             $rows = $this->InsertProposalRows($Table, $proposal, $record, $accepted);
@@ -749,7 +778,7 @@ trait FNDBVIEWProposals
         $this->ProposalNotify(array($proposal['username']), $text, $body, $this->ProposalRecordLink($record ? $record[$pk] : "", $proposal['id']), false);
 
         if (!$record)
-            return FN_HtmlAlert(FN_Translate("proposal discarded")) . $this->NewRecordProposalsPage();
+            return FN_HtmlAlert(FN_Translate("proposal discarded")) . $this->ProposalsListPage();
         // the reviewer completes the record (e.g. the cadastral number) in the edit form
         $msg = FN_Translate("the record has been created from the proposal");
         if (count($rows) > 0)
@@ -770,23 +799,40 @@ trait FNDBVIEWProposals
     }
 
     /**
-     * Page of the proposed new records (op=proposal without id): all of them with
-     * the review buttons for who can add records, the own ones for the authors
+     * Page of the pending proposals (op=proposal without id). Proposed new records:
+     * all of them with the review buttons for who can add records, the own ones for
+     * the authors. Changes of existing records: the ones the user may see (see
+     * VisibleChangeProposals), each linked to its record, where it is reviewed
      * @return string HTML
      */
-    function NewRecordProposalsPage()
+    function ProposalsListPage()
     {
         global $_FN;
-        $reviewer = $this->CanAddRecord();
-        if (empty($this->config['enable_proposals']) || $_FN['user'] == "" || (!$reviewer && !$this->CanProposeNewRecord()))
+        if (empty($this->config['enable_proposals']) || $_FN['user'] == "")
             return FN_Translate("you may not do that");
+        $reviewer = $this->CanAddRecord();
+        $newrecords = $reviewer || $this->CanProposeNewRecord();
         $tablename = $this->ProposalsTableName();
         $Table = FN_XMDBForm($tablename);
+        $changes = array();
+        foreach ($this->VisibleChangeProposals() as $proposal) {
+            $rowcount = $this->ProposalRowCount($proposal);
+            $changes[] = array(
+                "recordtitle" => $this->ProposalTemplateText($this->ProposalRecordTitle(is_array($proposal['_record']) ? $proposal['_record'] : array())),
+                "link" => $this->MakeLink(array("op" => "view", "id" => $proposal['table_unirecid'], "proposal" => null), "&amp;"),
+                "user" => htmlspecialchars($proposal['username']),
+                "date" => htmlspecialchars(FN_FormatDate($proposal['recordinsert'])),
+                "fields" => $this->ProposalTemplateText(implode(", ", $this->ProposalFieldTitles($Table, array_keys($this->ProposalChanges($proposal))))),
+                "rowcount" => $rowcount > 0 ? (string) $rowcount : "",
+            );
+        }
+        if (!$newrecords && count($changes) == 0)
+            return FN_Translate("you may not do that");
         if ($reviewer)
             $this->ProposalNotificationsDisplayed($this->ProposalRecordLink(""));
         $nested = $this->ProposalNestedTables($Table);
         $items = array();
-        foreach ($this->PendingProposals($tablename, "", $reviewer ? "" : $_FN['user']) as $proposal) {
+        foreach ($newrecords ? $this->PendingProposals($tablename, "", $reviewer ? "" : $_FN['user']) : array() as $proposal) {
             $addrows = $reviewer ? array() : $this->ProposalAddRowItems($proposal, $nested);
             $rows = $this->ProposalRowItems($proposal, $nested, $reviewer);
             $fields = array();
@@ -798,8 +844,7 @@ trait FNDBVIEWProposals
             }
             $items[] = array(
                 "id" => intval($proposal['id']),
-                // braces encoded: the template engine would read them as variables
-                "recordtitle" => str_replace(array("{", "}"), array("&#123;", "&#125;"), htmlspecialchars($this->ProposalRecordTitle($this->ProposalValues($proposal)))),
+                "recordtitle" => $this->ProposalTemplateText($this->ProposalRecordTitle($this->ProposalValues($proposal))),
                 "user" => htmlspecialchars($proposal['username']),
                 "date" => htmlspecialchars(FN_FormatDate($proposal['recordinsert'])),
                 "token" => $this->CsrfToken("proposal|$tablename|" . $proposal['id']),
@@ -813,8 +858,11 @@ trait FNDBVIEWProposals
             );
         }
         $vars = array(
+            "newrecords" => $newrecords ? "1" : "",
             "proposals" => $items,
             "empty" => count($items) == 0 ? "1" : "",
+            "changes" => $changes,
+            "nochanges" => count($changes) == 0 ? "1" : "",
             "newlink" => $reviewer ? "" : $this->MakeLink(array("op" => "propose", "id" => null, "proposal" => null), "&amp;"),
             "listlink" => $this->MakeLink(array("op" => null, "id" => null, "proposal" => null), "&amp;"),
         );
@@ -967,7 +1015,7 @@ trait FNDBVIEWProposals
                 return FN_Translate("you may not do that");
             $proposal = $this->PendingNewRecordProposal(FN_GetParam("proposal", $_GET), true);
             if (!$proposal)
-                return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->NewRecordProposalsPage();
+                return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->ProposalsListPage();
         } else {
             if (!$this->CanProposeRecord(FN_XMDBTable($tablename)->GetRecordByPrimaryKey($id_record)) || !isset($nested[$rowtable]))
                 return FN_Translate("you may not do that");
@@ -1267,29 +1315,27 @@ trait FNDBVIEWProposals
     }
 
     /**
-     * Line on top of the record list: the button to propose a new record and the
-     * own pending proposals for the authors, the pending proposals for the reviewers
+     * Buttons on top of the record list: propose a new record (for who cannot add
+     * records) and the page of the pending proposals with their count. Who can add
+     * records always gets the second one, the others when they have proposals to see
      * @return string HTML
      */
-    function NewRecordProposalsNotice()
+    function ListProposalsButtons()
     {
         global $_FN;
         if (empty($this->config['enable_proposals']) || $_FN['user'] == "")
             return "";
         $reviewer = $this->CanAddRecord();
-        if (!$reviewer && !$this->CanProposeNewRecord())
-            return "";
-        $count = count($this->PendingProposals($this->ProposalsTableName(), "", $reviewer ? "" : $_FN['user']));
-        $page = $this->MakeLink(array("op" => "proposal", "id" => null), "&amp;");
-        if ($reviewer) {
-            if ($count == 0)
-                return "";
-            return "<div class=\"alert alert-warning\" role=\"status\">" . FN_Translate("new records proposed and waiting for review") . ": $count. <a href=\"$page\">" . FN_Translate("review the proposals") . "</a></div>";
-        }
-        $html = "<p class=\"dbview-propose-new\"><a class=\"btn btn-primary\" href=\"" . $this->MakeLink(array("op" => "propose", "id" => null), "&amp;") . "\">" . FN_Translate("propose a new record") . "</a>";
-        if ($count > 0)
-            $html .= " <a class=\"btn btn-outline-secondary\" href=\"$page\">" . FN_Translate("your proposed new records waiting for review") . ": $count</a>";
-        return $html . "</p>";
+        $proposer = $this->CanProposeNewRecord();
+        $count = count($this->VisibleChangeProposals());
+        if ($reviewer || $proposer)
+            $count += count($this->PendingProposals($this->ProposalsTableName(), "", $reviewer ? "" : $_FN['user']));
+        $html = "";
+        if ($proposer)
+            $html .= "<a class=\"btn btn-primary\" href=\"" . $this->MakeLink(array("op" => "propose", "id" => null), "&amp;") . "\">" . FN_Translate("propose a new record") . "</a> ";
+        if ($reviewer || $count > 0)
+            $html .= "<a class=\"btn " . ($count > 0 ? "btn-warning" : "btn-outline-secondary") . "\" href=\"" . $this->MakeLink(array("op" => "proposal", "id" => null), "&amp;") . "\">" . FN_Translate("proposals waiting for review") . ": $count</a>";
+        return $html === "" ? "" : "<p class=\"dbview-propose-new\">$html</p>";
     }
 
     /**

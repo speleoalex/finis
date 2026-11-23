@@ -211,13 +211,13 @@ else
                 else
                     $html .= $dbview->EditRecordForm($id, $Table, array(), false, true);
                 break;
-            case "proposal" : // accept or discard a proposed change; without id the proposed new records
+            case "proposal" : // accept or discard a proposed change; without id the page of the pending proposals
                 if ($id != "")
                     $html .= $dbview->ReviewProposal($id, $Table);
                 elseif (count($_POST) > 0)
                     $html .= $dbview->ReviewNewRecordProposal($Table);
                 else
-                    $html .= $dbview->ProposalClosedNotice() . $dbview->NewRecordProposalsPage();
+                    $html .= $dbview->ProposalClosedNotice() . $dbview->ProposalsListPage();
                 break;
             case "proposerow" : // row of a linked table added to (or removed from) a proposal
                 $html .= $dbview->ProposalRowPage();

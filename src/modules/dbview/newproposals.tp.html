@@ -1,15 +1,30 @@
-<section class="dbview-newproposals" aria-label="{i18n:proposed new records}">
-    <h2>{i18n:proposed new records}</h2>
+<section class="dbview-newproposals" aria-label="{i18n:proposals waiting for review}">
+    <h2>{i18n:proposals waiting for review}</h2>
     <p>
         <a class="btn btn-outline-secondary" href="{listlink}">{i18n:view list}</a>
         <!-- if {newlink} --><a class="btn btn-primary" href="{newlink}">{i18n:propose a new record}</a><!-- end if {newlink} -->
     </p>
+    <h3 class="h4">{i18n:proposed changes}</h3>
+    <!-- if {nochanges} --><p>{i18n:no proposals waiting for review}</p><!-- end if {nochanges} -->
+    <!-- if not {nochanges} -->
+    <ul class="list-group mb-4">
+        <!-- foreach {changes} -->
+        <li class="list-group-item">
+            <a class="fw-bold" href="{link}">{recordtitle}</a><br />
+            {i18n:change proposed by} {user} - {date}<br />
+            <span class="text-body-secondary">{fields}<!-- if {rowcount} --> - {i18n:linked records added}: {rowcount}<!-- end if {rowcount} --></span>
+        </li>
+        <!-- end foreach {changes} -->
+    </ul>
+    <!-- end if not {nochanges} -->
+    <!-- if {newrecords} -->
+    <h3 class="h4">{i18n:proposed new records}</h3>
     <!-- if {empty} --><p>{i18n:no proposals waiting for review}</p><!-- end if {empty} -->
     <!-- foreach {proposals} -->
     <form method="post" action="{action}" class="dbview-proposal alert alert-warning mb-3">
         <input type="hidden" name="proposal" value="{id}" />
         <input type="hidden" name="fn_csrf" value="{token}" />
-        <h3 class="h5">{recordtitle}</h3>
+        <h4 class="h5">{recordtitle}</h4>
         <p class="mb-2">{i18n:new record proposed by} {user} - {date}</p>
         <div class="table-responsive">
             <table class="table table-sm align-middle">
@@ -59,4 +74,5 @@
         <!-- end if not {reviewer} -->
     </form>
     <!-- end foreach {proposals} -->
+    <!-- end if {newrecords} -->
 </section>

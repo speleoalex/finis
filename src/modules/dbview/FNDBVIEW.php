@@ -1030,9 +1030,9 @@ class FNDBVIEW
         if (isset($_GET['debug'])) {
             dprint_r(__FILE__ . " " . __LINE__ . " : " . FN_GetExecuteTimer());
         }
-        // the button to propose a new record goes into {html_header} when the template has it:
+        // the proposal buttons go into {html_header} when the template has it:
         // a list may open with a map that has to stay on top (the openkis lists)
-        $proposals = $this->NewRecordProposalsNotice();
+        $proposals = $this->ListProposalsButtons();
         if ($proposals !== "" && strpos($templateString, "{html_header}") !== false) {
             $tplvars['html_header'] = $proposals . (isset($tplvars['html_header']) ? $tplvars['html_header'] : "");
             $proposals = "";
