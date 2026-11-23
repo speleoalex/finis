@@ -252,6 +252,9 @@ trait FNDBVIEWCRUD
         }
 
         $record = $Table->xmltable->InsertRecord($newvalues);
+        // files handed with SetFile (accepted proposal) are stored: function_on_insert
+        // updates the record with the same table object and must not store them again
+        $Table->xmltable->uploadedFiles = array();
         $this->InvalidateCache($tablename);
         $pk = $Table->xmltable->primarykey;
 

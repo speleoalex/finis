@@ -2253,8 +2253,11 @@ set_changed();
         if (!$proposing)
             return $html . $Table->HtmlShowInsertForm(FN_IsAdmin(), $nv, $errors);
         if ($proposal && count($_POST) == 0) {
-            foreach ($this->ProposalChanges($proposal) as $field => $change)
-                $nv[$field] = $change['new'];
+            foreach ($this->ProposalChanges($proposal) as $field => $change) {
+                // a proposed file waits in the proposal: the form shows only its list entry
+                if (!xmetadb_is_file_field($Table->formvals[$field]))
+                    $nv[$field] = $change['new'];
+            }
         }
         // the form object is shared in the request: hide the fields only for this form
         $formvals = $Table->formvals;

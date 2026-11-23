@@ -9,11 +9,12 @@
  * A user who can view the records but not add them may propose a new record too
  * (op=propose without id, row with an empty table_unirecid): the users who can add
  * records accept it on the page op=proposal, which creates the record as the insert form does.
- * Only the data fields of the record, without files. A proposal (new record or change) may
- * also carry new rows of the linked tables listed in proposals_innertables (op=proposerow, one
- * at a time; on an existing record the first row creates the proposal when there is none):
- * they are kept under the "_tables_" key of the JSON, their files in dbview_proposals_files
- * until the review, and the accepted ones are inserted linked to the record.
+ * The data fields of the record and its files: a file field is proposed only by sending the
+ * file. A proposal (new record or change) may also carry new rows of the linked tables listed
+ * in proposals_innertables (op=proposerow, one at a time; on an existing record the first row
+ * creates the proposal when there is none): they are kept under the "_tables_" key of the
+ * JSON and the accepted ones are inserted linked to the record. All the files wait in
+ * dbview_proposals_files until the review, those of the record as row 0 of the main table.
  * The author may withdraw a pending proposal: the reviewers are notified of that too. The
  * notifications open the page with &proposal=<id>, which says so when the proposal is no
  * longer pending (withdrawn, accepted or discarded).
@@ -82,10 +83,9 @@ trait FNDBVIEWProposals
     }
 
     /**
-     * Fields a proposal may change: the visible data fields, without primary key,
-     * files, admin-only, read-only, system fields and the fields of proposals_exclude_fields.
-     * For a row of a linked table the files are allowed and only the field that links the
-     * row to the record is left out.
+     * Fields a proposal may change: the visible fields, files included, without primary key,
+     * admin-only, read-only, system fields and the fields of proposals_exclude_fields.
+     * For a row of a linked table only the field that links the row to the record is left out.
      * @param object $Table xmetadb_frm
      * @param string $linkfield field of the linked table that holds the record key
      * @return array field names
@@ -98,7 +98,7 @@ trait FNDBVIEWProposals
         $excluded = $row ? array($linkfield) : array_map("trim", explode(",", isset($this->config['proposals_exclude_fields']) ? $this->config['proposals_exclude_fields'] : ""));
         $fields = array();
         foreach ($Table->formvals as $name => $field) {
-            if (!empty($field['primarykey']) || in_array($name, $system, true) || in_array($name, $excluded, true) || (!$row && xmetadb_is_file_field($field)))
+            if (!empty($field['primarykey']) || in_array($name, $system, true) || in_array($name, $excluded, true))
                 continue;
             if (isset($field['frm_show']) && ($field['frm_show'] === "0" || $field['frm_show'] === 0 || $field['frm_show'] === false))
                 continue;
@@ -333,10 +333,15 @@ trait FNDBVIEWProposals
     function PendingProposalValues($row, $tablename)
     {
         global $_FN;
-        $pk = FN_XMDBTable($tablename)->primarykey;
+        $Table = FN_XMDBForm($tablename);
+        $pk = $Table->xmltable->primarykey;
         foreach ($this->PendingProposals($tablename, $row[$pk], $_FN['user']) as $proposal) {
-            foreach ($this->ProposalChanges($proposal) as $field => $change)
-                $row[$field] = $change['new'];
+            foreach ($this->ProposalChanges($proposal) as $field => $change) {
+                // a proposed file is not stored with the record yet: the form keeps the stored one
+                // and the proposed file stays in the proposal until a new one is sent
+                if (!isset($Table->formvals[$field]) || !xmetadb_is_file_field($Table->formvals[$field]))
+                    $row[$field] = $change['new'];
+            }
         }
         return $row;
     }
@@ -352,12 +357,15 @@ trait FNDBVIEWProposals
         $Table = FN_XMDBForm($tablename);
         $pk = $Table->xmltable->primarykey;
         $id_record = FN_GetParam("_xmetadbform_pk_$pk", $_POST);
-        $result = $this->ProposeChangeValues($Table, $id_record, $Table->getbypost());
+        $posted = $Table->getbypost();
+        $result = $this->ProposeChangeValues($Table, $id_record, $posted, $this->UploadedFormFiles($posted));
         switch ($result['status']) {
             case "denied":
                 return FN_Translate("you may not do that");
             case "invalid":
                 return $this->EditRecordForm($id_record, $Table, $result['errors'], false, true);
+            case "nosave":
+                return FN_HtmlAlert(FN_Translate("the file could not be saved")) . $this->EditRecordForm($id_record, $Table, array(), false, true);
             case "unchanged":
                 return FN_HtmlAlert(FN_Translate("no changes compared to the record")) . $this->ViewRecordPage($id_record);
             case "toolong":
@@ -373,9 +381,10 @@ trait FNDBVIEWProposals
      * @param object $Table xmetadb_frm of the main table
      * @param string $id_record
      * @param array $posted field => value
-     * @return array status denied|invalid|unchanged|toolong|sent; errors; proposal; changes
+     * @param array $files field => absolute path of the file sent for a file field
+     * @return array status denied|invalid|unchanged|toolong|nosave|sent; errors; proposal; changes
      */
-    protected function ProposeChangeValues($Table, $id_record, $posted)
+    protected function ProposeChangeValues($Table, $id_record, $posted, $files = array())
     {
         global $_FN;
         $tablename = $this->ProposalsTableName();
@@ -387,9 +396,16 @@ trait FNDBVIEWProposals
         $newvalues = $this->applyFieldTransformations($posted, $Table);
         $changes = array();
         $proposed = array();
+        $filevalues = array();
         foreach ($this->ProposalFields($Table) as $field) {
             if (!array_key_exists($field, $newvalues))
                 continue;
+            if (xmetadb_is_file_field($Table->formvals[$field])) {
+                // a file is proposed only by sending it: a name alone would point to nothing
+                if (isset($files[$field]))
+                    $filevalues[$field] = (string) $newvalues[$field];
+                continue;
+            }
             $new = (string) $newvalues[$field];
             // compared in storage format, kept in form format (applied with xmetadb_frm::UpdateRecord)
             $stored = $new;
@@ -402,13 +418,18 @@ trait FNDBVIEWProposals
                 $proposed[$field] = $new;
             }
         }
-        $errors = $Table->VerifyUpdate(array_merge($row, $proposed), $id_record);
-        if (count($errors) > 0)
-            return array("status" => "invalid", "errors" => $errors);
-
-        $proposals = FN_XMDBTable("dbview_proposals");
         $this->LockUserProposals();
         $pending = $this->PendingProposals($tablename, $id_record, $_FN['user']);
+        $errors = $Table->VerifyUpdate(array_merge($row, $proposed), $id_record);
+        $sources = $this->ProposalFileSources($Table, $filevalues, $files, $errors);
+        if (count($errors) > 0)
+            return array("status" => "invalid", "errors" => $errors);
+        foreach ($filevalues as $field => $name)
+            $changes[$field] = array("old" => isset($row[$field]) ? (string) $row[$field] : "", "new" => $name);
+        if (count($pending) > 0)
+            $changes = $this->KeepProposedFiles($Table, $pending[0], $changes);
+
+        $proposals = FN_XMDBTable("dbview_proposals");
         // the rows of the linked tables are added on their own page: keep them
         $rows = count($pending) > 0 ? $this->ProposalRows($pending[0]) : array();
         if (count($changes) == 0) {
@@ -424,7 +445,7 @@ trait FNDBVIEWProposals
         if ($json === false)
             return array("status" => "toolong");
         // the same form sent again (double click, reload): already notified
-        if (count($pending) > 0 && $pending[0]['changes'] === $json)
+        if (count($pending) > 0 && $pending[0]['changes'] === $json && count($sources) == 0)
             return array("status" => "sent", "proposal" => $pending[0], "changes" => $changes);
         $values = array(
             "changes" => $json,
@@ -439,6 +460,12 @@ trait FNDBVIEWProposals
             $values['username'] = $_FN['user'];
             $values['status'] = "pending";
             $values = $proposals->InsertRecord($values);
+        }
+        if (!$this->StoreProposalFiles($values['id'], $tablename, 0, $filevalues, $sources)) {
+            // nobody has been told of a new one yet
+            if (count($pending) == 0)
+                $this->WithdrawProposal($values, false);
+            return array("status" => "nosave");
         }
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename change proposed for $id_record.");
 
@@ -487,11 +514,13 @@ trait FNDBVIEWProposals
                     $accepted[$field] = $change['new'];
             }
         }
+        $accepted = $this->SetProposalFiles($Table, $proposal['id'], $tablename, 0, $accepted);
         if (count($accepted) > 0) {
             $newvalues = $accepted;
             $newvalues[$pk] = $id_record;
             $errors = $Table->VerifyUpdate(array_merge($row, $newvalues), $id_record);
             if (count($errors) > 0) {
+                $Table->xmltable->uploadedFiles = array();
                 $msg = FN_Translate("the proposal cannot be accepted") . ":";
                 foreach ($errors as $error)
                     $msg .= "<br />" . htmlspecialchars($error['title'] . ": " . $error['error']);
@@ -499,6 +528,7 @@ trait FNDBVIEWProposals
             }
             $newvalues['userupdate'] = $_FN['user'];
             $newvalues = $this->saveRecordChanges($Table, $tablename, $row, $newvalues, $id_record);
+            $Table->xmltable->uploadedFiles = array();
             $this->runUpdateHook(array_merge($row, $newvalues));
         }
         // after the fields: the rows are linked to the value the record has now
@@ -619,7 +649,8 @@ trait FNDBVIEWProposals
             if (!$pending)
                 return FN_HtmlAlert(FN_Translate("this proposal has already been reviewed")) . $this->ProposalsListPage();
         }
-        $result = $this->ProposeNewRecordValues($Table, $Table->getbypost(), $pending);
+        $posted = $Table->getbypost();
+        $result = $this->ProposeNewRecordValues($Table, $posted, $pending, $this->UploadedFormFiles($posted));
         switch ($result['status']) {
             case "nodata":
                 return FN_HtmlAlert(FN_Translate("the proposal contains no data")) . $this->NewRecordForm($Table, array(), true);
@@ -627,6 +658,8 @@ trait FNDBVIEWProposals
                 return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->ProposalsListPage();
             case "invalid":
                 return $this->NewRecordForm($Table, $result['errors'], true, $pending);
+            case "nosave":
+                return FN_HtmlAlert(FN_Translate("the file could not be saved")) . $this->NewRecordForm($Table, array(), true, $pending);
             case "toolong":
                 return FN_HtmlAlert(FN_Translate("the proposal is too long")) . $this->NewRecordForm($Table, array(), true, $pending);
         }
@@ -640,9 +673,10 @@ trait FNDBVIEWProposals
      * @param object $Table xmetadb_frm of the main table
      * @param array $posted field => value
      * @param array|null $pending proposal of the user being changed, null for a new one
-     * @return array status nodata|withdrawn|invalid|toolong|sent; errors; proposal; changes
+     * @param array $files field => absolute path of the file sent for a file field
+     * @return array status nodata|withdrawn|invalid|toolong|nosave|sent; errors; proposal; changes
      */
-    protected function ProposeNewRecordValues($Table, $posted, $pending)
+    protected function ProposeNewRecordValues($Table, $posted, $pending, $files = array())
     {
         global $_FN;
         $tablename = $this->ProposalsTableName();
@@ -652,9 +686,16 @@ trait FNDBVIEWProposals
         $newvalues = $this->applyFieldTransformations($posted, $Table);
         $changes = array();
         $proposed = array();
+        $filevalues = array();
         // the form comes filled with the defaults (frm_default): those alone are not data
         $data = 0;
         foreach ($this->ProposalFields($Table) as $field) {
+            if (xmetadb_is_file_field($Table->formvals[$field])) {
+                // a file is proposed only by sending it: a name alone would point to nothing
+                if (isset($files[$field], $newvalues[$field]))
+                    $filevalues[$field] = (string) $newvalues[$field];
+                continue;
+            }
             if (isset($newvalues[$field]) && trim((string) $newvalues[$field]) !== "") {
                 $changes[$field] = array("old" => "", "new" => (string) $newvalues[$field]);
                 $proposed[$field] = (string) $newvalues[$field];
@@ -662,13 +703,25 @@ trait FNDBVIEWProposals
                     $data++;
             }
         }
-        if ($data == 0) {
+        $errors = array();
+        $sources = $this->ProposalFileSources($Table, $filevalues, $files, $errors);
+        foreach ($filevalues as $field => $name)
+            $changes[$field] = array("old" => "", "new" => $name);
+        if ($pending)
+            $changes = $this->KeepProposedFiles($Table, $pending, $changes);
+        foreach ($changes as $field => $change) {
+            if (xmetadb_is_file_field($Table->formvals[$field])) {
+                $proposed[$field] = $change['new'];
+                $data++;
+            }
+        }
+        if ($data == 0 && count($errors) == 0) {
             if (!$pending)
                 return array("status" => "nodata");
             $this->WithdrawProposal($pending);
             return array("status" => "withdrawn", "proposal" => $pending);
         }
-        $errors = $Table->VerifyInsert($proposed);
+        $errors = array_merge($Table->VerifyInsert($proposed), $errors);
         if (count($errors) > 0)
             return array("status" => "invalid", "errors" => $errors);
 
@@ -677,7 +730,7 @@ trait FNDBVIEWProposals
         if ($json === false)
             return array("status" => "toolong");
         // the same form sent again (double click, reload): already notified
-        foreach ($pending ? array($pending) : $this->PendingProposals($tablename, "", $_FN['user']) as $p) {
+        foreach (count($sources) > 0 ? array() : ($pending ? array($pending) : $this->PendingProposals($tablename, "", $_FN['user'])) as $p) {
             if ($p['changes'] === $json)
                 return array("status" => "sent", "proposal" => $p, "changes" => $changes);
         }
@@ -695,6 +748,12 @@ trait FNDBVIEWProposals
             $values['username'] = $_FN['user'];
             $values['status'] = "pending";
             $values = $proposals->InsertRecord($values);
+        }
+        if (!$this->StoreProposalFiles($values['id'], $tablename, 0, $filevalues, $sources)) {
+            // nobody has been told of a new one yet
+            if (!$pending)
+                $this->WithdrawProposal($values, false);
+            return array("status" => "nosave");
         }
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename new record proposed.");
 
@@ -743,7 +802,9 @@ trait FNDBVIEWProposals
                 if (in_array($field, $allowed, true))
                     $values[$field] = $change['new'];
             }
+            $values = $this->SetProposalFiles($Table, $proposal['id'], $tablename, 0, $values);
             list($record, $errors) = $this->CreateRecord($Table, $values);
+            $Table->xmltable->uploadedFiles = array();
             if (!$record) {
                 $msg = FN_Translate("the proposal cannot be accepted") . ":";
                 foreach ($errors as $error)
@@ -839,7 +900,7 @@ trait FNDBVIEWProposals
             foreach ($this->ProposalChanges($proposal) as $field => $change) {
                 $fields[] = array(
                     "title" => htmlspecialchars($this->ProposalFieldTitle($Table, $field)),
-                    "proposed" => $this->ProposalDisplayValue($Table, $field, $change['new']),
+                    "proposed" => $this->ProposalValueHtml($Table, $proposal, $tablename, 0, $field, $change['new']),
                 );
             }
             $items[] = array(
@@ -924,11 +985,11 @@ trait FNDBVIEWProposals
 
     /**
      * @param string $proposalid
-     * @param string $tablename
-     * @param string $key row key
+     * @param string $tablename main table for the files of the record, else the linked table
+     * @param string $key row key, 0 for the record
      * @param string $field
-     * @param string $name file name stored in the row
-     * @return string|false the file of a proposed row, false when missing
+     * @param string $name file name stored in the proposal
+     * @return string|false the proposed file, false when missing
      */
     protected function ProposalRowFile($proposalid, $tablename, $key, $field, $name)
     {
@@ -937,6 +998,141 @@ trait FNDBVIEWProposals
             return false;
         $file = $this->ProposalFilesDir($proposalid) . "/$tablename/" . intval($key) . "/$field/$name";
         return is_file($file) ? $file : false;
+    }
+
+    /**
+     * Files sent with a form, for the file fields of its values
+     * @param array $posted values of the form (getbypost)
+     * @return array field => uploaded temporary file
+     */
+    protected function UploadedFormFiles($posted)
+    {
+        $files = array();
+        foreach ($posted as $field => $value) {
+            if (isset($_FILES[$field]['error'], $_FILES[$field]['tmp_name']) && $_FILES[$field]['error'] === UPLOAD_ERR_OK
+                && is_uploaded_file($_FILES[$field]['tmp_name']))
+                $files[$field] = $_FILES[$field]['tmp_name'];
+        }
+        return $files;
+    }
+
+    /**
+     * Checks the files sent for the file fields of a proposal (record or row of a linked
+     * table): each needs its file and a name that may be stored, an image field a real
+     * image (the form checks only the browser uploads, not the files of the MCP server)
+     * @param object $Form xmetadb_frm of the table
+     * @param array $filevalues file field => name sent; the names become the stored ones
+     * @param array $files file field => absolute path of the file
+     * @param array $errors errors of the form, the ones of the files are added
+     * @return array file field => path of the file to store
+     */
+    protected function ProposalFileSources($Form, &$filevalues, $files, &$errors)
+    {
+        $sources = array();
+        foreach ($filevalues as $field => $value) {
+            $name = XMETATable::SafeFileName($value);
+            $source = isset($files[$field]) ? $files[$field] : "";
+            $error = "";
+            if ($name === "" || $source === "" || !is_file($source) || !is_readable($source))
+                $error = FN_Translate("file not accepted");
+            elseif (xmetadb_frm_type($Form->formvals[$field]) == "image" && !@getimagesize($source))
+                $error = $Form->messages["_XMLDBNOTVALIDIMAGE"];
+            if ($error !== "") {
+                $errors[$field] = array("title" => $Form->formvals[$field]['title'], "field" => $field, "error" => $error);
+                continue;
+            }
+            $filevalues[$field] = $name;
+            $sources[$field] = $source;
+        }
+        return $sources;
+    }
+
+    /**
+     * Copies the files of a proposal into its folder, each in place of the file the
+     * field had before (a file proposed again)
+     * @param string $proposalid
+     * @param string $tablename main table for the files of the record, else the linked table
+     * @param string $key row key, 0 for the record
+     * @param array $names file field => stored name
+     * @param array $sources file field => path, see ProposalFileSources
+     * @return bool false when a file could not be saved
+     */
+    protected function StoreProposalFiles($proposalid, $tablename, $key, $names, $sources)
+    {
+        $dir = $this->ProposalFilesDir($proposalid) . "/$tablename/" . intval($key);
+        foreach ($sources as $field => $source) {
+            if (is_dir("$dir/$field"))
+                FN_RemoveDir("$dir/$field");
+            FN_MkDir("$dir/$field");
+            // the web form hands the uploaded file, the MCP server a temporary one:
+            // copy and remove works for both (rename may cross filesystems)
+            if (!@copy($source, "$dir/$field/{$names[$field]}"))
+                return false;
+            @unlink($source);
+        }
+        return true;
+    }
+
+    /**
+     * Hands to the table the files of the accepted file fields of a proposal, to be
+     * stored by the insert or update that follows; a field whose file is missing is dropped
+     * @param object $Form xmetadb_frm of the table
+     * @param string $proposalid
+     * @param string $tablename see StoreProposalFiles
+     * @param string $key see StoreProposalFiles
+     * @param array $values field => value
+     * @return array $values without the fields whose file is missing
+     */
+    protected function SetProposalFiles($Form, $proposalid, $tablename, $key, $values)
+    {
+        // the table object is shared in the request: no file of a previous record
+        $Form->xmltable->uploadedFiles = array();
+        foreach ($values as $field => $value) {
+            if (!isset($Form->formvals[$field]) || !xmetadb_is_file_field($Form->formvals[$field]))
+                continue;
+            $file = $this->ProposalRowFile($proposalid, $tablename, $key, $field, $value);
+            if ($file)
+                $Form->xmltable->SetFile($field, $file, $value);
+            else
+                unset($values[$field]);
+        }
+        return $values;
+    }
+
+    /**
+     * The files of the record already proposed and not sent again: the form cannot show
+     * them (they are not stored with the record) and saving it again must not drop them
+     * @param object $Table xmetadb_frm of the main table
+     * @param array $pending proposal being changed
+     * @param array $changes new changes
+     * @return array $changes with the files kept
+     */
+    protected function KeepProposedFiles($Table, $pending, $changes)
+    {
+        foreach ($this->ProposalChanges($pending) as $field => $change) {
+            if (!isset($changes[$field]) && isset($Table->formvals[$field]) && xmetadb_is_file_field($Table->formvals[$field])
+                && $this->ProposalRowFile($pending['id'], $this->ProposalsTableName(), 0, $field, $change['new']))
+                $changes[$field] = $change;
+        }
+        return $changes;
+    }
+
+    /**
+     * Proposed value of a field as safe HTML; a file links to op=proposalfile
+     * @param object $Form xmetadb_frm of the table
+     * @param array $proposal
+     * @param string $tablename see StoreProposalFiles
+     * @param string $key see StoreProposalFiles
+     * @param string $field
+     * @param string $value
+     * @return string
+     */
+    protected function ProposalValueHtml($Form, $proposal, $tablename, $key, $field, $value)
+    {
+        if ((string) $value === "" || !isset($Form->formvals[$field]) || !xmetadb_is_file_field($Form->formvals[$field]))
+            return $this->ProposalDisplayValue($Form, $field, $value);
+        $link = $this->MakeLink(array("op" => "proposalfile", "id" => null, "proposal" => $proposal['id'], "table" => $tablename, "row" => $key, "field" => $field), "&amp;");
+        return "<a href=\"$link\">" . str_replace(array("{", "}"), array("&#123;", "&#125;"), htmlspecialchars($value)) . "</a>";
     }
 
     /**
@@ -971,15 +1167,9 @@ trait FNDBVIEWProposals
             foreach ($rows as $key => $values) {
                 $list = array();
                 foreach ($values as $field => $value) {
-                    if (isset($Form->formvals[$field]) && xmetadb_is_file_field($Form->formvals[$field])) {
-                        $link = $this->MakeLink(array("op" => "proposalfile", "id" => null, "proposal" => $proposal['id'], "table" => $tablename, "row" => $key, "field" => $field), "&amp;");
-                        $shown = "<a href=\"$link\">" . str_replace(array("{", "}"), array("&#123;", "&#125;"), htmlspecialchars($value)) . "</a>";
-                    } else {
-                        $shown = $this->ProposalDisplayValue($Form, $field, $value);
-                    }
                     $list[] = array(
                         "title" => htmlspecialchars($this->ProposalFieldTitle($Form, $field)),
-                        "value" => $shown,
+                        "value" => $this->ProposalValueHtml($Form, $proposal, $tablename, $key, $field, $value),
                     );
                 }
                 $id = "$tablename:$key";
@@ -1080,13 +1270,7 @@ trait FNDBVIEWProposals
     {
         $Form = FN_XMDBForm($inner['tablename']);
         $posted = $Form->getbypost();
-        $files = array();
-        foreach ($posted as $field => $value) {
-            if (isset($_FILES[$field]['error'], $_FILES[$field]['tmp_name']) && $_FILES[$field]['error'] === UPLOAD_ERR_OK
-                && is_uploaded_file($_FILES[$field]['tmp_name']))
-                $files[$field] = $_FILES[$field]['tmp_name'];
-        }
-        $result = $this->ProposeRowValues($proposal, $inner, $posted, $files);
+        $result = $this->ProposeRowValues($proposal, $inner, $posted, $this->UploadedFormFiles($posted));
         switch ($result['status']) {
             case "nodata":
                 return FN_HtmlAlert(FN_Translate("the proposal contains no data")) . $this->ProposalRowForm($proposal, $inner);
@@ -1126,21 +1310,15 @@ trait FNDBVIEWProposals
         if (count($row) == 0)
             return array("status" => "nodata");
         $errors = $Form->VerifyInsert($row);
-        $sources = array();
+        $filevalues = array();
         foreach ($row as $field => $value) {
-            if (!xmetadb_is_file_field($Form->formvals[$field]) || isset($errors[$field]))
-                continue;
-            $name = XMETATable::SafeFileName($value);
-            $source = isset($files[$field]) ? $files[$field] : "";
-            if ($name === "" || $source === "" || !is_file($source) || !is_readable($source)) {
-                $errors[$field] = array("title" => $Form->formvals[$field]['title'], "field" => $field, "error" => FN_Translate("file not accepted"));
-                continue;
-            }
-            $row[$field] = $name;
-            $sources[$field] = $source;
+            if (xmetadb_is_file_field($Form->formvals[$field]) && !isset($errors[$field]))
+                $filevalues[$field] = $value;
         }
+        $sources = $this->ProposalFileSources($Form, $filevalues, $files, $errors);
         if (count($errors) > 0)
             return array("status" => "invalid", "errors" => $errors);
+        $row = array_merge($row, $filevalues);
 
         $rows = $this->ProposalRows($proposal);
         $key = 1;
@@ -1167,23 +1345,14 @@ trait FNDBVIEWProposals
         }
         // a folder left by a removed row with the same key
         $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
-        $dir = $this->ProposalFilesDir($proposal['id']) . "/$tablename/$key";
-        foreach ($sources as $field => $source) {
-            FN_MkDir("$dir/$field");
-            // the web form hands the uploaded file, the MCP server a temporary one:
-            // copy and remove works for both (rename may cross filesystems)
-            $saved = @copy($source, "$dir/$field/{$row[$field]}");
-            if ($saved)
-                @unlink($source);
-            if (!$saved) {
-                $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
-                if ($created) {
-                    // nobody has been told of it yet
-                    $this->WithdrawProposal($proposal, false);
-                    $proposal['id'] = "";
-                }
-                return array("status" => "nosave", "proposal" => $proposal);
+        if (!$this->StoreProposalFiles($proposal['id'], $tablename, $key, $row, $sources)) {
+            $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
+            if ($created) {
+                // nobody has been told of it yet
+                $this->WithdrawProposal($proposal, false);
+                $proposal['id'] = "";
             }
+            return array("status" => "nosave", "proposal" => $proposal);
         }
         $proposals->UpdateRecord(array("id" => $proposal['id'], "changes" => $json));
         // the caller may add the next row to the returned proposal (MCP propose with several
@@ -1246,12 +1415,21 @@ trait FNDBVIEWProposals
         $tablename = FN_GetParam("table", $_GET);
         $key = FN_GetParam("row", $_GET);
         $field = FN_GetParam("field", $_GET);
-        $rows = ($proposal && $this->CanSeeProposal($proposal)) ? $this->ProposalRows($proposal) : array();
+        $values = $rows = array();
+        if ($proposal && $this->CanSeeProposal($proposal)) {
+            // the files of the record are row 0 of the main table
+            if ($tablename === $this->ProposalsTableName() && (string) $key === "0")
+                $values = $this->ProposalValues($proposal);
+            elseif (isset($nested[$tablename]))
+                $rows = $this->ProposalRows($proposal);
+            if (isset($rows[$tablename][$key]))
+                $values = $rows[$tablename][$key];
+        }
         $file = false;
-        if (isset($nested[$tablename]) && isset($rows[$tablename][$key][$field])) {
+        if (isset($values[$field])) {
             $Form = FN_XMDBForm($tablename);
             if (isset($Form->formvals[$field]) && xmetadb_is_file_field($Form->formvals[$field]))
-                $file = $this->ProposalRowFile($proposal['id'], $tablename, $key, $field, $rows[$tablename][$key][$field]);
+                $file = $this->ProposalRowFile($proposal['id'], $tablename, $key, $field, $values[$field]);
         }
         if (!$file)
             return FN_HtmlAlert(FN_Translate("file not found"));
@@ -1292,18 +1470,7 @@ trait FNDBVIEWProposals
             foreach ($rows as $key => $values) {
                 if (!in_array("$tablename:$key", $accepted, true))
                     continue;
-                $values = array_intersect_key($values, $allowed);
-                // the table object is shared in the request: no file of the previous row
-                $Form->xmltable->uploadedFiles = array();
-                foreach ($values as $field => $value) {
-                    if (!xmetadb_is_file_field($Form->formvals[$field]))
-                        continue;
-                    $file = $this->ProposalRowFile($proposal['id'], $tablename, $key, $field, $value);
-                    if ($file)
-                        $Form->xmltable->SetFile($field, $file, $value);
-                    else
-                        unset($values[$field]);
-                }
+                $values = $this->SetProposalFiles($Form, $proposal['id'], $tablename, $key, array_intersect_key($values, $allowed));
                 $values[$link[1]] = $record[$link[0]];
                 $new = $Form->InsertRecord($values);
                 if (is_array($new) && isset($new[$Form->xmltable->primarykey]))
@@ -1605,7 +1772,7 @@ trait FNDBVIEWProposals
                     "inputid" => "proposal_" . intval($proposal['id']) . "_" . preg_replace('/[^A-Za-z0-9_]/', '_', $field),
                     "title" => htmlspecialchars($this->ProposalFieldTitle($Table, $field)),
                     "current" => $this->ProposalDisplayValue($Table, $field, $current),
-                    "proposed" => $this->ProposalDisplayValue($Table, $field, $change['new']),
+                    "proposed" => $this->ProposalValueHtml($Table, $proposal, $tablename, 0, $field, $change['new']),
                     // the record changed after the proposal was made
                     "changed" => ($current !== (string) $change['old']) ? "1" : "",
                     "reviewer" => $reviewer ? "1" : "",
