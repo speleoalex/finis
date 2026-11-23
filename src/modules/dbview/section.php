@@ -195,6 +195,13 @@ else
                 if (!empty($_GET['inner']))
                     $shownavigatebar = false;
                 $html .= $dbview->ViewRecordPage($id, false, $shownavigatebar); // visualizza la pagina col record
+                // the images of the record open in an overlay, with a new window and a download icon
+                $html .= "<script>window.FN_IMAGE_OVERLAY_LABELS = " . json_encode(array(
+                        "open" => FN_Translate("open in a new window"),
+                        "download" => FN_Translate("download"),
+                        "close" => FN_Translate("close"),
+                        "error" => FN_Translate("image not available"))) . ";\n"
+                    . file_get_contents(__DIR__ . "/image_overlay.js") . "</script>";
                 break;
             case "propose" : // change (or new record, without id) proposed by a user who cannot edit
                 if ($id == "")

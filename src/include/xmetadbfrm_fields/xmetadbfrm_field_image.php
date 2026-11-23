@@ -42,53 +42,22 @@ class xmetadbfrm_field_image
     function view($params)
     {
         $htmlout = "";
-        $Table = $params['fieldform'];
-        $path = $Table->path;
-        $databasename = $Table->databasename;
-        $tablename = $Table->tablename;
-        $value = $params['value'];
-        $row = $values = $params['values'];
-        $field = $this->fieldvalues;
-
-        //$fileimage = isset($row[$Table->xmltable->primarykey]) ? "$path/$databasename/$tablename/" . $values[$Table->xmltable->primarykey] . "/" . $field['name'] . "/" . $values[$field['name']] : "";
-        //$filethumb = isset($row[$Table->xmltable->primarykey]) ? "$path/$databasename/$tablename/" . $values[$Table->xmltable->primarykey] . "/" . $field['name'] . "/thumbs/" . $values[$field['name']] . ".jpg" : "";
-        $fileimage = $params['fieldform']->xmltable->getFilePath($values, $params['name']);
-        $filethumb = $params['fieldform']->xmltable->getThumbPath($values, $params['name']);
-        //echo "$fileimage";
-        $ww = $hh = empty($field['thumbsize']) ? 100 : $field['thumbsize'];
-        if (isset($field['thumbsize_w']))
-        {
-            $ww = $field['thumbsize_w'];
-        }
-        if (isset($field['thumbsize_h']))
-        {
-            $hh = $field['thumbsize_h'];
-        }
-        //if (file_exists ( "thumb.php" ))
-        //	$filethumb = isset ( $row ['id'] ) ? "thumb.php?d=$databasename&amp;t=$tablename&amp;i=" . $row ['id'] . "&amp;h=$hh&amp;w=$ww&amp;c=" . $field ['name'] : "";
+        $xmltable = $params['fieldform']->xmltable;
+        $values = $params['values'];
+        $fileimage = $xmltable->getFilePath($values, $params['name']);
         if ($fileimage != "" && file_exists($fileimage))
         {
-            $urlimage = $params['fieldform']->xmltable->getFileUrl($values, $params['name']);
-            $urlthumb = $params['fieldform']->xmltable->getFileUrl($values, $params['name'], true);
-            $htmlout .= "\n<a href=\"$urlimage\" onclick=\"window.open(this.href);return false;\" ><img alt=\"\" title=\"";
+            $urlimage = $xmltable->getFileUrl($values, $params['name']);
+            $urlthumb = $xmltable->getFileUrl($values, $params['name'], true);
+            // the record pages of dbview open it in an overlay (modules/dbview/image_overlay.js),
+            // elsewhere and without javascript it opens in a new tab
+            $htmlout .= "\n<a class=\"fn-image-zoom\" href=\"$urlimage\" target=\"_blank\" rel=\"noopener\"><img alt=\"\" title=\"";
             $htmlout .= XMETADB_i18n("click to zoom in") . "\"";
             $htmlout .= " border=\"0\" src=\"$urlthumb\"></a><br />";
         }
-        else
+        elseif ($fileimage != "")
         {
-            if ($fileimage != "" && file_exists($fileimage))
-            {
-                $htmlout .= "\n$st<a href=\"{$params['fieldform']->siteurl}$fileimage\" onclick=\"window.open(this.href);return false;\" ><img width=\"" . $field['thumbsize'] . "\"  alt=\"\" ";
-                $htmlout .= tooltip(XMETADB_i18n("click to zoom in"));
-                $htmlout .= " border=\"0\" src=\"{$params['fieldform']->siteurl}$fileimage\"></a><br />";
-            }
-            else
-            {
-                if ($fileimage != "" && !file_exists($fileimage))
-                {
-                    $htmlout .= "<br />" . basename($fileimage) . "<br />";
-                }
-            }
+            $htmlout .= "<br />" . basename($fileimage) . "<br />";
         }
         return $htmlout;
     }
