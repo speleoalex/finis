@@ -1048,11 +1048,18 @@ class FNDBVIEW
     }
 
     /**
-     *
+     * Version history of a record (administrators only). The versions table holds
+     * the values a record had before each change, so the states of the record,
+     * newest first, are: the record as it is now, then its versions. Each version
+     * row lists what the next state changed and how many fields differ from the
+     * record as it is now; the selected version (version=<id>) opens below its row
+     * with the compared fields (compare=next|current) or its full sheet
+     * (compare=sheet). The links work as plain pages and dbview loads them with
+     * call_ajax into the container dbview_history.
      * @global array $_FN
      * @param string $id_record
-     * @param string $tablename
-     * @param bool $showbackbutton 
+     * @param string $_tablename
+     * @return string HTML
      */
     function ViewRecordHistory($id_record, $_tablename = "")
     {
@@ -1063,73 +1070,199 @@ class FNDBVIEW
             return "";
         }
         $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/history.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/history.tp.html" : FN_FromTheme("{$this->moddir}/history.tp.html", false);
-        $tplbasepath = dirname($tplfile) . "/";
         $template = file_get_contents($tplfile);
-        $tpvars = array();
-
-        $shownavigatebar = true;
-        $version = FN_GetParam("version", $_GET);
-        $config = $this->config;
-        $html = "";
-        //--config--<
-        $tables = explode(",", $config['tables']);
-        if ($_tablename == "") {
-            $tablename = $tables[0];
-        } else {
-            $tablename = $_tablename;
-        }
-        $t = FN_XMDBForm($tablename);
+        $tables = explode(",", $this->config['tables']);
+        $tablename = $_tablename ? $_tablename : $tables[0];
         $Table = FN_XMDBForm($tablename);
-        $Table_history = FN_XMDBForm($tablename . "_versions");
-        //del history------->
-        $action = FN_GetParam("action", $_GET, "flat");
-        if ($action == "delete") {
-            $item = $t->xmltable->GetRecordByPrimarykey($id_record);
-            if ($this->IsAdminRecord($item)) {
-                $Table_history->xmltable->DelRecord($version);
-                $version = "";
-            }
+        $pk = $Table->xmltable->primarykey;
+        $History = FN_XMDBTable($tablename . "_versions");
+        $record = $Table->xmltable->GetRecordByPrimarykey($id_record);
+        $version = FN_GetParam("version", $_GET, "flat");
+        $compare = FN_GetParam("compare", $_GET, "flat");
+        $canDelete = is_array($record) && $this->IsAdminRecord($record);
+        if (FN_GetParam("action", $_GET, "flat") == "delete" && $canDelete) {
+            $old = $History->GetRecordByPrimarykey($version);
+            if (is_array($old) && (string) $old[$pk] === (string) $id_record)
+                $History->DelRecord($version);
+            $version = "";
         }
-        //del history-------<
-
-
-
-
-        if ($shownavigatebar == true) {
-            $tpvars['navigationbar'] = $this->Toolbar($config, $t->xmltable->GetRecordByPrimarykey($id_record));
-        } else {
-            $tpvars['navigationbar'] = array();
+        // Only the rows of this record, filtered by the database: FN_XMETADBQuery evaluates
+        // the WHERE in PHP after reading the whole versions table (tens of MB for the caves).
+        // The filter is LIKE, so the key is checked again here.
+        $states = array();
+        $rows = $History->GetRecords(array($pk => $id_record));
+        foreach (is_array($rows) ? $rows : array() as $row) {
+            if ((string) $row[$pk] === (string) $id_record)
+                $states[] = $row;
         }
-
-        $res = FN_XMETADBQuery("SELECT * FROM {$tablename}_versions WHERE {$t->xmltable->primarykey} LIKE $id_record ORDER BY recordupdate DESC");
+        usort($states, function ($a, $b) {
+            $cmp = strcmp((string) $b['recordupdate'], (string) $a['recordupdate']);
+            return $cmp != 0 ? $cmp : (int) $b['idversions'] - (int) $a['idversions'];
+        });
+        if (is_array($record))
+            array_unshift($states, $record);
+        // fields of the form only: the hidden ones are bookkeeping (update times, computed coordinates)
+        $fields = array();
+        foreach ($Table->xmltable->fields as $field => $definition) {
+            if ($field != $pk && $field != "idversions" && (!isset($Table->formvals[$field]['frm_show']) || $Table->formvals[$field]['frm_show'] !== "0"))
+                $fields[] = $field;
+        }
+        $tpvars = array();
+        $toolbar = $this->Toolbar($this->config, $record);
+        $tpvars['toolbar_html'] = isset($toolbar['toolbar_html']) ? $toolbar['toolbar_html'] : "";
         $tpvars['history_items'] = array();
-        if (is_array($res)) {
-            foreach ($res as $item) {
-                $item_history = array();
-                $item_history['title_inner'] = "";
-                $item_history['is_admin'] = $this->IsAdminRecord($item);
-                $link_deleteversion = $this->MakeLink(array("action" => "delete", "op" => "history", "id" => $id_record, "version" => $item['idversions']), "&");
-                $link_version = $this->MakeLink(array("op" => "history", "id" => $id_record, "version" => $item['idversions']), "&");
-                $item_history['url_view'] = $link_version;
-                $item_history['version_date'] = FN_GetDateTime($item['recordupdate']);
-                $item_history['url_delete'] = ($this->IsAdminRecord($item)) ? "javascript:check('$link_deleteversion')\"" : "";
-                $item_history['version_user'] = $item['userupdate'];
-                $item_history['htmlitem'] = "";
-                if ($version == $item['idversions']) {
-                    $item_history['title_inner'] = "";
-                    $item_history['url_view'] = $this->MakeLink(array("op" => "history", "id" => $id_record), "&");
-                    $item_history['htmlitem'] = $this->ViewRecordPage($item['idversions'], "{$tablename}_versions", false); // visualizza la pagina col record
+        foreach ($states as $i => $state) {
+            $current = is_array($record) && $i == 0;
+            $id_version = $current ? "" : $state['idversions'];
+            $item = array(
+                "is_current" => $current,
+                "version_date" => htmlspecialchars(FN_GetDateTime($state['recordupdate'])),
+                "version_user" => htmlspecialchars((string) $state['userupdate']),
+                "changed_next" => "",
+                "changed_current" => "",
+                "url_next" => "",
+                "url_current" => "",
+                "url_sheet" => "",
+                "url_delete" => "",
+                "selected" => $version !== "" && (string) $id_version === (string) $version,
+                "compare_title" => "",
+                "diff_rows" => array(),
+                "no_differences" => false,
+                "sheet" => "",
+            );
+            if (!$current) {
+                $link = array("op" => "history", "id" => $id_record, "version" => $id_version);
+                $item['url_sheet'] = $this->MakeLink($link + array("compare" => "sheet"));
+                $item['url_delete'] = $canDelete ? $this->MakeLink($link + array("action" => "delete")) : "";
+                if ($i > 0) {
+                    $titles = $this->ProposalFieldTitles($Table, $this->ChangedFields($fields, $state, $states[$i - 1]));
+                    $item['changed_next'] = htmlspecialchars(implode(", ", $titles));
+                    $item['url_next'] = $this->MakeLink($link + array("compare" => "next"));
                 }
-                $tpvars['history_items'][] = $item_history;
+                // for the newest version the next state is the current one
+                if (is_array($record) && $i > 1) {
+                    $item['changed_current'] = count($this->ChangedFields($fields, $state, $record));
+                    $item['url_current'] = $this->MakeLink($link + array("compare" => "current"));
+                }
             }
-        } else
-            $html .= FN_Translate("no previous version is available");
+            if ($item['selected']) {
+                // the next state of the newest version is the record itself
+                $withCurrent = $compare == "current" || $i == 0 || ($i == 1 && is_array($record));
+                $other = $withCurrent ? $record : $states[$i - 1];
+                if ($compare == "sheet" || !is_array($other)) {
+                    $item['sheet'] = $this->ViewRecordPage($id_version, "{$tablename}_versions", false);
+                } else {
+                    $label = $withCurrent ? FN_Translate("current version") : FN_Translate("next version");
+                    $item['compare_title'] = htmlspecialchars("$label (" . FN_GetDateTime($other['recordupdate']) . " - {$other['userupdate']})");
+                    foreach ($this->ChangedFields($fields, $state, $other) as $field) {
+                        list($old, $new) = $this->TextDiffHtml($this->FieldDisplayText($Table, $field, $state[$field]), $this->FieldDisplayText($Table, $field, $other[$field]));
+                        $item['diff_rows'][] = array(
+                            "title" => htmlspecialchars($this->ProposalFieldTitle($Table, $field)),
+                            "old" => $old,
+                            "new" => $new,
+                        );
+                    }
+                    $item['no_differences'] = count($item['diff_rows']) == 0;
+                }
+            }
+            $tpvars['history_items'][] = $item;
+        }
+        $tpvars['has_versions'] = count($states) > (is_array($record) ? 1 : 0);
+        return FN_TPL_ApplyTplString($template, $tpvars);
+    }
 
-        $tpvars['htmlitem'] = $html;
-        $html = FN_TPL_ApplyTplString($template, $tpvars);
+    /**
+     * @param array $fields
+     * @param array $a
+     * @param array $b
+     * @return array the fields whose values differ
+     */
+    protected function ChangedFields($fields, $a, $b)
+    {
+        $changed = array();
+        foreach ($fields as $field) {
+            if ((string) (isset($a[$field]) ? $a[$field] : "") !== (string) (isset($b[$field]) ? $b[$field] : ""))
+                $changed[] = $field;
+        }
+        return $changed;
+    }
 
-
+    /**
+     * Word diff of two texts as HTML: the old text with the removed words in <del>,
+     * the new one with the added words in <ins>. Common head and tail are skipped
+     * before the LCS; a middle part too long for it is marked as a whole.
+     * @param string $old
+     * @param string $new
+     * @return array (old HTML, new HTML)
+     */
+    protected function TextDiffHtml($old, $new)
+    {
+        $empty = "<em>" . FN_Translate("empty") . "</em>";
+        if ($old === "" || $new === "")
+            return array($old === "" ? $empty : "<del>" . $this->EscapeDisplayText($old) . "</del>", $new === "" ? $empty : "<ins>" . $this->EscapeDisplayText($new) . "</ins>");
+        $a = preg_split('/(\s+)/u', $old, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+        $b = preg_split('/(\s+)/u', $new, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+        $head = 0;
+        while ($head < count($a) && $head < count($b) && $a[$head] === $b[$head])
+            $head++;
+        $tail = 0;
+        while ($tail < count($a) - $head && $tail < count($b) - $head && $a[count($a) - 1 - $tail] === $b[count($b) - 1 - $tail])
+            $tail++;
+        $midA = array_slice($a, $head, count($a) - $head - $tail);
+        $midB = array_slice($b, $head, count($b) - $head - $tail);
+        $n = count($midA);
+        $m = count($midB);
+        $keepA = array_fill(0, $n, false);
+        $keepB = array_fill(0, $m, false);
+        if ($n * $m <= 250000) {
+            $lcs = array_fill(0, $n + 1, array_fill(0, $m + 1, 0));
+            for ($i = $n - 1; $i >= 0; $i--) {
+                for ($j = $m - 1; $j >= 0; $j--)
+                    $lcs[$i][$j] = $midA[$i] === $midB[$j] ? $lcs[$i + 1][$j + 1] + 1 : max($lcs[$i + 1][$j], $lcs[$i][$j + 1]);
+            }
+            for ($i = 0, $j = 0; $i < $n && $j < $m;) {
+                if ($midA[$i] === $midB[$j]) {
+                    $keepA[$i++] = $keepB[$j++] = true;
+                } elseif ($lcs[$i + 1][$j] >= $lcs[$i][$j + 1]) {
+                    $i++;
+                } else {
+                    $j++;
+                }
+            }
+        }
+        $html = array();
+        foreach (array(array($a, $keepA, "del"), array($b, $keepB, "ins")) as $side) {
+            list($tokens, $keep, $tag) = $side;
+            $out = $this->EscapeDisplayText(implode("", array_slice($tokens, 0, $head)));
+            $run = "";
+            foreach ($keep as $k => $kept) {
+                $token = $tokens[$head + $k];
+                // blanks between two changed words stay inside the same mark
+                if (!$kept || ($run !== "" && trim($token) === "")) {
+                    $run .= $token;
+                    continue;
+                }
+                if ($run !== "")
+                    $out .= $this->DiffMark($run, $tag);
+                $run = "";
+                $out .= $this->EscapeDisplayText($token);
+            }
+            if ($run !== "")
+                $out .= $this->DiffMark($run, $tag);
+            $html[] = $out . $this->EscapeDisplayText(implode("", array_slice($tokens, count($tokens) - $tail)));
+        }
         return $html;
+    }
+
+    /**
+     * @param string $text changed words, maybe with trailing blanks (kept outside the mark)
+     * @param string $tag del or ins
+     * @return string HTML
+     */
+    protected function DiffMark($text, $tag)
+    {
+        $trimmed = rtrim($text);
+        return "<$tag>" . $this->EscapeDisplayText($trimmed) . "</$tag>" . $this->EscapeDisplayText(substr($text, strlen($trimmed)));
     }
 
     /**

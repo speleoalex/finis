@@ -1842,7 +1842,20 @@ trait FNDBVIEWProposals
         $value = (string) $value;
         if ($value === "")
             return "<em>" . ($mail ? $this->ProposalText("empty") : FN_Translate("empty")) . "</em>";
-        if (!empty($Table->formvals[$field]['options']) && is_array($Table->formvals[$field]['options'])) {
+        return $this->EscapeDisplayText($this->FieldDisplayText($Table, $field, $value));
+    }
+
+    /**
+     * Value of a field as plain text: option titles instead of keys, no tags
+     * @param object $Table
+     * @param string $field
+     * @param string $value
+     * @return string
+     */
+    protected function FieldDisplayText($Table, $field, $value)
+    {
+        $value = (string) $value;
+        if ($value !== "" && !empty($Table->formvals[$field]['options']) && is_array($Table->formvals[$field]['options'])) {
             $titles = array();
             foreach (explode(",", $value) as $item) {
                 $title = $item;
@@ -1854,7 +1867,17 @@ trait FNDBVIEWProposals
             }
             $value = implode(", ", $titles);
         }
-        $text = trim(html_entity_decode(strip_tags($value), ENT_QUOTES, "UTF-8"));
+        return trim(html_entity_decode(strip_tags($value), ENT_QUOTES, "UTF-8"));
+    }
+
+    /**
+     * Plain text as HTML. Braces are encoded so that the template engine does not
+     * read them as variables.
+     * @param string $text
+     * @return string
+     */
+    protected function EscapeDisplayText($text)
+    {
         return str_replace(array("{", "}"), array("&#123;", "&#125;"), nl2br(htmlspecialchars($text, ENT_QUOTES, "UTF-8")));
     }
 

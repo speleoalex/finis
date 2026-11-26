@@ -1,44 +1,119 @@
-<!-- if {navigationbar} -->
 {toolbar_html}
-<!-- end if {navigationbar} -->
 <h2>{i18n:Version history}</h2>
-<!-- if not {history_items} -->
-<div class="alert alert-info">{i18n:There are no previous versions}</div>
-<!-- end if not {history_items} -->
-
-<!-- if {history_items} -->
-<table class="table table-hover table-striped">
-    <thead>
-        <tr>
-            <th>{i18n:Version date}:</th>
-            <th>{i18n:Version created by}:</th>
-            <th> </th>
-            <th> </th>
-        <tr>
-    </thead>
-    <tbody>
-        <!-- foreach {history_items} -->
-        <tr>
-            <th>{version_date}</th>
-            <td>{version_user}</td>
-            <td><a class="btn btn-primary dropdown-toggle" href="{url_view}">{i18n:View}</a></td>
-            <td><!-- if {is_admin} --><a class="btn btn-secondary" href="{url_delete}">{i18n:Delete}</a><!-- end if {is_admin} --></td>
-        </tr>
-        <!-- if {htmlitem} -->
-        <tr>
-            <td colspan="4">
-                {htmlitem}
-            </td>                
-        </tr>
-        <tr>
-            <td colspan="4">
-                <!-- if {is_admin} -->
-                <a class="btn btn-secondary" href="{url_delete}">{i18n:Delete}</a>
-                <!-- end if {is_admin} -->
-            </td>                
-        </tr>            
-        <!-- end if {htmlitem} -->
-        <!-- end foreach {history_items} -->
-    </tbody>
-</table>
-<!-- end if {history_items} -->
+<style>
+    .dbview-history td, .dbview-history th { overflow-wrap: anywhere; }
+    .dbview-history-actions { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: flex-end; }
+    .dbview-history-actions .btn { min-height: 44px; display: inline-flex; align-items: center; }
+    /* translucent colors: readable with the light and the dark theme */
+    .dbview-history ins { background: rgba(25, 135, 84, .3); text-decoration: none; }
+    .dbview-history del { background: rgba(220, 53, 69, .3); }
+    .dbview-history-selected > td { border-left: 4px solid var(--bs-primary, #0d6efd); }
+    .dbview-history-diff th { width: 20%; }
+    .dbview-history-diff td { width: 40%; }
+    @media (max-width: 575.98px) {
+        .dbview-history-diff thead { display: none; }
+        .dbview-history-diff tr, .dbview-history-diff th, .dbview-history-diff td { display: block; width: 100%; }
+        .dbview-history-diff td::before, .dbview-history-list td[data-label]::before { content: attr(data-label); display: block; font-size: .8em; color: var(--bs-secondary-color); }
+        .dbview-history-list > thead { display: none; }
+        .dbview-history-list > tbody > tr > td { display: block; width: 100%; }
+        .dbview-history-actions { justify-content: flex-start; }
+    }
+</style>
+<div id="dbview_history" class="dbview-history">
+    <!-- if not {has_versions} -->
+    <div class="alert alert-info">{i18n:There are no previous versions}</div>
+    <!-- end if not {has_versions} -->
+    <!-- if {has_versions} -->
+    <p class="text-body-secondary">{i18n:each version is the record as it was before a change: for each one you see what the next change modified and how many fields differ from the current version}</p>
+    <table class="table dbview-history-list">
+        <thead>
+            <tr>
+                <th>{i18n:version date}</th>
+                <th>{i18n:changed in the next version}</th>
+                <th class="text-end">{i18n:compare with}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- foreach {history_items} -->
+            <tr<!-- if {selected} --> class="dbview-history-selected"<!-- end if {selected} -->>
+                <td>
+                    <strong>{version_date}</strong><br><span class="text-body-secondary">{version_user}</span>
+                    <!-- if {is_current} --><br><span class="badge bg-success">{i18n:current version}</span><!-- end if {is_current} -->
+                </td>
+                <td>
+                    <!-- if not {is_current} -->
+                    <!-- if {changed_next} -->{changed_next}<!-- end if {changed_next} -->
+                    <!-- if not {changed_next} --><em>{i18n:no changes in the fields of the record}</em><!-- end if not {changed_next} -->
+                    <!-- if {url_current} -->
+                    <div class="small text-body-secondary">
+                        <!-- if {changed_current} -->{i18n:fields different from the current version}: {changed_current}<!-- end if {changed_current} -->
+                        <!-- if not {changed_current} -->{i18n:same as the current version}<!-- end if not {changed_current} -->
+                    </div>
+                    <!-- end if {url_current} -->
+                    <!-- end if not {is_current} -->
+                </td>
+                <td data-label="{i18n:compare with}">
+                    <div class="dbview-history-actions">
+                        <!-- if {url_next} --><a class="btn btn-sm btn-outline-primary dbview-history-link" title="{i18n:compare with the next version}" href="{url_next}">{i18n:next version}</a><!-- end if {url_next} -->
+                        <!-- if {url_current} --><a class="btn btn-sm btn-outline-primary dbview-history-link" title="{i18n:compare with the current version}" href="{url_current}">{i18n:current version}</a><!-- end if {url_current} -->
+                        <!-- if {url_sheet} --><a class="btn btn-sm btn-outline-secondary dbview-history-link" href="{url_sheet}">{i18n:full record}</a><!-- end if {url_sheet} -->
+                        <!-- if {url_delete} --><a class="btn btn-sm btn-outline-danger dbview-history-link" data-confirm="{i18n:are you sure you want to delete this content?}" href="{url_delete}">{i18n:Delete}</a><!-- end if {url_delete} -->
+                    </div>
+                </td>
+            </tr>
+            <!-- if {selected} -->
+            <tr class="dbview-history-selected">
+                <td colspan="3" id="dbview_history_selected">
+                    <!-- if {compare_title} -->
+                    <!-- if {no_differences} --><p class="mb-0">{i18n:no differences}</p><!-- end if {no_differences} -->
+                    <!-- if not {no_differences} -->
+                    <table class="table table-sm mb-0 dbview-history-diff">
+                        <thead>
+                            <tr>
+                                <th>{i18n:field}</th>
+                                <th>{i18n:this version} ({version_date} - {version_user})</th>
+                                <th>{compare_title}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- foreach {diff_rows} -->
+                            <tr>
+                                <th>{title}</th>
+                                <td data-label="{i18n:this version}">{old}</td>
+                                <td data-label="{compare_title}">{new}</td>
+                            </tr>
+                            <!-- end foreach {diff_rows} -->
+                        </tbody>
+                    </table>
+                    <!-- end if not {no_differences} -->
+                    <!-- end if {compare_title} -->
+                    {sheet}
+                    <script>
+                        document.getElementById("dbview_history_selected").scrollIntoView({block: "nearest"});
+                    </script>
+                </td>
+            </tr>
+            <!-- end if {selected} -->
+            <!-- end foreach {history_items} -->
+        </tbody>
+    </table>
+    <!-- end if {has_versions} -->
+</div>
+<script>
+    // The links are normal pages; with call_ajax (section.php of dbview) only the
+    // container is reloaded and the address bar follows the history API.
+    document.getElementById("dbview_history").addEventListener("click", function (e) {
+        var link = e.target.closest ? e.target.closest("a.dbview-history-link") : null;
+        if (!link) {
+            return;
+        }
+        if (link.getAttribute("data-confirm") && !window.confirm(link.getAttribute("data-confirm"))) {
+            e.preventDefault();
+            return;
+        }
+        if (typeof call_ajax === "function") {
+            e.preventDefault();
+            call_ajax(link.href, "dbview_history");
+        }
+    });
+</script>
