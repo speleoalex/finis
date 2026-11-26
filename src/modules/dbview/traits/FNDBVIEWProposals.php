@@ -469,10 +469,10 @@ trait FNDBVIEWProposals
         }
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename change proposed for $id_record.");
 
-        $title = $this->ProposalRecordTitle($row);
-        $text = FN_Translate("change proposed by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - $title";
+        $title = "{$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($row);
+        $text = FN_Translate("change proposed by") . " {$_FN['user']}: $title";
         $body = $text . "\n" . FN_Translate("fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, array_keys($changes)));
-        $this->ProposalNotify($this->ProposalReviewers($row), $text, $body, $this->ProposalRecordLink($id_record, isset($values['id']) ? $values['id'] : ""), true);
+        $this->ProposalNotifySent($this->ProposalReviewers($row), $text, $body, $this->ProposalRecordLink($id_record, isset($values['id']) ? $values['id'] : ""), $title);
 
         return array("status" => "sent", "proposal" => $values, "changes" => $changes);
     }
@@ -757,9 +757,10 @@ trait FNDBVIEWProposals
         }
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename new record proposed.");
 
-        $text = FN_Translate("new record proposed by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($proposed);
+        $title = "{$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($proposed);
+        $text = FN_Translate("new record proposed by") . " {$_FN['user']}: $title";
         $body = $text . "\n" . FN_Translate("fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, array_keys($changes)));
-        $this->ProposalNotify($this->ProposalReviewers(array()), $text, $body, $this->ProposalRecordLink("", isset($values['id']) ? $values['id'] : ""), true);
+        $this->ProposalNotifySent($this->ProposalReviewers(array()), $text, $body, $this->ProposalRecordLink("", isset($values['id']) ? $values['id'] : ""), $title);
 
         return array("status" => "sent", "proposal" => $values, "changes" => $changes);
     }
@@ -1380,9 +1381,10 @@ trait FNDBVIEWProposals
         if ($created) {
             // a proposed change made only of rows: the reviewers learn of it now
             $record = FN_XMDBTable($this->ProposalsTableName())->GetRecordByPrimaryKey($proposal['table_unirecid']);
-            $text = FN_Translate("change proposed by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($record);
+            $title = "{$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($record);
+            $text = FN_Translate("change proposed by") . " {$_FN['user']}: $title";
             $body = $text . "\n" . FN_Translate("add to the proposal") . ": " . strip_tags($this->ProposalNestedTitle($inner));
-            $this->ProposalNotify($this->ProposalReviewers($record), $text, $body, $this->ProposalRecordLink($proposal['table_unirecid'], $proposal['id']), true);
+            $this->ProposalNotifySent($this->ProposalReviewers($record), $text, $body, $this->ProposalRecordLink($proposal['table_unirecid'], $proposal['id']), $title);
         }
         return array("status" => "saved", "proposal" => $proposal, "key" => $key);
     }
@@ -1594,6 +1596,23 @@ trait FNDBVIEWProposals
         $body .= "\n\n" . FN_Translate("to view go to the address") . ":\n$link\n\n" . $_FN['sitename'];
         foreach (array_unique($emails) as $email)
             FN_SendMail($email, $text, $body, false);
+    }
+
+    /**
+     * Notification of a sent proposal: the reviewers and mailalert get it, the author
+     * a confirmation that it has been forwarded (the result comes with the review)
+     * @param array $reviewers usernames
+     * @param string $text short text for the reviewers
+     * @param string $body mail text for the reviewers
+     * @param string $link absolute address of the proposal
+     * @param string $title section and record, e.g. "Grotte - LI1 ..."
+     */
+    protected function ProposalNotifySent($reviewers, $text, $body, $link, $title)
+    {
+        global $_FN;
+        $this->ProposalNotify($reviewers, $text, $body, $link, true);
+        $confirm = FN_Translate("your proposal has been sent to the users who manage this record") . ": $title";
+        $this->ProposalNotify(array($_FN['user']), $confirm, $confirm . "\n" . FN_Translate("you will receive the result of the review"), $link, false);
     }
 
     /**
