@@ -848,6 +848,23 @@ trait FNDBVIEWProposals
     }
 
     /**
+     * Html of the application under a proposed new record, e.g. a map with the
+     * records around it: the function named in
+     * $_FN['modparams'][mod]['function_proposal_preview'] gets the proposed values
+     * @param array $values field => proposed value
+     * @return string HTML, empty without the function
+     */
+    protected function ProposalPreview($values)
+    {
+        global $_FN;
+        $function = isset($_FN['modparams'][$_FN['mod']]['function_proposal_preview']) ? $_FN['modparams'][$_FN['mod']]['function_proposal_preview'] : "";
+        if ($function == "" || !function_exists($function))
+            return "";
+        // the template engine would read braces as variables
+        return str_replace(array("{", "}"), array("&#123;", "&#125;"), (string) $function($values));
+    }
+
+    /**
      * @param array $proposal
      * @return array field => proposed value
      */
@@ -916,6 +933,7 @@ trait FNDBVIEWProposals
                 "rows" => $rows,
                 "hasrows" => count($rows) > 0 ? "1" : "",
                 "addrows" => $addrows,
+                "preview" => $this->ProposalPreview($this->ProposalValues($proposal)),
             );
         }
         $vars = array(
