@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /></head>
+<body>
+<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.45;color:#212529;max-width:760px">
+    <h2 style="font-size:18px;margin:0 0 14px 0">{subject}</h2>
+    <p style="margin:0 0 16px 0"><a href="{link}" style="display:inline-block;padding:9px 16px;background:#0d6efd;color:#ffffff;text-decoration:none;border-radius:4px">{openlabel}</a></p>
+    <!-- foreach {lines} --><p style="margin:0 0 8px 0">{text}</p><!-- end foreach {lines} -->
+    <!-- if {hasfields} -->
+    <table cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;margin:14px 0">
+        <tr style="background:#f1f3f5">
+            <th align="left" style="border:1px solid #dee2e6">{fieldlabel}</th>
+            <!-- if {hascurrent} --><th align="left" style="border:1px solid #dee2e6">{currentlabel}</th><!-- end if {hascurrent} -->
+            <th align="left" style="border:1px solid #dee2e6">{proposedlabel}</th>
+        </tr>
+        <!-- foreach {fields} -->
+        <tr>
+            <td valign="top" style="border:1px solid #dee2e6;font-weight:bold;width:28%">{title}</td>
+            <!-- if {hascurrent} --><td valign="top" style="border:1px solid #dee2e6">{current}</td><!-- end if {hascurrent} -->
+            <td valign="top" style="border:1px solid #dee2e6">{proposed}</td>
+        </tr>
+        <!-- end foreach {fields} -->
+    </table>
+    <!-- end if {hasfields} -->
+    <!-- foreach {rows} -->
+    <h3 style="font-size:15px;margin:18px 0 6px 0">{tabletitle}</h3>
+    <table cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;margin:0 0 10px 0">
+        <!-- foreach {values} -->
+        <tr>
+            <td valign="top" style="border:1px solid #dee2e6;font-weight:bold;width:28%">{title}</td>
+            <td valign="top" style="border:1px solid #dee2e6">{value}</td>
+        </tr>
+        <!-- end foreach {values} -->
+    </table>
+    <!-- end foreach {rows} -->
+    <p style="margin:20px 0 0 0;font-size:12px;color:#6c757d"><a href="{link}" style="color:#6c757d">{link}</a><br />{sitename}</p>
+</div>
+</body>
+</html>

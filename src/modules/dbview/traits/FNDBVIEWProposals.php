@@ -470,9 +470,8 @@ trait FNDBVIEWProposals
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename change proposed for $id_record.");
 
         $title = "{$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($row);
-        $text = FN_Translate("change proposed by") . " {$_FN['user']}: $title";
-        $body = $text . "\n" . FN_Translate("fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, array_keys($changes)));
-        $this->ProposalNotifySent($this->ProposalReviewers($row), $text, $body, $this->ProposalRecordLink($id_record, isset($values['id']) ? $values['id'] : ""), $title);
+        $text = $this->ProposalText("change proposed by") . " {$_FN['user']}: $title";
+        $this->ProposalNotifySent($this->ProposalReviewers($row), $text, $this->ProposalRecordLink($id_record, isset($values['id']) ? $values['id'] : ""), $title, $values, $row);
 
         return array("status" => "sent", "proposal" => $values, "changes" => $changes);
     }
@@ -557,17 +556,17 @@ trait FNDBVIEWProposals
             "partial" => "your proposed change has been partially accepted",
             "rejected" => "your proposed change has been discarded",
         );
-        $text = FN_Translate($messages[$status]) . ": {$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($row);
-        $body = $text;
+        $text = $this->ProposalText($messages[$status]) . ": {$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($row);
+        $lines = array();
         if (count($accepted) > 0)
-            $body .= "\n" . FN_Translate("accepted fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, array_keys($accepted)));
+            $lines[] = $this->ProposalText("accepted fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, array_keys($accepted), $_FN['lang_default']));
         $rejected = array_diff(array_keys($changes), array_keys($accepted));
         if (count($rejected) > 0)
-            $body .= "\n" . FN_Translate("discarded fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, $rejected));
+            $lines[] = $this->ProposalText("discarded fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, $rejected, $_FN['lang_default']));
         if (count($rows) > 0)
-            $body .= "\n" . FN_Translate("linked records added") . ": " . count($rows);
-        $body .= "\n" . FN_Translate("reviewed by") . " {$_FN['user']}";
-        $this->ProposalNotify(array($proposal['username']), $text, $body, $this->ProposalRecordLink($id_record, $proposal['id']), false);
+            $lines[] = $this->ProposalText("linked records added") . ": " . count($rows);
+        $lines[] = $this->ProposalText("reviewed by") . " {$_FN['user']}";
+        $this->ProposalNotify(array($proposal['username']), $text, $this->ProposalRecordLink($id_record, $proposal['id']), false, $lines);
 
         $messages = array(
             "accepted" => "proposal accepted",
@@ -758,9 +757,8 @@ trait FNDBVIEWProposals
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename new record proposed.");
 
         $title = "{$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($proposed);
-        $text = FN_Translate("new record proposed by") . " {$_FN['user']}: $title";
-        $body = $text . "\n" . FN_Translate("fields") . ": " . implode(", ", $this->ProposalFieldTitles($Table, array_keys($changes)));
-        $this->ProposalNotifySent($this->ProposalReviewers(array()), $text, $body, $this->ProposalRecordLink("", isset($values['id']) ? $values['id'] : ""), $title);
+        $text = $this->ProposalText("new record proposed by") . " {$_FN['user']}: $title";
+        $this->ProposalNotifySent($this->ProposalReviewers(array()), $text, $this->ProposalRecordLink("", isset($values['id']) ? $values['id'] : ""), $title, $values);
 
         return array("status" => "sent", "proposal" => $values, "changes" => $changes);
     }
@@ -835,9 +833,8 @@ trait FNDBVIEWProposals
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename proposal {$proposal['id']} $status.$inserted");
 
         $title = $this->ProposalRecordTitle($record ? $record : $this->ProposalValues($proposal));
-        $text = FN_Translate($record ? "your proposed new record has been accepted" : "your proposed new record has been discarded") . ": {$_FN['sectionvalues']['title']} - $title";
-        $body = $text . "\n" . FN_Translate("reviewed by") . " {$_FN['user']}";
-        $this->ProposalNotify(array($proposal['username']), $text, $body, $this->ProposalRecordLink($record ? $record[$pk] : "", $proposal['id']), false);
+        $text = $this->ProposalText($record ? "your proposed new record has been accepted" : "your proposed new record has been discarded") . ": {$_FN['sectionvalues']['title']} - $title";
+        $this->ProposalNotify(array($proposal['username']), $text, $this->ProposalRecordLink($record ? $record[$pk] : "", $proposal['id']), false, array($this->ProposalText("reviewed by") . " {$_FN['user']}"));
 
         if (!$record)
             return FN_HtmlAlert(FN_Translate("proposal discarded")) . $this->ProposalsListPage();
@@ -975,12 +972,14 @@ trait FNDBVIEWProposals
 
     /**
      * @param array $inner innertable
+     * @param string $lang title in this language (the mails), else the current one
      * @return string title of the linked table, HTML from the table descriptor
      */
-    protected function ProposalNestedTitle($inner)
+    protected function ProposalNestedTitle($inner, $lang = "")
     {
         global $_FN;
-        $title = isset($inner["frm_{$_FN['lang']}"]) ? $inner["frm_{$_FN['lang']}"] : $inner['tablename'];
+        $lang = $lang !== "" ? $lang : $_FN['lang'];
+        $title = isset($inner["frm_$lang"]) ? $inner["frm_$lang"] : $inner['tablename'];
         return str_replace(array("{", "}"), array("&#123;", "&#125;"), $title);
     }
 
@@ -1174,9 +1173,10 @@ trait FNDBVIEWProposals
      * @param array $proposal
      * @param array $nested see ProposalNestedTables
      * @param bool $reviewer
+     * @param string $lang titles in this language (the mails), else the current one
      * @return array
      */
-    protected function ProposalRowItems($proposal, $nested, $reviewer)
+    protected function ProposalRowItems($proposal, $nested, $reviewer, $lang = "")
     {
         $items = array();
         foreach ($this->ProposalRows($proposal) as $tablename => $rows) {
@@ -1187,13 +1187,13 @@ trait FNDBVIEWProposals
                 $list = array();
                 foreach ($values as $field => $value) {
                     $list[] = array(
-                        "title" => htmlspecialchars($this->ProposalFieldTitle($Form, $field)),
+                        "title" => htmlspecialchars($this->ProposalFieldTitle($Form, $field, $lang)),
                         "value" => $this->ProposalValueHtml($Form, $proposal, $tablename, $key, $field, $value),
                     );
                 }
                 $id = "$tablename:$key";
                 $items[] = array(
-                    "tabletitle" => $this->ProposalNestedTitle($nested[$tablename]),
+                    "tabletitle" => $this->ProposalNestedTitle($nested[$tablename], $lang),
                     "rowid" => htmlspecialchars($id),
                     "inputid" => "proposalrow_" . intval($proposal['id']) . "_" . preg_replace('/[^A-Za-z0-9_]/', '_', $id),
                     "reviewer" => $reviewer ? "1" : "",
@@ -1382,9 +1382,8 @@ trait FNDBVIEWProposals
             // a proposed change made only of rows: the reviewers learn of it now
             $record = FN_XMDBTable($this->ProposalsTableName())->GetRecordByPrimaryKey($proposal['table_unirecid']);
             $title = "{$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($record);
-            $text = FN_Translate("change proposed by") . " {$_FN['user']}: $title";
-            $body = $text . "\n" . FN_Translate("add to the proposal") . ": " . strip_tags($this->ProposalNestedTitle($inner));
-            $this->ProposalNotifySent($this->ProposalReviewers($record), $text, $body, $this->ProposalRecordLink($proposal['table_unirecid'], $proposal['id']), $title);
+            $text = $this->ProposalText("change proposed by") . " {$_FN['user']}: $title";
+            $this->ProposalNotifySent($this->ProposalReviewers($record), $text, $this->ProposalRecordLink($proposal['table_unirecid'], $proposal['id']), $title, $proposal, $record);
         }
         return array("status" => "saved", "proposal" => $proposal, "key" => $key);
     }
@@ -1572,16 +1571,43 @@ trait FNDBVIEWProposals
     }
 
     /**
-     * Site notification to the users and, with proposals_mail, an e-mail
-     * @param array $users
-     * @param string $text short text (notification and mail subject)
-     * @param string $body mail text
-     * @param string $link absolute address of the page to open
-     * @param bool $mailalert true: the mail goes to mailalert of the section too
+     * Text of the notifications and their mails in the default language of the site,
+     * whatever the language of the page or without one (MCP server, scripts, where
+     * the messages of dbview are not loaded)
+     * @param string $text english text
+     * @return string
      */
-    protected function ProposalNotify($users, $text, $body, $link, $mailalert)
+    protected function ProposalText($text)
     {
         global $_FN;
+        static $loaded = array();
+        $lang = $_FN['lang_default'];
+        if (!isset($loaded[$lang])) {
+            $loaded[$lang] = true;
+            // the messages of finis first: FN_i18n reads them only for a language it does not know yet
+            FN_Translate("_CHARSET", "", $lang);
+            $current = $_FN['lang'];
+            $_FN['lang'] = $lang;
+            FN_LoadMessagesFolder($this->moddir);
+            $_FN['lang'] = $current;
+        }
+        return FN_Translate($text, "Aa", $lang);
+    }
+
+    /**
+     * Site notification to the users and, with proposals_mail, an html e-mail made with
+     * proposalmail.tp.html: the link to the page on top, the lines, then the fields
+     * and the linked rows of the proposal
+     * @param array $users
+     * @param string $text short text (notification and mail subject)
+     * @param string $link absolute address of the page to open
+     * @param bool $mailalert true: the mail goes to mailalert of the section too
+     * @param array $lines more lines of the mail, under the subject
+     * @param array|null $proposal row of dbview_proposals whose fields and rows the mail lists
+     * @param array|null $record record of a proposed change, for the current values
+     */
+    protected function ProposalNotify($users, $text, $link, $mailalert, $lines = array(), $proposal = null, $record = null)
+    {
         FN_AddNotification(array("context" => "dbview_proposals", "text" => $text, "link" => $link), $users);
         if (empty($this->config['proposals_mail']))
             return;
@@ -1593,26 +1619,79 @@ trait FNDBVIEWProposals
         }
         if ($mailalert && !empty($this->config['mailalert']))
             $emails[] = $this->config['mailalert'];
-        $body .= "\n\n" . FN_Translate("to view go to the address") . ":\n$link\n\n" . $_FN['sitename'];
+        if (count($emails) == 0)
+            return;
+        $html = $this->ProposalMailHtml($text, $link, $lines, $proposal, $record);
         foreach (array_unique($emails) as $email)
-            FN_SendMail($email, $text, $body, false);
+            FN_SendMail($email, $text, $html, true);
+    }
+
+    /**
+     * Body of the proposal mails (template proposalmail.tp.html of the section or of dbview)
+     * @param string $text subject
+     * @param string $link
+     * @param array $lines
+     * @param array|null $proposal
+     * @param array|null $record
+     * @return string HTML
+     */
+    protected function ProposalMailHtml($text, $link, $lines, $proposal, $record)
+    {
+        global $_FN;
+        $tablename = $this->ProposalsTableName();
+        $Table = FN_XMDBForm($tablename);
+        $current = is_array($record) ? "1" : "";
+        $fields = array();
+        $rows = array();
+        if (is_array($proposal)) {
+            foreach ($this->ProposalChanges($proposal) as $field => $change) {
+                $fields[] = array(
+                    "title" => htmlspecialchars($this->ProposalFieldTitle($Table, $field, $_FN['lang_default'])),
+                    "current" => $current ? $this->ProposalDisplayValue($Table, $field, isset($record[$field]) ? $record[$field] : "", true) : "",
+                    "proposed" => $this->ProposalValueHtml($Table, $proposal, $tablename, 0, $field, $change['new']),
+                    "hascurrent" => $current,
+                );
+            }
+            $rows = $this->ProposalRowItems($proposal, $this->ProposalNestedTables($Table), true, $_FN['lang_default']);
+        }
+        $items = array();
+        foreach ($lines as $line)
+            $items[] = array("text" => $this->ProposalTemplateText($line));
+        $vars = array(
+            "subject" => $this->ProposalTemplateText($text),
+            "link" => htmlspecialchars($link),
+            "lines" => $items,
+            "fields" => $fields,
+            "hasfields" => count($fields) > 0 ? "1" : "",
+            "hascurrent" => $current,
+            "rows" => $rows,
+            "openlabel" => $this->ProposalTemplateText($this->ProposalText("open the proposal")),
+            "fieldlabel" => $this->ProposalTemplateText($this->ProposalText("field")),
+            "currentlabel" => $this->ProposalTemplateText($this->ProposalText("current value")),
+            "proposedlabel" => $this->ProposalTemplateText($this->ProposalText("proposed value")),
+            "sitename" => $this->ProposalTemplateText($_FN['sitename']),
+        );
+        $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/proposalmail.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/proposalmail.tp.html" : FN_FromTheme("{$this->moddir}/proposalmail.tp.html", false);
+        return FN_TPL_ApplyTplFile($tplfile, $vars);
     }
 
     /**
      * Notification of a sent proposal: the reviewers and mailalert get it, the author
-     * a confirmation that it has been forwarded (the result comes with the review)
+     * a confirmation that it has been forwarded (the result comes with the review);
+     * both mails list the fields and the rows of the proposal
      * @param array $reviewers usernames
      * @param string $text short text for the reviewers
-     * @param string $body mail text for the reviewers
      * @param string $link absolute address of the proposal
      * @param string $title section and record, e.g. "Grotte - LI1 ..."
+     * @param array $proposal row of dbview_proposals
+     * @param array|null $record record of a proposed change
      */
-    protected function ProposalNotifySent($reviewers, $text, $body, $link, $title)
+    protected function ProposalNotifySent($reviewers, $text, $link, $title, $proposal, $record = null)
     {
         global $_FN;
-        $this->ProposalNotify($reviewers, $text, $body, $link, true);
-        $confirm = FN_Translate("your proposal has been sent to the users who manage this record") . ": $title";
-        $this->ProposalNotify(array($_FN['user']), $confirm, $confirm . "\n" . FN_Translate("you will receive the result of the review"), $link, false);
+        $this->ProposalNotify($reviewers, $text, $link, true, array(), $proposal, $record);
+        $confirm = $this->ProposalText("your proposal has been sent to the users who manage this record") . ": $title";
+        $this->ProposalNotify(array($_FN['user']), $confirm, $link, false, array($this->ProposalText("you will receive the result of the review")), $proposal, $record);
     }
 
     /**
@@ -1683,8 +1762,8 @@ trait FNDBVIEWProposals
         if (!is_array($record))
             $record = array();
         $title = $this->ProposalRecordTitle($id_record === "" ? $this->ProposalValues($proposal) : $record);
-        $text = FN_Translate("proposal withdrawn by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - $title";
-        $this->ProposalNotify($this->ProposalReviewers($record), $text, $text, $this->ProposalRecordLink($id_record, $proposal['id']), true);
+        $text = $this->ProposalText("proposal withdrawn by") . " {$_FN['user']}: {$_FN['sectionvalues']['title']} - $title";
+        $this->ProposalNotify($this->ProposalReviewers($record), $text, $this->ProposalRecordLink($id_record, $proposal['id']), true);
     }
 
     /**
@@ -1721,13 +1800,14 @@ trait FNDBVIEWProposals
     /**
      * @param object $Table
      * @param array $fields
+     * @param string $lang see ProposalFieldTitle
      * @return array titles of the fields
      */
-    protected function ProposalFieldTitles($Table, $fields)
+    protected function ProposalFieldTitles($Table, $fields, $lang = "")
     {
         $titles = array();
         foreach ($fields as $field)
-            $titles[] = $this->ProposalFieldTitle($Table, $field);
+            $titles[] = $this->ProposalFieldTitle($Table, $field, $lang);
         return $titles;
     }
 
@@ -1737,11 +1817,14 @@ trait FNDBVIEWProposals
      * left as they are in the mails
      * @param object $Table
      * @param string $field
+     * @param string $lang title in this language when the table has it (the mails), else the current one
      * @return string
      */
-    protected function ProposalFieldTitle($Table, $field)
+    protected function ProposalFieldTitle($Table, $field, $lang = "")
     {
         $title = isset($Table->formvals[$field]['title']) ? (string) $Table->formvals[$field]['title'] : $field;
+        if ($lang !== "" && !empty($Table->formvals[$field]["frm_$lang"]))
+            $title = (string) $Table->formvals[$field]["frm_$lang"];
         return trim(html_entity_decode(strip_tags($title), ENT_QUOTES, "UTF-8"));
     }
 
@@ -1751,13 +1834,14 @@ trait FNDBVIEWProposals
      * @param object $Table
      * @param string $field
      * @param string $value
+     * @param bool $mail true: the word for an empty value in the language of the mails
      * @return string
      */
-    protected function ProposalDisplayValue($Table, $field, $value)
+    protected function ProposalDisplayValue($Table, $field, $value, $mail = false)
     {
         $value = (string) $value;
         if ($value === "")
-            return "<em>" . FN_Translate("empty") . "</em>";
+            return "<em>" . ($mail ? $this->ProposalText("empty") : FN_Translate("empty")) . "</em>";
         if (!empty($Table->formvals[$field]['options']) && is_array($Table->formvals[$field]['options'])) {
             $titles = array();
             foreach (explode(",", $value) as $item) {
