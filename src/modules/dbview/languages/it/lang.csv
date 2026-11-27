@@ -198,3 +198,6 @@
 "compare with","confronta con"
 "proposal changed by","proposta modificata da"
 "your proposal has been changed","la proposta è stata modificata"
+"the section has validators: the members of the group validation_<section> (created when missing) and the site administrators review the proposals and alone may change the validation fields {1=yes,0=no}","la sezione ha dei validatori: i membri del gruppo validation_<sezione> (creato se manca) e gli amministratori del sito esaminano le proposte e sono i soli a poter cambiare i campi di validazione {1=si,0=no}"
+"fields that only the validators may change (comma separated)","campi che solo i validatori possono cambiare (separati da virgola)"
+"only the validators can review the proposals","solo i validatori possono esaminare le proposte"

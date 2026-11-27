@@ -3,8 +3,9 @@
     <form method="post" action="{action}" class="dbview-proposal mb-3">
         <input type="hidden" name="proposal" value="{id}" />
         <input type="hidden" name="fn_csrf" value="{token}" />
-        <!-- if {reviewer} --><p class="mb-2"><strong>{i18n:change proposed by} {user}</strong> - {date}</p><!-- end if {reviewer} -->
-        <!-- if not {reviewer} --><p class="mb-2"><strong>{i18n:your proposed change is waiting for review}</strong> - {date}</p><!-- end if not {reviewer} -->
+        <!-- if not {author} --><p class="mb-2"><strong>{i18n:change proposed by} {user}</strong> - {date}</p><!-- end if not {author} -->
+        <!-- if {author} --><p class="mb-2"><strong>{i18n:your proposed change is waiting for review}</strong> - {date}</p><!-- end if {author} -->
+        <!-- if {readonly} --><p class="small mb-2">{i18n:only the validators can review the proposals}</p><!-- end if {readonly} -->
         <!-- if {hasfields} -->
         <div class="table-responsive">
             <table class="table table-sm align-middle">
@@ -42,9 +43,9 @@
             <dl class="row mb-1">
                 <!-- foreach {values} --><dt class="col-sm-3">{title}</dt><dd class="col-sm-9">{value}</dd><!-- end foreach {values} -->
             </dl>
-            <!-- if not {reviewer} -->
+            <!-- if {author} -->
             <button type="submit" name="removerow" value="1" formaction="{removeaction}" class="btn btn-sm btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:remove from the proposal?}">{i18n:remove from the proposal}</button>
-            <!-- end if not {reviewer} -->
+            <!-- end if {author} -->
         </div>
         <!-- end foreach {rows} -->
         <!-- end if {hasrows} -->
@@ -53,7 +54,7 @@
         <button type="submit" name="action" value="accept" class="btn btn-primary">{i18n:accept the selected fields}</button>
         <button type="submit" name="action" value="reject" class="btn btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:discard the whole proposal?}">{i18n:discard all}</button>
         <!-- end if {reviewer} -->
-        <!-- if not {reviewer} --><a class="btn btn-primary" href="{editlink}">{i18n:modify the proposal}</a><!-- end if not {reviewer} -->
+        <!-- if {author} --><a class="btn btn-primary" href="{editlink}">{i18n:modify the proposal}</a><!-- end if {author} -->
     </form>
     <!-- end foreach {proposals} -->
 </section>

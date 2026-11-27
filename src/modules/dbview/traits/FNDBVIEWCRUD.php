@@ -39,6 +39,10 @@ trait FNDBVIEWCRUD
 
         if (!$this->CanUpdateRecord($oldvalues))
             return (FN_Translate("you may not do that"));
+        // the fields reserved to the validators are not in the form of the others: a value
+        // posted anyway is dropped and the stored one stays
+        foreach ($this->ValidationLockedFields() as $field)
+            unset($newvalues[$field]);
 
         $toupdate = $this->checkIfUpdateNeeded($oldvalues, $newvalues, $Table);
 
@@ -235,6 +239,12 @@ trait FNDBVIEWCRUD
         $newvalues['insert'] = time();
         $newvalues['update'] = time();
         $newvalues['username'] = $username;
+        // who is not a validator gets the default value of the validation fields
+        foreach ($this->ValidationLockedFields() as $field) {
+            unset($newvalues[$field]);
+            if (isset($Table->formvals[$field]['frm_default']))
+                $newvalues[$field] = $Table->formvals[$field]['frm_default'];
+        }
         $newvalues = $this->applyFieldTransformations($newvalues, $Table);
         $errors = $Table->VerifyInsert($newvalues);
         if (count($errors) > 0)

@@ -143,6 +143,66 @@ trait FNDBVIEWPermissions
     }
 
     /**
+     * True when the section has validators (enable_validation)
+     * @return bool
+     */
+    function ValidationEnabled()
+    {
+        return !empty($this->config['enable_validation']);
+    }
+
+    /**
+     * Group of the validators of the section: validation_<section>. Init() creates it
+     * when the validation is on, so that an administrator only has to add its members
+     * @return string
+     */
+    function ValidationGroup()
+    {
+        global $_FN;
+        return "validation_" . preg_replace('/[^A-Za-z0-9_]/', '_', $_FN['mod']);
+    }
+
+    /**
+     * True when the validation is on and the current user is a validator: a member of
+     * ValidationGroup() or a site administrator
+     * @return bool
+     */
+    function IsValidator()
+    {
+        global $_FN;
+        if (!$this->ValidationEnabled() || $_FN['user'] == "")
+            return false;
+        return FN_IsAdmin() || FN_UserInGroup($_FN['user'], $this->ValidationGroup());
+    }
+
+    /**
+     * Fields of validation_fields the current user may not change: all of them for who is
+     * not a validator, none when the validation is off
+     * @return array field names
+     */
+    function ValidationLockedFields()
+    {
+        if (!$this->ValidationEnabled() || $this->IsValidator())
+            return array();
+        $fields = isset($this->config['validation_fields']) ? $this->config['validation_fields'] : "";
+        return array_values(array_filter(array_map("trim", explode(",", $fields))));
+    }
+
+    /**
+     * True when the current user may review (accept or discard) the proposals: with the
+     * validation on only the validators, otherwise who may edit the record or, for the
+     * proposed new records ($row null), who may add records
+     * @param array|null $row record of a proposed change
+     * @return bool
+     */
+    function CanReviewProposal($row = null)
+    {
+        if ($this->ValidationEnabled())
+            return $this->IsValidator();
+        return is_array($row) ? $this->CanUpdateRecord($row) : $this->CanAddRecord();
+    }
+
+    /**
      * Check if user can add records
      * @return bool
      */

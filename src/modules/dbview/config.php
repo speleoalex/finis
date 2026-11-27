@@ -80,6 +80,10 @@ $config['proposals_mail'] = "1";
 $config['proposals_exclude_fields'] = "";
 //[i18n]linked tables whose new rows (with their files) a proposal may carry, for a new record or a change (comma separated, empty = none)
 $config['proposals_innertables'] = "";
+//[i18n]the section has validators: the members of the group validation_<section> (created when missing) and the site administrators review the proposals and alone may change the validation fields {1=yes,0=no}
+$config['enable_validation'] = "0";
+//[i18n]fields that only the validators may change (comma separated)
+$config['validation_fields'] = "";
 //[i18n]enables export {1=yes,0=no}
 $config['enable_export'] = "0";
 //$appendquery = "";

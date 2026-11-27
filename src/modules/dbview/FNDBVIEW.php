@@ -227,6 +227,9 @@ class FNDBVIEW
         if (!empty($config['enable_proposals'])) {
             $this->InitProposalsTable();
         }
+        if ($this->ValidationEnabled()) {
+            FN_CreateGroupIfNotExists($this->ValidationGroup());
+        }
         //------------------- tabella delle statistiche -------------------------
         if ($config['enable_statistics'] == 1) {
             if (!file_exists("{$_FN['datadir']}/{$_FN['database']}/{$tablename}" . "_stat") || !file_exists("{$_FN['datadir']}/{$_FN['database']}/{$tablename}" . "_stat.php")) {

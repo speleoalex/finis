@@ -26,6 +26,7 @@
         <input type="hidden" name="fn_csrf" value="{token}" />
         <h4 class="h5">{recordtitle}</h4>
         <p class="mb-2">{i18n:new record proposed by} {user} - {date}</p>
+        <!-- if {readonly} --><p class="small mb-2">{i18n:only the validators can review the proposals}</p><!-- end if {readonly} -->
         <div class="table-responsive">
             <table class="table table-sm align-middle">
                 <thead>
@@ -58,9 +59,9 @@
             <dl class="row mb-1">
                 <!-- foreach {values} --><dt class="col-sm-3">{title}</dt><dd class="col-sm-9">{value}</dd><!-- end foreach {values} -->
             </dl>
-            <!-- if not {reviewer} -->
+            <!-- if {author} -->
             <button type="submit" name="removerow" value="1" formaction="{removeaction}" class="btn btn-sm btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:remove from the proposal?}">{i18n:remove from the proposal}</button>
-            <!-- end if not {reviewer} -->
+            <!-- end if {author} -->
         </div>
         <!-- end foreach {rows} -->
         <!-- end if {hasrows} -->
@@ -69,10 +70,10 @@
         <button type="submit" name="action" value="accept" class="btn btn-primary">{i18n:accept and create the record}</button>
         <button type="submit" name="action" value="reject" class="btn btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:discard the whole proposal?}">{i18n:discard all}</button>
         <!-- end if {reviewer} -->
-        <!-- if not {reviewer} -->
+        <!-- if {author} -->
         <a class="btn btn-primary" href="{editlink}">{i18n:modify the proposal}</a>
         <button type="submit" name="action" value="withdraw" class="btn btn-outline-danger" onclick="return confirm(this.getAttribute('data-confirm'))" data-confirm="{i18n:withdraw the proposal?}">{i18n:withdraw the proposal}</button>
-        <!-- end if not {reviewer} -->
+        <!-- end if {author} -->
     </form>
     <!-- end foreach {proposals} -->
     <!-- end if {newrecords} -->

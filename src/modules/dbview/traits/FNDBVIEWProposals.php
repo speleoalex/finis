@@ -95,7 +95,7 @@ trait FNDBVIEWProposals
         $system = array("username", "userupdate", "recordinsert", "recordupdate", "recorddeleted",
             "groupview", "groupinsert", "view", "insert", "update");
         $row = $linkfield !== "";
-        $excluded = $row ? array($linkfield) : array_map("trim", explode(",", isset($this->config['proposals_exclude_fields']) ? $this->config['proposals_exclude_fields'] : ""));
+        $excluded = $row ? array($linkfield) : array_merge(array_map("trim", explode(",", isset($this->config['proposals_exclude_fields']) ? $this->config['proposals_exclude_fields'] : "")), $this->ValidationLockedFields());
         $fields = array();
         foreach ($Table->formvals as $name => $field) {
             if (!empty($field['primarykey']) || in_array($name, $system, true) || in_array($name, $excluded, true))
@@ -223,9 +223,9 @@ trait FNDBVIEWProposals
         global $_FN;
         $mine = $_FN['user'] != "" && $proposal['username'] === $_FN['user'];
         if ((string) $proposal['table_unirecid'] === "")
-            return $this->CanAddRecord() || ($mine && $this->CanProposeNewRecord());
+            return $this->CanReviewProposal() || $this->CanAddRecord() || ($mine && $this->CanProposeNewRecord());
         $row = FN_XMDBTable($this->ProposalsTableName())->GetRecordByPrimaryKey($proposal['table_unirecid']);
-        return is_array($row) && ($this->CanUpdateRecord($row) || ($mine && $this->CanProposeRecord($row)));
+        return is_array($row) && ($this->CanReviewProposal($row) || $this->CanUpdateRecord($row) || ($mine && $this->CanProposeRecord($row)));
     }
 
     /**
@@ -497,7 +497,7 @@ trait FNDBVIEWProposals
         $row = $Table->xmltable->GetRecordByPrimaryKey($id_record);
         $proposalid = FN_GetParam("proposal", $_POST);
         $isPost = (isset($_SERVER['REQUEST_METHOD']) && strtoupper($_SERVER['REQUEST_METHOD']) === 'POST');
-        if (!$isPost || empty($this->config['enable_proposals']) || !is_array($row) || !$this->CanUpdateRecord($row))
+        if (!$isPost || empty($this->config['enable_proposals']) || !is_array($row) || !$this->CanReviewProposal($row))
             return FN_Translate("you may not do that");
         if (!isset($_POST['fn_csrf']) || !hash_equals($this->CsrfToken("proposal|$tablename|$proposalid"), (string) $_POST['fn_csrf']))
             return FN_Translate("you may not do that");
@@ -790,7 +790,7 @@ trait FNDBVIEWProposals
         $action = FN_GetParam("action", $_POST);
         $isPost = (isset($_SERVER['REQUEST_METHOD']) && strtoupper($_SERVER['REQUEST_METHOD']) === 'POST');
         $reviewer = $action !== "withdraw";
-        if (!$isPost || empty($this->config['enable_proposals']) || $_FN['user'] == "" || ($reviewer && !$this->CanAddRecord()))
+        if (!$isPost || empty($this->config['enable_proposals']) || $_FN['user'] == "" || ($reviewer && !$this->CanReviewProposal()))
             return FN_Translate("you may not do that");
         if (!isset($_POST['fn_csrf']) || !hash_equals($this->CsrfToken("proposal|$tablename|$proposalid"), (string) $_POST['fn_csrf']))
             return FN_Translate("you may not do that");
@@ -897,8 +897,10 @@ trait FNDBVIEWProposals
         global $_FN;
         if (empty($this->config['enable_proposals']) || $_FN['user'] == "")
             return FN_Translate("you may not do that");
-        $reviewer = $this->CanAddRecord();
-        $newrecords = $reviewer || $this->CanProposeNewRecord();
+        $reviewer = $this->CanReviewProposal();
+        // who may add records sees every proposal, read only when not a reviewer
+        $viewer = $reviewer || $this->CanAddRecord();
+        $newrecords = $viewer || $this->CanProposeNewRecord();
         $tablename = $this->ProposalsTableName();
         $Table = FN_XMDBForm($tablename);
         $changes = array();
@@ -919,9 +921,10 @@ trait FNDBVIEWProposals
             $this->ProposalNotificationsDisplayed($this->ProposalRecordLink(""));
         $nested = $this->ProposalNestedTables($Table);
         $items = array();
-        foreach ($newrecords ? $this->PendingProposals($tablename, "", $reviewer ? "" : $_FN['user']) : array() as $proposal) {
-            $addrows = $reviewer ? array() : $this->ProposalAddRowItems($proposal, $nested);
-            $rows = $this->ProposalRowItems($proposal, $nested, $reviewer);
+        foreach ($newrecords ? $this->PendingProposals($tablename, "", $viewer ? "" : $_FN['user']) : array() as $proposal) {
+            $author = !$reviewer && $proposal['username'] === $_FN['user'];
+            $addrows = $author ? $this->ProposalAddRowItems($proposal, $nested) : array();
+            $rows = $this->ProposalRowItems($proposal, $nested, $reviewer, $author);
             $fields = array();
             foreach ($this->ProposalChanges($proposal) as $field => $change) {
                 $fields[] = array(
@@ -936,8 +939,10 @@ trait FNDBVIEWProposals
                 "date" => htmlspecialchars(FN_FormatDate($proposal['recordinsert'])),
                 "token" => $this->CsrfToken("proposal|$tablename|" . $proposal['id']),
                 "action" => $this->MakeLink(array("op" => "proposal", "id" => null), "&amp;"),
-                "editlink" => $reviewer ? "" : $this->MakeLink(array("op" => "propose", "id" => null, "proposal" => $proposal['id']), "&amp;"),
+                "editlink" => $author ? $this->MakeLink(array("op" => "propose", "id" => null, "proposal" => $proposal['id']), "&amp;") : "",
                 "reviewer" => $reviewer ? "1" : "",
+                "author" => $author ? "1" : "",
+                "readonly" => $reviewer || $author ? "" : "1",
                 "fields" => $fields,
                 "rows" => $rows,
                 "hasrows" => count($rows) > 0 ? "1" : "",
@@ -951,7 +956,7 @@ trait FNDBVIEWProposals
             "empty" => count($items) == 0 ? "1" : "",
             "changes" => $changes,
             "nochanges" => count($changes) == 0 ? "1" : "",
-            "newlink" => $reviewer ? "" : $this->MakeLink(array("op" => "propose", "id" => null, "proposal" => null), "&amp;"),
+            "newlink" => $this->CanProposeNewRecord() ? $this->MakeLink(array("op" => "propose", "id" => null, "proposal" => null), "&amp;") : "",
             "listlink" => $this->MakeLink(array("op" => null, "id" => null, "proposal" => null), "&amp;"),
         );
         $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/newproposals.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/newproposals.tp.html" : FN_FromTheme("{$this->moddir}/newproposals.tp.html", false);
@@ -1183,11 +1188,12 @@ trait FNDBVIEWProposals
      * Rows of the linked tables of a proposal for newproposals.tp.html
      * @param array $proposal
      * @param array $nested see ProposalNestedTables
-     * @param bool $reviewer
+     * @param bool $reviewer the rows can be accepted
+     * @param bool $author the rows can be removed (the author of the proposal)
      * @param string $lang titles in this language (the mails), else the current one
      * @return array
      */
-    protected function ProposalRowItems($proposal, $nested, $reviewer, $lang = "")
+    protected function ProposalRowItems($proposal, $nested, $reviewer, $author = false, $lang = "")
     {
         $items = array();
         foreach ($this->ProposalRows($proposal) as $tablename => $rows) {
@@ -1208,7 +1214,8 @@ trait FNDBVIEWProposals
                     "rowid" => htmlspecialchars($id),
                     "inputid" => "proposalrow_" . intval($proposal['id']) . "_" . preg_replace('/[^A-Za-z0-9_]/', '_', $id),
                     "reviewer" => $reviewer ? "1" : "",
-                    "removeaction" => $reviewer ? "" : $this->ProposalRowLink($proposal, $tablename, $key),
+                    "author" => $author ? "1" : "",
+                    "removeaction" => $author ? $this->ProposalRowLink($proposal, $tablename, $key) : "",
                     "values" => $list,
                 );
             }
@@ -1526,25 +1533,27 @@ trait FNDBVIEWProposals
         global $_FN;
         if (empty($this->config['enable_proposals']) || $_FN['user'] == "")
             return "";
-        $reviewer = $this->CanAddRecord();
+        $viewer = $this->CanReviewProposal() || $this->CanAddRecord();
         $proposer = $this->CanProposeNewRecord();
         $count = count($this->VisibleChangeProposals());
-        if ($reviewer || $proposer)
-            $count += count($this->PendingProposals($this->ProposalsTableName(), "", $reviewer ? "" : $_FN['user']));
+        if ($viewer || $proposer)
+            $count += count($this->PendingProposals($this->ProposalsTableName(), "", $viewer ? "" : $_FN['user']));
         $html = "";
         if ($proposer)
             $html .= "<a class=\"btn btn-primary\" href=\"" . $this->MakeLink(array("op" => "propose", "id" => null), "&amp;") . "\">" . FN_Translate("propose a new record") . "</a> ";
-        if ($reviewer || $count > 0)
+        if ($viewer || $count > 0)
             $html .= "<a class=\"btn " . ($count > 0 ? "btn-warning" : "btn-outline-secondary") . "\" href=\"" . $this->MakeLink(array("op" => "proposal", "id" => null), "&amp;") . "\">" . FN_Translate("proposals waiting for review") . ": $count</a>";
         return $html === "" ? "" : "<p class=\"dbview-propose-new\">$html</p>";
     }
 
     /**
-     * Users who receive the proposals of a record: creator, users enabled on the
-     * record, section administrators and members of the groups that can edit it.
-     * With no group that can edit (any logged-in user) only creator, enabled users
-     * and administrators; the site administrators when nobody else is left.
-     * For a new record (empty $row) the section administrators and the groups that can add records.
+     * Users who receive the proposals of a record. With the validation on (enable_validation)
+     * the validators (members of ValidationGroup()). Otherwise: creator, users enabled on the
+     * record, section administrators and members of the groups that can edit it; with no
+     * group that can edit (any logged-in user) only creator, enabled users and
+     * administrators. For a new record (empty $row) the section administrators and the
+     * groups that can add records. Disabled users (active != 1, as for the login) are left
+     * out; the site administrators when nobody else is left.
      * @param array $row
      * @return array usernames
      */
@@ -1569,13 +1578,23 @@ trait FNDBVIEWProposals
         $allusers = FN_GetUsers();
         if (!is_array($allusers))
             $allusers = array();
+        $active = array();
+        foreach ($allusers as $u) {
+            if (!empty($u['active']) && $u['active'] == 1)
+                $active[$u['username']] = $u;
+        }
+        $allusers = $active;
+        if ($this->ValidationEnabled()) {
+            $users = array();
+            $groups = array($this->ValidationGroup());
+        }
         if (count($groups) > 0) {
             foreach ($allusers as $u) {
                 if (count(array_intersect($groups, explode(",", (string) $u['group']))) > 0)
                     $users[] = $u['username'];
             }
         }
-        $users = array_values(array_diff(array_unique(array_filter($users)), array($_FN['user'])));
+        $users = array_values(array_intersect(array_diff(array_unique(array_filter($users)), array($_FN['user'])), array_keys($allusers)));
         if (count($users) == 0) {
             foreach ($allusers as $u) {
                 if (intval($u['level']) >= 10 && $u['username'] != $_FN['user'])
@@ -1667,7 +1686,7 @@ trait FNDBVIEWProposals
                     "hascurrent" => $current,
                 );
             }
-            $rows = $this->ProposalRowItems($proposal, $this->ProposalNestedTables($Table), true, $_FN['lang_default']);
+            $rows = $this->ProposalRowItems($proposal, $this->ProposalNestedTables($Table), true, false, $_FN['lang_default']);
         }
         $items = array();
         foreach ($lines as $line)
@@ -1941,8 +1960,10 @@ trait FNDBVIEWProposals
         if ($Table->xmltable->tablename != $tablename || !isset($row[$pk]))
             return "";
         $id_record = $row[$pk];
-        $reviewer = $this->CanUpdateRecord($row);
-        $pending = $this->PendingProposals($tablename, $id_record, $reviewer ? "" : $_FN['user']);
+        $reviewer = $this->CanReviewProposal($row);
+        // who may edit the record sees every proposal, read only when not a reviewer
+        $viewer = $reviewer || $this->CanUpdateRecord($row);
+        $pending = $this->PendingProposals($tablename, $id_record, $viewer ? "" : $_FN['user']);
         if (count($pending) == 0)
             return "";
         if ($reviewer)
@@ -1950,6 +1971,7 @@ trait FNDBVIEWProposals
         $nested = $this->ProposalNestedTables($Table);
         $items = array();
         foreach ($pending as $proposal) {
+            $author = !$reviewer && $proposal['username'] === $_FN['user'];
             $fields = array();
             foreach ($this->ProposalChanges($proposal) as $field => $change) {
                 $current = isset($row[$field]) ? (string) $row[$field] : "";
@@ -1964,7 +1986,7 @@ trait FNDBVIEWProposals
                     "reviewer" => $reviewer ? "1" : "",
                 );
             }
-            $rows = $this->ProposalRowItems($proposal, $nested, $reviewer);
+            $rows = $this->ProposalRowItems($proposal, $nested, $reviewer, $author);
             $items[] = array(
                 "id" => intval($proposal['id']),
                 "user" => htmlspecialchars($proposal['username']),
@@ -1972,12 +1994,14 @@ trait FNDBVIEWProposals
                 "token" => $reviewer ? $this->CsrfToken("proposal|$tablename|" . $proposal['id']) : $this->ProposalRowToken($proposal),
                 "action" => $this->MakeLink(array("op" => $reviewer ? "proposal" : "view", "id" => $id_record), "&amp;"),
                 "reviewer" => $reviewer ? "1" : "",
-                "editlink" => $reviewer ? "" : $this->MakeLink(array("op" => "propose", "id" => $id_record), "&amp;"),
+                "author" => $author ? "1" : "",
+                "readonly" => $reviewer || $author ? "" : "1",
+                "editlink" => $author ? $this->MakeLink(array("op" => "propose", "id" => $id_record), "&amp;") : "",
                 "fields" => $fields,
                 "hasfields" => count($fields) > 0 ? "1" : "",
                 "rows" => $rows,
                 "hasrows" => count($rows) > 0 ? "1" : "",
-                "addrows" => $reviewer ? array() : $this->ProposalAddRowItems($proposal, $nested),
+                "addrows" => $author ? $this->ProposalAddRowItems($proposal, $nested) : array(),
             );
         }
         $tplfile = file_exists("{$_FN['src_application']}/sections/{$_FN['mod']}/proposals.tp.html") ? "{$_FN['src_application']}/sections/{$_FN['mod']}/proposals.tp.html" : FN_FromTheme("{$this->moddir}/proposals.tp.html", false);

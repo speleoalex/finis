@@ -160,6 +160,13 @@ else
             $Table->formvals['groupinsert']['frm_show'] = 0;
         }
     }
+    // fields reserved to the validators (enable_validation): not in the forms of the
+    // others, so not in their proposals either; UpdateRecord and CreateRecord enforce it
+    foreach ($dbview->ValidationLockedFields() as $lockedfield)
+    {
+        if (isset($Table->formvals[$lockedfield]))
+            $Table->formvals[$lockedfield]['frm_show'] = 0;
+    }
 //-----------------------------principale ------------------------------------->
     if ($dbview->CanViewRecords())
     {
