@@ -371,7 +371,7 @@ trait FNDBVIEWProposals
             case "toolong":
                 return FN_HtmlAlert(FN_Translate("the proposal is too long")) . $this->EditRecordForm($id_record, $Table, array(), false, true);
         }
-        return FN_HtmlAlert(FN_Translate("your proposal has been sent to the users who manage this record")) . $this->ViewRecordPage($id_record);
+        return FN_HtmlAlert(FN_Translate(empty($result['changed']) ? "your proposal has been sent to the users who manage this record" : "your proposal has been changed")) . $this->ViewRecordPage($id_record);
     }
 
     /**
@@ -469,6 +469,12 @@ trait FNDBVIEWProposals
         }
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename change proposed for $id_record.");
 
+        // a proposal is announced once: when the author changes it while pending the
+        // reviewers are told it changed, not sent it again as new (proposal 10, 2026-11-27)
+        if (count($pending) > 0) {
+            $this->ProposalNotifyChanged(array_merge($pending[0], $values), $row);
+            return array("status" => "sent", "changed" => true, "proposal" => $values, "changes" => $changes);
+        }
         $title = "{$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($row);
         $text = $this->ProposalText("change proposed by") . " {$_FN['user']}: $title";
         $this->ProposalNotifySent($this->ProposalReviewers($row), $text, $this->ProposalRecordLink($id_record, isset($values['id']) ? $values['id'] : ""), $title, $values, $row);
@@ -662,7 +668,7 @@ trait FNDBVIEWProposals
             case "toolong":
                 return FN_HtmlAlert(FN_Translate("the proposal is too long")) . $this->NewRecordForm($Table, array(), true, $pending);
         }
-        return FN_HtmlAlert(FN_Translate("your proposal has been sent to the users who manage this record")) . $this->ProposalsListPage();
+        return FN_HtmlAlert(FN_Translate(empty($result['changed']) ? "your proposal has been sent to the users who manage this record" : "your proposal has been changed")) . $this->ProposalsListPage();
     }
 
     /**
@@ -756,6 +762,11 @@ trait FNDBVIEWProposals
         }
         FN_Log("{$_FN['mod']}||" . $_SERVER['REMOTE_ADDR'] . "||" . $_FN['user'] . "||Table $tablename new record proposed.");
 
+        // announced once, see ProposeChangeValues
+        if ($pending) {
+            $this->ProposalNotifyChanged(array_merge($pending, $values));
+            return array("status" => "sent", "changed" => true, "proposal" => $values, "changes" => $changes);
+        }
         $title = "{$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($proposed);
         $text = $this->ProposalText("new record proposed by") . " {$_FN['user']}: $title";
         $this->ProposalNotifySent($this->ProposalReviewers(array()), $text, $this->ProposalRecordLink("", isset($values['id']) ? $values['id'] : ""), $title, $values);
@@ -1384,6 +1395,8 @@ trait FNDBVIEWProposals
             $title = "{$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($record);
             $text = $this->ProposalText("change proposed by") . " {$_FN['user']}: $title";
             $this->ProposalNotifySent($this->ProposalReviewers($record), $text, $this->ProposalRecordLink($proposal['table_unirecid'], $proposal['id']), $title, $proposal, $record);
+        } else {
+            $this->ProposalNotifyChanged($proposal);
         }
         return array("status" => "saved", "proposal" => $proposal, "key" => $key);
     }
@@ -1412,8 +1425,10 @@ trait FNDBVIEWProposals
                 return FN_HtmlAlert(FN_Translate("proposal withdrawn")) . $this->ProposalPage($proposal);
             }
             // shorter than before: it fits
-            FN_XMDBTable("dbview_proposals")->UpdateRecord(array("id" => $proposal['id'], "changes" => $this->ProposalChangesJson($changes, $rows)));
+            $proposal['changes'] = $this->ProposalChangesJson($changes, $rows);
+            FN_XMDBTable("dbview_proposals")->UpdateRecord(array("id" => $proposal['id'], "changes" => $proposal['changes']));
             $this->RemoveProposalFiles($proposal['id'], $tablename, $key);
+            $this->ProposalNotifyChanged($proposal);
         }
         return FN_HtmlAlert(FN_Translate("removed from the proposal")) . $this->ProposalPage($proposal);
     }
@@ -1692,6 +1707,33 @@ trait FNDBVIEWProposals
         $this->ProposalNotify($reviewers, $text, $link, true, array(), $proposal, $record);
         $confirm = $this->ProposalText("your proposal has been sent to the users who manage this record") . ": $title";
         $this->ProposalNotify(array($_FN['user']), $confirm, $link, false, array($this->ProposalText("you will receive the result of the review")), $proposal, $record);
+    }
+
+    /**
+     * Tells the reviewers and mailalert that the author changed a pending proposal. Nothing
+     * is sent when a notification of the same proposal (sent, changed) went out less than
+     * an hour ago: a few corrections in a row make one message, and the page of the
+     * proposal always shows it as it is now. The author is not notified of a change they
+     * made themselves.
+     * @param array $proposal row of dbview_proposals, with the changes as they are now
+     * @param array|null $record record of a proposed change, read when not given
+     * @return bool true when the notification has been sent
+     */
+    protected function ProposalNotifyChanged($proposal, $record = null)
+    {
+        global $_FN;
+        $id_record = (string) $proposal['table_unirecid'];
+        $link = $this->ProposalRecordLink($id_record, $proposal['id']);
+        // the notifications keep the link escaped by FN_AddNotification
+        $last = FN_XMDBTable("fn_notifications")->GetRecords(array("context" => "dbview_proposals", "link" => FN_GetParam("link", array("link" => $link), "html")), 0, 1, "date", true, "date");
+        if (is_array($last) && isset($last[0]['date']) && time() - strtotime($last[0]['date']) < 3600)
+            return false;
+        if ($id_record !== "" && !is_array($record))
+            $record = FN_XMDBTable($this->ProposalsTableName())->GetRecordByPrimaryKey($id_record);
+        $title = "{$_FN['sectionvalues']['title']} - " . $this->ProposalRecordTitle($id_record !== "" ? $record : $this->ProposalValues($proposal));
+        $text = $this->ProposalText("proposal changed by") . " {$_FN['user']}: $title";
+        $this->ProposalNotify($this->ProposalReviewers($id_record !== "" ? $record : array()), $text, $link, true, array(), $proposal, $id_record !== "" ? $record : null);
+        return true;
     }
 
     /**
